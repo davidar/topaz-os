@@ -49,8 +49,20 @@ systemctl enable earlyoom.service
 
 ### Fingerprint-friendly PAM stack (authselect)
 # The default fingerprint PAM flow blocks password entry until fprintd times
-# out (30s). The custom profile (shipped in system_files) sets timeout=5 so
-# the password prompt appears after 5s if the reader is not used.
+# out (30s). Generate a custom profile from the base `local` profile: every
+# file is a symlink back to the base, so upstream profile changes flow through
+# automatically, except system-auth, which is copied and patched to set
+# timeout=5 so the password prompt appears after 5s if the reader is unused.
+authselect create-profile local-custom --base-on local \
+    --symlink-meta --symlink-nsswitch --symlink-dconf --symlink-pam
+rm /etc/authselect/custom/local-custom/system-auth
+cp /usr/share/authselect/default/local/system-auth \
+    /etc/authselect/custom/local-custom/system-auth
+# Guard: fail the build if upstream reshaped the pam_fprintd line
+grep -Eq 'pam_fprintd\.so\s+\{include if "with-fingerprint"\}' \
+    /etc/authselect/custom/local-custom/system-auth
+sed -i 's/pam_fprintd\.so/pam_fprintd.so timeout=5/' \
+    /etc/authselect/custom/local-custom/system-auth
 authselect select custom/local-custom \
     with-fingerprint with-silent-lastlog with-mdns4 --force
 

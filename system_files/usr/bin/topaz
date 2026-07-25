@@ -85,6 +85,8 @@ cmd_check() {
         test -f /usr/lib/systemd/user/topaz-nightshift.timer
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
+    chk "authselect profile symlinks to the base profile" \
+        test -L /etc/authselect/custom/local-custom/password-auth
     chk "Playwright Chrome path rule is present" \
         test -f /usr/lib/tmpfiles.d/topaz-chrome-path.conf
     chk "supergfxd is enabled" \

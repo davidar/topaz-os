@@ -23,8 +23,10 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **earlyoom, enabled by default** — with a swap-usage threshold added to the Fedora
   defaults so memory-pressure intervention happens before swap thrashing makes the
   desktop unresponsive.
-- **Fingerprint-friendly PAM** — custom authselect profile with a 5s fprintd timeout,
-  so the password prompt isn't blocked for 30s when fingerprint auth is enrolled.
+- **Fingerprint-friendly PAM** — custom authselect profile (generated at build
+  time from the base profile, with a 5s fprintd timeout patched into
+  `system-auth`) so the password prompt isn't blocked for 30s when fingerprint
+  auth is enrolled.
 - **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
   export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
 - **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.
