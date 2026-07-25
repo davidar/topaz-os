@@ -1,0 +1,79 @@
+#!/bin/bash
+# topaz-nightshift — periodic system triage.
+#
+# Collects a digest of system events since the last run (failed units, journal
+# errors, OOM interventions, pending updates, image self-check). If the user
+# has configured a triage command (see nightshift.conf.example), the digest is
+# piped through it to produce the report; otherwise the raw digest is saved.
+# Runs from a systemd user timer; disabled by default
+# (enable with `topaz nightshift enable`).
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/topaz"
+REPORTS_DIR="$STATE_DIR/reports"
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/topaz/nightshift.conf"
+mkdir -p "$REPORTS_DIR"
+
+# User configuration may define TRIAGE_CMD and TRIAGE_TIMEOUT
+[ -f "$CONF" ] && . "$CONF"
+TRIAGE_TIMEOUT="${TRIAGE_TIMEOUT:-600}"
+
+SINCE=$(cat "$STATE_DIR/last-run" 2>/dev/null || date -Iseconds --date='24 hours ago')
+NOW=$(date -Iseconds)
+DIGEST="$STATE_DIR/last-digest.txt"
+
+{
+    echo "== Digest window: $SINCE .. $NOW =="
+    echo
+    echo "== Failed system units =="
+    systemctl --failed --no-legend --plain 2>/dev/null || echo "(unavailable)"
+    echo
+    echo "== Failed user units =="
+    systemctl --user --failed --no-legend --plain 2>/dev/null || echo "(unavailable)"
+    echo
+    echo "== Journal errors (priority err and worse) =="
+    journalctl --priority=err --since "$SINCE" --no-pager -q 2>/dev/null | tail -n 200 \
+        || echo "(journal unavailable)"
+    echo
+    echo "== earlyoom activity =="
+    journalctl -u earlyoom --since "$SINCE" --no-pager -q 2>/dev/null | tail -n 50 \
+        || echo "(none)"
+    echo
+    echo "== Deployment status =="
+    rpm-ostree status 2>/dev/null | head -n 20 || echo "(unavailable)"
+    echo
+    echo "== Disk usage =="
+    df -h / /var 2>/dev/null
+    echo
+    echo "== Image self-check =="
+    topaz check 2>&1 || true
+} > "$DIGEST"
+
+REPORT="$REPORTS_DIR/$(date +%F).md"
+
+save_raw() { # save_raw <reason>
+    {
+        echo "# Night shift $(date +%F) (untriaged)"
+        echo
+        echo "$1"
+        echo
+        echo '```'
+        cat "$DIGEST"
+        echo '```'
+    } > "$REPORT"
+}
+
+if [ -n "${TRIAGE_CMD:-}" ]; then
+    if timeout "$TRIAGE_TIMEOUT" bash -c "$TRIAGE_CMD" < "$DIGEST" > "$REPORT.tmp" 2>/dev/null \
+        && [ -s "$REPORT.tmp" ]; then
+        mv "$REPORT.tmp" "$REPORT"
+    else
+        rm -f "$REPORT.tmp"
+        save_raw "The configured triage command failed or produced no output; raw digest follows."
+    fi
+else
+    save_raw "No triage command configured (see /usr/share/topaz-os/nightshift.conf.example); raw digest follows."
+fi
+
+echo "$NOW" > "$STATE_DIR/last-run"
+echo "Report written: $REPORT"

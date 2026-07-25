@@ -7,8 +7,9 @@ cp -avf "/ctx/system_files"/. /
 
 ### COSMIC desktop
 # Installed alongside the base image's GNOME; selectable from the GDM session
-# picker. cosmic-greeter is intentionally omitted to keep GDM as the display
-# manager.
+# picker. cosmic-greeter comes along as a hard dependency of cosmic-session
+# but is not enabled: GDM remains the display manager (verified by
+# `topaz check`).
 dnf5 -y install \
     cosmic-session \
     cosmic-comp \

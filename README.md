@@ -30,7 +30,18 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   ```
   $ topaz why /etc/default/earlyoom     # why does this file deviate?
   $ topaz ledger                        # list all recorded deviations
+  $ topaz check                         # verify the deviations actually hold
   ```
+
+  `topaz check` also runs at image build time, so an image that no longer
+  matches its own ledger fails to build.
+- **An opt-in "night shift"** — a daily systemd user timer that digests system
+  events (failed units, journal errors, OOM activity, staged updates, the
+  self-check) into a morning report. Analysis is a pluggable hook: point
+  `TRIAGE_CMD` at any command that reads the digest on stdin — an AI agent, a
+  local model, or a script — or leave it unset for raw digests. Disabled by
+  default; `topaz nightshift enable` to opt in. See
+  `/usr/share/topaz-os/nightshift.conf.example`.
 
 ## Usage
 

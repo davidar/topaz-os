@@ -12,5 +12,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh
 
-# Verify final image and contents are correct
+# Verify final image and contents are correct, and that the image still
+# matches the claims in its provenance ledger
+RUN /usr/bin/topaz check
 RUN bootc container lint

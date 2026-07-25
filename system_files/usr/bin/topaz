@@ -1,17 +1,18 @@
 #!/bin/bash
-# topaz — query the provenance ledger of this image.
-# Every deliberate deviation from the base image has a ledger entry recording
-# what was changed, why, and the evidence behind it.
+# topaz — the topaz-os system companion.
+#
+#   topaz why <path>     Why does this file deviate from the base image?
+#   topaz ledger         List all recorded deviations
+#   topaz check          Verify the image's recorded deviations actually hold
+#   topaz report         Show the most recent night-shift report
+#   topaz nightshift ... Manage the night-shift triage timer
 set -euo pipefail
 
 LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/topaz"
 
 usage() {
-    cat <<EOF
-Usage:
-  topaz why <path>    Show why a file or setting deviates from the base image
-  topaz ledger        List all ledger entries
-EOF
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -35,7 +36,6 @@ cmd_why() {
     local query="${1%/}" f found=0
     for f in "$LEDGER_DIR"/*.md; do
         [ -e "$f" ] || break
-        # Match against the entry's declared paths (frontmatter list items)
         if awk -v q="$query" '
             BEGIN{fm=0; hit=1}
             /^---$/{fm++; next}
@@ -55,9 +55,94 @@ cmd_why() {
     fi
 }
 
+# --- checks: each recorded deviation must actually hold on this system ------
+
+fails=0
+chk() { # chk <description> <command...>
+    local desc="$1"; shift
+    if "$@" >/dev/null 2>&1; then
+        printf '[ ok ] %s\n' "$desc"
+    else
+        printf '[FAIL] %s\n' "$desc"
+        fails=$((fails + 1))
+    fi
+}
+
+cmd_check() {
+    chk "earlyoom is enabled" \
+        test -L /etc/systemd/system/multi-user.target.wants/earlyoom.service
+    chk "earlyoom config has swap threshold (-s 50)" \
+        grep -q -- '-s 50' /etc/default/earlyoom
+    chk "GTK4 GL renderer default is present" \
+        grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
+    chk "Goodix fingerprint TOD driver is installed" \
+        rpm -q libfprint-tod-goodix
+    chk "COSMIC session is available" \
+        test -f /usr/share/wayland-sessions/cosmic.desktop
+    chk "GDM remains the display manager" \
+        bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
+    chk "night-shift units are present" \
+        test -f /usr/lib/systemd/user/topaz-nightshift.timer
+    chk "ledger entries are well-formed" \
+        bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
+                     grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
+                 done'
+    echo
+    if [ "$fails" -eq 0 ]; then
+        echo "All recorded deviations hold."
+    else
+        echo "$fails check(s) failed — the image no longer matches its ledger."
+        exit 1
+    fi
+}
+
+cmd_report() {
+    local latest
+    latest=$(ls -1 "$STATE_DIR/reports"/*.md 2>/dev/null | tail -1 || true)
+    if [ -z "$latest" ]; then
+        echo "No night-shift reports yet."
+        echo "Enable the night shift with: topaz nightshift enable"
+        exit 1
+    fi
+    echo "== $(basename "$latest") =="
+    cat "$latest"
+}
+
+cmd_nightshift() {
+    case "${1:-status}" in
+    enable)
+        systemctl --user enable --now topaz-nightshift.timer
+        echo "Night shift enabled. Reports will appear in $STATE_DIR/reports/"
+        if [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/topaz/nightshift.conf" ]; then
+            echo
+            echo "No triage command configured — reports will be raw event digests."
+            echo "To plug in an analysis tool, copy and edit:"
+            echo "  /usr/share/topaz-os/nightshift.conf.example -> ~/.config/topaz/nightshift.conf"
+        fi
+        ;;
+    disable)
+        systemctl --user disable --now topaz-nightshift.timer
+        echo "Night shift disabled."
+        ;;
+    run)
+        exec /usr/libexec/topaz-nightshift
+        ;;
+    status)
+        systemctl --user status topaz-nightshift.timer --no-pager || true
+        ;;
+    *)
+        echo "Usage: topaz nightshift [enable|disable|run|status]"
+        exit 1
+        ;;
+    esac
+}
+
 case "${1:-}" in
-    why)    [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
-    ledger) cmd_ledger ;;
+    why)        [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
+    ledger)     cmd_ledger ;;
+    check)      cmd_check ;;
+    report)     cmd_report ;;
+    nightshift) shift; cmd_nightshift "$@" ;;
     -h|--help|"") usage ;;
     *) usage 1 ;;
 esac
