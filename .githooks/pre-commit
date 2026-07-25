@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Lint staged GitHub workflow files with actionlint before committing.
+# GitHub rejects an invalid workflow file outright, which disables all CI
+# for the repository until it is fixed — worth catching before the commit.
+#
+# Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+
+mapfile -t files < <(git diff --cached --name-only --diff-filter=d -- \
+    '.github/workflows/*.yml' '.github/workflows/*.yaml')
+[ "${#files[@]}" -eq 0 ] && exit 0
+
+if ! command -v actionlint >/dev/null 2>&1; then
+    echo "pre-commit: actionlint not found; install it (e.g. brew install actionlint)" >&2
+    exit 1
+fi
+
+# Lint the staged content, not the working tree.
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+staged=()
+for f in "${files[@]}"; do
+    mkdir -p "$tmp/$(dirname "$f")"
+    git show ":$f" > "$tmp/$f"
+    staged+=("$tmp/$f")
+done
+
+# Ignore stylistic findings inherited from the upstream template
+# (shellcheck quoting, and inputs defined only in ublue's multi-image
+# pipelines). Syntax errors such as duplicate keys always fail.
+actionlint \
+    -ignore 'shellcheck reported issue' \
+    -ignore 'not defined in object type' \
+    "${staged[@]}"

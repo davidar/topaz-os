@@ -9,6 +9,7 @@ See README.md for what the image contains.
 podman build -t topaz-os:test .          # local build; ~4 GB base pull on first run
 podman run --rm topaz-os:test topaz check    # verify image matches its ledger
 just build                                # template alternative (see Justfile)
+git config core.hooksPath .githooks      # one-time: pre-commit lint of workflow files
 ```
 
 The build fails unless `topaz check` passes (`RUN /usr/bin/topaz check` in the
