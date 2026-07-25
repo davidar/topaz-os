@@ -1,0 +1,2 @@
+# topaz-os: GPU mode switching daemon on by default (hybrid laptops)
+enable supergfxd.service

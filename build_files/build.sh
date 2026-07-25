@@ -46,3 +46,15 @@ dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 # system_files/etc/default/earlyoom adds a swap threshold to catch thrashing.
 dnf5 -y install earlyoom
 systemctl enable earlyoom.service
+
+### Fingerprint-friendly PAM stack (authselect)
+# The default fingerprint PAM flow blocks password entry until fprintd times
+# out (30s). The custom profile (shipped in system_files) sets timeout=5 so
+# the password prompt appears after 5s if the reader is not used.
+authselect select custom/local-custom \
+    with-fingerprint with-silent-lastlog with-mdns4 --force
+
+### supergfxd (GPU mode switching)
+# Preset shipped in system_files; enable in the built image as well so the
+# guarantee does not depend on first-boot preset application.
+systemctl enable supergfxd.service

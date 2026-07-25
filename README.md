@@ -23,6 +23,17 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **earlyoom, enabled by default** — with a swap-usage threshold added to the Fedora
   defaults so memory-pressure intervention happens before swap thrashing makes the
   desktop unresponsive.
+- **Fingerprint-friendly PAM** — custom authselect profile with a 5s fprintd timeout,
+  so the password prompt isn't blocked for 30s when fingerprint auth is enrolled.
+- **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
+  export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
+- **distrobox pytorch app image** bumped to a current tag (fixes glibc-mismatch noise
+  from the base image's 2023-era default).
+- **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.
+- **speech-dispatcher socket enabled** for user sessions, fixing text-to-speech in
+  Flatpak browsers out of the box.
+- **`ujust topaz-qt-dark`** — opt-in recipe making Qt Flatpaks on the KDE runtime follow
+  GNOME dark mode (Kvantum + platform-theme arrangement, applied per user).
 - **A provenance ledger** — every deliberate deviation from the base image has an
   entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
   evidence. Query it with the included `topaz` CLI:

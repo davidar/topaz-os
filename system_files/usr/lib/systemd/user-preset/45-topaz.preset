@@ -1,0 +1,3 @@
+# topaz-os: speech-dispatcher socket activation on by default, so Flatpak
+# browsers (e.g. Firefox) get working text-to-speech without per-user setup
+enable speech-dispatcher.socket

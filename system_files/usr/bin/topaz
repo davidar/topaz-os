@@ -83,6 +83,18 @@ cmd_check() {
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
     chk "night-shift units are present" \
         test -f /usr/lib/systemd/user/topaz-nightshift.timer
+    chk "fingerprint PAM timeout is 5s" \
+        grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
+    chk "Playwright Chrome path rule is present" \
+        test -f /usr/lib/tmpfiles.d/topaz-chrome-path.conf
+    chk "distrobox pytorch image is current" \
+        grep -q 'pytorch:24.12-py3' /etc/distrobox/apps.ini
+    chk "supergfxd is enabled" \
+        test -L /etc/systemd/system/multi-user.target.wants/supergfxd.service
+    chk "speech-dispatcher user preset is present" \
+        grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
+    chk "topaz ujust recipes are present" \
+        test -f /usr/share/ublue-os/just/60-custom.just
     chk "ledger entries are well-formed" \
         bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
                      grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
