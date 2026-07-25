@@ -9,8 +9,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 ## What's added on top of Bluefin DX
 
 - **COSMIC desktop (1.4.x, from the Fedora repos)** — installed alongside GNOME; pick
-  your session at the GDM login screen. GDM remains the display manager
-  (`cosmic-greeter` is not installed).
+  your session at the GDM login screen. `cosmic-greeter` comes along as a hard
+  dependency of `cosmic-session` but is not enabled: GDM remains the display
+  manager (verified by `topaz check`).
 - **`GSK_RENDERER=gl` system-wide** — GTK4's default Vulkan renderer makes the NVIDIA
   Vulkan ICD enumerate devices at startup, which wakes a runtime-suspended dGPU and adds
   ~2 seconds to every GTK4 app launch on hybrid laptops
