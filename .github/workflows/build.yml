@@ -157,5 +157,8 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           DIGEST: ${{ steps.push-image.outputs.digest }}
         run: |
-          cosign sign -y --key env://COSIGN_PRIVATE_KEY ${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}
+          # Skip the Rekor transparency log: nothing in the podman/bootc
+          # verification path consults it (verification is purely against
+          # cosign.pub), and the upload adds a flaky network dependency.
+          cosign sign --tlog-upload=false --key env://COSIGN_PRIVATE_KEY ${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}
 
