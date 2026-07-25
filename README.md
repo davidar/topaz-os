@@ -27,8 +27,6 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   so the password prompt isn't blocked for 30s when fingerprint auth is enrolled.
 - **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
   export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
-- **distrobox pytorch app image** bumped to a current tag (fixes glibc-mismatch noise
-  from the base image's 2023-era default).
 - **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.
 - **speech-dispatcher socket enabled** for user sessions, fixing text-to-speech in
   Flatpak browsers out of the box.

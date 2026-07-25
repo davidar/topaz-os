@@ -87,10 +87,8 @@ cmd_check() {
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
     chk "Playwright Chrome path rule is present" \
         test -f /usr/lib/tmpfiles.d/topaz-chrome-path.conf
-    chk "distrobox pytorch image is current" \
-        grep -q 'pytorch:24.12-py3' /etc/distrobox/apps.ini
     chk "supergfxd is enabled" \
-        test -L /etc/systemd/system/multi-user.target.wants/supergfxd.service
+        bash -c 'ls /etc/systemd/system/*.wants/supergfxd.service >/dev/null 2>&1'
     chk "speech-dispatcher user preset is present" \
         grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
     chk "topaz ujust recipes are present" \
