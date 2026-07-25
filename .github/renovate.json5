@@ -17,5 +17,14 @@
       "matchDepTypes": ["container"],
       "matchFileNames": [".github/workflows/**.yaml", ".github/workflows/**.yml"],
     },
+    {
+      // cosign v3 signs with the new Sigstore bundle format, which podman,
+      // skopeo, and rpm-ostree cannot verify yet. Stay on v2 until
+      // https://github.com/containers/container-libs/issues/388 is resolved,
+      // then delete this rule.
+      "enabled": false,
+      "matchPackageNames": ["sigstore/cosign"],
+      "matchUpdateTypes": ["major"],
+    },
   ]
 }
