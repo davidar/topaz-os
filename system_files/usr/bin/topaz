@@ -1,0 +1,63 @@
+#!/bin/bash
+# topaz — query the provenance ledger of this image.
+# Every deliberate deviation from the base image has a ledger entry recording
+# what was changed, why, and the evidence behind it.
+set -euo pipefail
+
+LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
+
+usage() {
+    cat <<EOF
+Usage:
+  topaz why <path>    Show why a file or setting deviates from the base image
+  topaz ledger        List all ledger entries
+EOF
+    exit "${1:-0}"
+}
+
+strip_frontmatter() {
+    awk 'BEGIN{fm=0} /^---$/{fm++; next} fm!=1{print}' "$1"
+}
+
+entry_title() {
+    awk -F': *' '/^title:/{print $2; exit}' "$1"
+}
+
+cmd_ledger() {
+    local f
+    for f in "$LEDGER_DIR"/*.md; do
+        [ -e "$f" ] || { echo "No ledger entries found in $LEDGER_DIR"; exit 1; }
+        printf '%s  %s\n' "$(basename "$f" .md)" "$(entry_title "$f")"
+    done
+}
+
+cmd_why() {
+    local query="${1%/}" f found=0
+    for f in "$LEDGER_DIR"/*.md; do
+        [ -e "$f" ] || break
+        # Match against the entry's declared paths (frontmatter list items)
+        if awk -v q="$query" '
+            BEGIN{fm=0; hit=1}
+            /^---$/{fm++; next}
+            fm==1 && /^  - /{sub(/^  - /,""); if ($0==q) {hit=0; exit}}
+            END{exit hit}
+            ' "$f"; then
+            found=1
+            strip_frontmatter "$f"
+            echo
+        fi
+    done
+    if [ "$found" -eq 0 ]; then
+        echo "No ledger entry covers '$query'."
+        echo "It likely comes from the base image (see: https://docs.projectbluefin.io/)"
+        echo "or was changed locally on this machine outside the image."
+        exit 1
+    fi
+}
+
+case "${1:-}" in
+    why)    [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
+    ledger) cmd_ledger ;;
+    -h|--help|"") usage ;;
+    *) usage 1 ;;
+esac

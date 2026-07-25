@@ -23,6 +23,14 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **earlyoom, enabled by default** — with a swap-usage threshold added to the Fedora
   defaults so memory-pressure intervention happens before swap thrashing makes the
   desktop unresponsive.
+- **A provenance ledger** — every deliberate deviation from the base image has an
+  entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
+  evidence. Query it with the included `topaz` CLI:
+
+  ```
+  $ topaz why /etc/default/earlyoom     # why does this file deviate?
+  $ topaz ledger                        # list all recorded deviations
+  ```
 
 ## Usage
 
