@@ -1,0 +1,44 @@
+# topaz-os
+
+A custom [bootc](https://github.com/bootc-dev/bootc) image based on
+[Bluefin DX](https://projectbluefin.io/) (NVIDIA open-kernel-module variant), adding the
+[COSMIC desktop](https://system76.com/cosmic) and a few quality-of-life fixes for hybrid
+AMD+NVIDIA laptops. Built from the Universal Blue
+[image-template](https://github.com/ublue-os/image-template).
+
+## What's added on top of Bluefin DX
+
+- **COSMIC desktop (1.4.x, from the Fedora repos)** — installed alongside GNOME; pick
+  your session at the GDM login screen. GDM remains the display manager
+  (`cosmic-greeter` is not installed).
+- **`GSK_RENDERER=gl` system-wide** — GTK4's default Vulkan renderer makes the NVIDIA
+  Vulkan ICD enumerate devices at startup, which wakes a runtime-suspended dGPU and adds
+  ~2 seconds to every GTK4 app launch on hybrid laptops
+  ([upstream report](https://forums.developer.nvidia.com/t/288095)). The GL renderer
+  avoids the wake entirely, letting the dGPU stay asleep until something actually needs it.
+- **Goodix fingerprint reader support (27c6:550a)** — `libfprint` swapped for
+  `libfprint-tod` + the Goodix TOD driver
+  (COPR: [antiderivative/libfprint-tod-goodix-0.0.9](https://copr.fedorainfracloud.org/coprs/antiderivative/libfprint-tod-goodix-0.0.9/)).
+  Found on the Lenovo Legion Slim 5 14APH8 and various other laptops.
+- **earlyoom, enabled by default** — with a swap-usage threshold added to the Fedora
+  defaults so memory-pressure intervention happens before swap thrashing makes the
+  desktop unresponsive.
+
+## Usage
+
+```bash
+sudo bootc switch ghcr.io/davidar/topaz-os:latest
+systemctl reboot
+```
+
+Images are built daily against the latest Bluefin DX stable and signed with
+[cosign](https://github.com/sigstore/cosign); the public key is in this repository
+(`cosign.pub`).
+
+## Notes
+
+- This is a personal image tuned for one person's hardware. Everything here is
+  reproducible from the `Containerfile` and `build_files/build.sh` — fork and adjust
+  rather than consuming directly if your hardware differs.
+- The base image does all the heavy lifting; see the
+  [Bluefin documentation](https://docs.projectbluefin.io/) for everything it provides.
