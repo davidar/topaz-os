@@ -5,6 +5,20 @@ set -ouex pipefail
 # Copy system_files/ from the repo into the image
 cp -avf "/ctx/system_files"/. /
 
+### Image identity (os-release)
+# GRUB titles boot entries with os-release PRETTY_NAME, so without this the
+# booted topaz-os deployment and its Bluefin rollback render as identical
+# menu lines. Rebrand NAME and PRETTY_NAME only; ID, ID_LIKE, VARIANT_ID,
+# IMAGE_ID and the rest stay Bluefin's so tooling keyed on them still works.
+# Guard: fail loudly if the base image reshapes the fields we rewrite
+grep -q '^NAME="Bluefin"' /usr/lib/os-release
+grep -q '^PRETTY_NAME="Bluefin ' /usr/lib/os-release
+base_version=$(. /usr/lib/os-release && echo "$IMAGE_VERSION")
+sed -i \
+    -e 's/^NAME=.*/NAME="topaz-os"/' \
+    -e "s/^PRETTY_NAME=.*/PRETTY_NAME=\"topaz-os (Bluefin $base_version)\"/" \
+    /usr/lib/os-release
+
 ### COSMIC desktop
 # Installed alongside the base image's GNOME; selectable from the GDM session
 # picker. cosmic-greeter comes along as a hard dependency of cosmic-session

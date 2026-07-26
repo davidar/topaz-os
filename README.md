@@ -8,6 +8,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 
 ## What's added on top of Bluefin DX
 
+- **Identifies as topaz-os** — `NAME`/`PRETTY_NAME` rebranded in `os-release` so GRUB
+  can tell this image apart from its Bluefin rollback; all machine-readable fields stay
+  Bluefin's for tooling compatibility.
 - **COSMIC desktop (1.4.x, from the Fedora repos)** — installed alongside GNOME; pick
   your session at the GDM login screen. `cosmic-greeter` comes along as a hard
   dependency of `cosmic-session` but is not enabled: GDM remains the display

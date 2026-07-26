@@ -77,6 +77,9 @@ cmd_check() {
         grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
     chk "Goodix fingerprint TOD driver is installed" \
         rpm -q libfprint-tod-goodix
+    chk "os-release identifies the image as topaz-os" \
+        bash -c 'grep -q "^NAME=\"topaz-os\"" /usr/lib/os-release &&
+                 grep -q "^PRETTY_NAME=\"topaz-os " /usr/lib/os-release'
     chk "COSMIC session is available" \
         test -f /usr/share/wayland-sessions/cosmic.desktop
     chk "GDM remains the display manager" \
