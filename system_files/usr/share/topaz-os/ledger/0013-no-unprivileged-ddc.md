@@ -4,13 +4,25 @@ date: 2026-07-26
 status: active
 paths:
   - /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
+  - /usr/lib/udev/rules.d/60-openrgb.rules
 ---
 # No unprivileged DDC/CI access to GPU i2c buses
 
-ddcutil ships a udev rule tagging GPU display-class `i2c-dev` nodes with
-`uaccess`, which grants the seated user a passwordless ACL on `/dev/i2c-*`
-for the DDC/CI buses behind each display connector. This image removes
-that rule.
+Two base-image packages ship udev rules tagging `i2c-dev` nodes with
+`uaccess`, which grants the seated user a passwordless ACL on
+`/dev/i2c-*` — including the DDC/CI buses behind each display connector.
+ddcutil's rule targets display-class buses specifically; OpenRGB's rule
+(`KERNEL=="i2c-[0-99]*"`, intended for motherboard SMBus RGB controllers)
+sweeps in every i2c device on the system. This image removes ddcutil's
+rule and deletes the i2c line from OpenRGB's (its hidraw/USB device rules
+are untouched).
+
+A first revision of this entry removed only the ddcutil rule; the freeze
+it targets promptly reappeared because OpenRGB's blanket rule still
+granted the identical ACL. The `topaz check` assertion now sweeps the
+whole rules directory for any i2c `uaccess` grant rather than asserting
+one file's absence, so a third such rule can't slip in with a base
+update.
 
 The immediate reason is a session-killing interaction found on this
 hardware (Ryzen 7840HS / Radeon 780M "Phoenix", DCN 3.1.4, PSR-capable

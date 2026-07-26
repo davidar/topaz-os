@@ -87,7 +87,7 @@ cmd_check() {
     chk "night-shift units are present" \
         test -f /usr/lib/systemd/user/topaz-nightshift.timer
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
-        test ! -e /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
+        bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
     chk "authselect profile symlinks to the base profile" \

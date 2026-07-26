@@ -15,9 +15,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   your session at the GDM login screen. `cosmic-greeter` comes along as a hard
   dependency of `cosmic-session` but is not enabled: GDM remains the display
   manager (verified by `topaz check`).
-- **No passwordless DDC/CI (GPU i2c) access** — ddcutil's `uaccess` udev rule is
-  removed: cosmic-settings-daemon's blind monitor probing otherwise wedges amdgpu
-  PSR arming and freezes COSMIC (ledger 0013). `sudo ddcutil` still works.
+- **No passwordless i2c (DDC/CI) access** — the ddcutil and OpenRGB `uaccess` udev
+  rules are removed: cosmic-settings-daemon's blind monitor probing otherwise wedges
+  amdgpu PSR arming and freezes COSMIC (ledger 0013). `sudo ddcutil` still works.
 - **`GSK_RENDERER=gl` system-wide** — GTK4's default Vulkan renderer makes the NVIDIA
   Vulkan ICD enumerate devices at startup, which wakes a runtime-suspended dGPU and adds
   ~2 seconds to every GTK4 app launch on hybrid laptops

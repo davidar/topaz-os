@@ -54,14 +54,20 @@ dnf5 -y install \
 # compositor starts. On this hardware (amdgpu DCN 3.1.4, PSR eDP), a raw
 # AUX transaction to a disconnected port before the panel's first PSR
 # arming wedges that arming forever, freezing COSMIC at the first idle —
-# ledger 0013 has the full investigation. The daemon's only path to
-# /dev/i2c-* is the seat-user ACL granted by ddcutil's udev rule; removing
-# the rule closes it (and the wider unprivileged-DDC surface) while
-# `sudo ddcutil` keeps working. Drop once the daemon probes politely.
-# Guard: fail the build if the rule moves or changes shape upstream
+# ledger 0013 has the full investigation. The daemon reaches /dev/i2c-*
+# through seat-user ACLs granted by udev `uaccess` rules; two base-image
+# packages ship one. Closing both (and the wider unprivileged-DDC surface)
+# leaves `sudo ddcutil` and OpenRGB's non-i2c device access working. Drop
+# once the daemon probes politely. Guards: fail the build if either rule
+# moves or changes shape upstream; `topaz check` additionally sweeps the
+# whole rules directory for any i2c uaccess grant.
 grep -q 'SUBSYSTEM=="i2c-dev".*TAG+="uaccess"' \
     /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
 rm /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
+grep -q '^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$' \
+    /usr/lib/udev/rules.d/60-openrgb.rules
+sed -i '/^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$/d' \
+    /usr/lib/udev/rules.d/60-openrgb.rules
 
 ### Fingerprint reader support (Goodix 27c6:550a)
 # The in-tree libfprint has no driver for this sensor; swap in libfprint-tod
