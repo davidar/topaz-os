@@ -53,6 +53,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 
   `topaz check` also runs at image build time, so an image that no longer
   matches its own ledger fails to build.
+- **`topaz dev`** — transient `/usr` overlay workflow (`bootc usroverlay`) for
+  daily-driving locally built binaries; a reboot restores the signed image, and
+  `topaz check` loudly reports any active overlay.
 - **An opt-in "night shift"** — a daily systemd user timer that digests system
   events (failed units, journal errors, OOM activity, staged updates, the
   self-check) into a morning report. Analysis is a pluggable hook: point

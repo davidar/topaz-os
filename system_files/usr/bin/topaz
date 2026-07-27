@@ -6,10 +6,12 @@
 #   topaz check          Verify the image's recorded deviations actually hold
 #   topaz report         Show the most recent night-shift report
 #   topaz nightshift ... Manage the night-shift triage timer
+#   topaz dev ...        Transient /usr overlay for locally built binaries
 set -euo pipefail
 
 LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/topaz"
+DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
     sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
@@ -104,6 +106,14 @@ cmd_check() {
         bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
                      grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
                  done'
+    chk "bootc is available for dev overlays" \
+        command -v bootc
+    if overlay_active; then
+        echo
+        echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"
+        echo "[DEV ] deviates from the signed image. 'topaz dev status' lists the"
+        echo "[DEV ] installed binaries; a reboot returns to the image."
+    fi
     echo
     if [ "$fails" -eq 0 ]; then
         echo "All recorded deviations hold."
@@ -111,6 +121,72 @@ cmd_check() {
         echo "$fails check(s) failed — the image no longer matches its ledger."
         exit 1
     fi
+}
+
+# --- dev: transient /usr overlay for daily-driving locally built binaries ---
+# The image is the signed trunk; experiments live in a bootc usroverlay that
+# a reboot fully discards. Installed files are recorded in a tmpfs manifest
+# so the deviation is always visible (topaz dev status, topaz check).
+
+overlay_active() {
+    findmnt -n /usr >/dev/null 2>&1
+}
+
+cmd_dev() {
+    case "${1:-status}" in
+    on)
+        if overlay_active; then
+            echo "Transient /usr overlay is already active."
+        else
+            echo "Arming a transient overlay on /usr (bootc usroverlay)."
+            echo "Changes under /usr persist until reboot, then vanish."
+            pkexec bootc usroverlay
+        fi
+        ;;
+    install)
+        [ $# -ge 2 ] || { echo "Usage: topaz dev install <file> [dest]"; exit 1; }
+        local src dest sum
+        src=$(realpath "$2")
+        dest="${3:-/usr/bin/$(basename "$src")}"
+        [ -f "$src" ] || { echo "No such file: $src"; exit 1; }
+        overlay_active || { echo "No overlay active — run 'topaz dev on' first."; exit 1; }
+        sum=$(sha256sum "$src" | cut -d' ' -f1)
+        pkexec bash -c "install -m0755 '$src' '$dest' &&
+                        mkdir -p /run/topaz-dev &&
+                        printf '%s\t%s\t%s\t%s\n' '$dest' '$sum' '$src' \"\$(date -Is)\" \
+                            >> $DEV_MANIFEST"
+        echo "Installed $dest (sha256 ${sum:0:12}…, gone after reboot)."
+        if pgrep -x "$(basename "$dest")" >/dev/null 2>&1; then
+            echo "Note: $(basename "$dest") is currently running the old binary;"
+            echo "restart it (or the session) to pick up the new one."
+        fi
+        ;;
+    status)
+        if overlay_active; then
+            echo "Transient /usr overlay: ACTIVE (reboot returns to the signed image)"
+            if [ -s "$DEV_MANIFEST" ]; then
+                echo "Installed dev binaries:"
+                awk -F'\t' '{printf "  %s  %.12s…  from %s  (%s)\n", $1, $2, $3, $4}' \
+                    "$DEV_MANIFEST"
+            else
+                echo "No dev binaries recorded (manifest empty)."
+            fi
+        else
+            echo "Transient /usr overlay: not active — /usr matches the signed image."
+        fi
+        ;;
+    off)
+        if overlay_active; then
+            echo "The overlay is transient: reboot to return to the signed image."
+        else
+            echo "No overlay active."
+        fi
+        ;;
+    *)
+        echo "Usage: topaz dev [on|install <file> [dest]|status|off]"
+        exit 1
+        ;;
+    esac
 }
 
 cmd_report() {
@@ -160,6 +236,7 @@ case "${1:-}" in
     check)      cmd_check ;;
     report)     cmd_report ;;
     nightshift) shift; cmd_nightshift "$@" ;;
+    dev)        shift; cmd_dev "$@" ;;
     -h|--help|"") usage ;;
     *) usage 1 ;;
 esac
