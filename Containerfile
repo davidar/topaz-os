@@ -5,7 +5,7 @@ COPY system_files /system_files
 
 # Compositor fork: cosmic-comp with config-driven workspace gestures, built
 # at a pinned commit of github.com/davidar/cosmic-comp (ledger 0015)
-FROM registry.fedoraproject.org/fedora:44 AS comp-build
+FROM registry.fedoraproject.org/fedora:44@sha256:be475943cd9eda1d6b6db353725a944da8bb85628c7316799229fddf76c183ff AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
 ARG COSMIC_COMP_REF=5568abdcc88fd27297514be6446cc5c35b509f03
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
