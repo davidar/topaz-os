@@ -34,6 +34,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   time from the base profile, with a 5s fprintd timeout patched into
   `system-auth`) so the password prompt isn't blocked for 30s when fingerprint
   auth is enrolled.
+- **Fingerprint unlock on the COSMIC lock screen** — a polkit rule lets
+  `cosmic-greeter` call fprintd; it runs outside the logind session scope, so
+  fprintd's defaults silently deny it (ledger 0017).
 - **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
   export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
 - **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.

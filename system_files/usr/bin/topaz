@@ -98,6 +98,11 @@ cmd_check() {
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
+    chk "cosmic-greeter may verify fingerprints (lock-screen polkit rule)" \
+        bash -c 'grep -q "net.reactivated.fprint.device.verify" \
+                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
+                 grep -q "/usr/bin/cosmic-greeter" \
+                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules'
     chk "authselect profile symlinks to the base profile" \
         test -L /etc/authselect/custom/local-custom/password-auth
     chk "Playwright Chrome path rule is present" \

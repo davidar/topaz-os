@@ -1,0 +1,13 @@
+// COSMIC's lock screen (cosmic-greeter) is spawned into the systemd user
+// manager (user@.service app.slice), outside the logind session scope, so
+// polkit sees no session and fprintd's allow_active=yes default never
+// applies — fingerprint unlock is silently denied. Grant device.verify to
+// the greeter binary itself; it can only verify the invoking user's own
+// enrolled prints (claiming another user's requires device.setusername,
+// which this rule deliberately does not grant).
+polkit.addRule(function(action, subject) {
+    if (action.id == "net.reactivated.fprint.device.verify" &&
+        subject.exe == "/usr/bin/cosmic-greeter") {
+        return polkit.Result.YES;
+    }
+});
