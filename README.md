@@ -41,6 +41,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   Flatpak browsers out of the box.
 - **`ujust topaz-qt-dark`** — opt-in recipe making Qt Flatpaks on the KDE runtime follow
   GNOME dark mode (Kvantum + platform-theme arrangement, applied per user).
+- **Opt-in user-setup recipes** — `ujust topaz-{tailscale-tray,wallpaper,dropbox,
+  electron-wayland,chrome-integration,claude-desktop,kitty}`; helpers ship inert in
+  the image (ledger 0016) and nothing runs until invoked.
 - **A provenance ledger** — every deliberate deviation from the base image has an
   entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
   evidence. Query it with the included `topaz` CLI:
