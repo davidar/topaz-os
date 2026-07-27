@@ -84,6 +84,12 @@ cmd_check() {
                  grep -q "^PRETTY_NAME=\"topaz-os " /usr/lib/os-release'
     chk "COSMIC session is available" \
         test -f /usr/share/wayland-sessions/cosmic.desktop
+    chk "cosmic-comp is the topaz fork build" \
+        bash -c 'test -f /usr/share/topaz-os/cosmic-comp-fork &&
+                 rpm -Vf /usr/bin/cosmic-comp | grep cosmic-comp | grep -q 5'
+    chk "packaged cosmic-comp still matches the fork base version" \
+        bash -c '[ "$(rpm -q --qf %{VERSION} cosmic-comp)" = \
+                   "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-comp-fork)" ]'
     chk "GDM remains the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
     chk "night-shift units are present" \

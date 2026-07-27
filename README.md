@@ -53,6 +53,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 
   `topaz check` also runs at image build time, so an image that no longer
   matches its own ledger fails to build.
+- **cosmic-comp from the [topaz fork](https://github.com/davidar/cosmic-comp)** —
+  workspace-swipe finger count, physics, and rubber-band edge bounce are
+  hot-reloadable config (pinned commit, built from source; pending upstream).
 - **`topaz dev`** — transient `/usr` overlay workflow (`bootc usroverlay`) for
   daily-driving locally built binaries; a reboot restores the signed image, and
   `topaz check` loudly reports any active overlay.
