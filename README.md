@@ -18,6 +18,8 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **No passwordless i2c (DDC/CI) access** — the ddcutil and OpenRGB `uaccess` udev
   rules are removed: cosmic-settings-daemon's blind monitor probing otherwise wedges
   amdgpu PSR arming and freezes COSMIC (ledger 0013). `sudo ddcutil` still works.
+- **Panel Self Refresh disabled** (`amdgpu.dcdebugmask=0x10` via bootc `kargs.d`) —
+  eDP PSR entry can wedge DMUB firmware and permanently freeze the display (ledger 0018).
 - **`GSK_RENDERER=gl` system-wide** — GTK4's default Vulkan renderer makes the NVIDIA
   Vulkan ICD enumerate devices at startup, which wakes a runtime-suspended dGPU and adds
   ~2 seconds to every GTK4 app launch on hybrid laptops

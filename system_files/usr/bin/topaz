@@ -96,6 +96,8 @@ cmd_check() {
         test -f /usr/lib/systemd/user/topaz-nightshift.timer
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
+    chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \
+        grep -q 'amdgpu.dcdebugmask=0x10' /usr/lib/bootc/kargs.d/10-topaz-display.toml
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
     chk "cosmic-greeter may verify fingerprints (lock-screen polkit rule)" \
