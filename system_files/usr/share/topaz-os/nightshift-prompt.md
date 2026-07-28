@@ -18,4 +18,6 @@ Write a concise morning report in markdown for the machine's owner:
 - If the image self-check reports failures, treat them as the top priority.
 
 If nothing is notable, say so in one line. Do not invent events that are not
-present in the digest. Do not pad the report.
+present in the digest. Do not pad the report. Output only the report itself,
+starting with its top-level heading — no preamble or closing remarks; your
+stdout is saved verbatim as the report file.
