@@ -35,6 +35,15 @@ DIGEST="$STATE_DIR/last-digest.txt"
     journalctl --priority=err --since "$SINCE" --no-pager -q 2>/dev/null | tail -n 200 \
         || echo "(journal unavailable)"
     echo
+    echo "== Kernel warnings and errors (per-signature counts, top 30) =="
+    # priority=err misses warning-level storms (a driver fault can emit
+    # thousands of p4 lines and zero p3 ones), so collapse kernel messages
+    # into signatures — numbers and addresses normalized away — and count.
+    journalctl -k --priority=warning --since "$SINCE" --no-pager -q -o cat 2>/dev/null \
+        | sed -E 's/\b0x[0-9a-fA-F]+/HEX/g; s/\b[0-9a-f]{8,}\b/HEX/g; s/[0-9]+/N/g' \
+        | sort | uniq -c | sort -rn | awk 'NR <= 30' \
+        || echo "(journal unavailable)"
+    echo
     echo "== earlyoom activity =="
     journalctl -u earlyoom --since "$SINCE" --no-pager -q 2>/dev/null | tail -n 50 \
         || echo "(none)"
