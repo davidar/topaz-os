@@ -5,7 +5,10 @@ on:
     branches:
       - main
   schedule:
-    - cron: '05 10 * * *'  # 10:05am UTC everyday
+    # Weekly safety net: the base image is digest-pinned (Renovate PRs cover
+    # its bumps), so scheduled rebuilds only refresh the unpinned dnf layer.
+    # Saturday 16:00 UTC = quiet local hours, clear of interactive pushes.
+    - cron: '0 16 * * 6'
   push:
     branches:
       - main
@@ -18,7 +21,10 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.brand_name}}-${{ inputs.stream_name }}
-  cancel-in-progress: true
+  # false: a newly queued run waits instead of killing an in-progress build
+  # (stale *pending* runs are still superseded). A scheduled run once
+  # cancelled a release build 22 minutes in; never again.
+  cancel-in-progress: false
 
 jobs:
   build_push:
