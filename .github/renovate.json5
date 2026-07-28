@@ -26,5 +26,14 @@
       "matchPackageNames": ["sigstore/cosign"],
       "matchUpdateTypes": ["major"],
     },
+    {
+      // The comp-build builder must stay on the same Fedora release as the
+      // base image: a newer builder links cosmic-comp against a newer glibc
+      // than the image ships and the compositor fails to load at login.
+      // Bump this manually whenever the base image moves to a new release.
+      "enabled": false,
+      "matchPackageNames": ["registry.fedoraproject.org/fedora"],
+      "matchUpdateTypes": ["major"],
+    },
   ]
 }

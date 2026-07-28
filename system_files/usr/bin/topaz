@@ -90,6 +90,8 @@ cmd_check() {
     chk "packaged cosmic-comp still matches the fork base version" \
         bash -c '[ "$(rpm -q --qf %{VERSION} cosmic-comp)" = \
                    "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-comp-fork)" ]'
+    chk "fork cosmic-comp is loadable (builder glibc matches the image)" \
+        bash -c '! ldd /usr/bin/cosmic-comp | grep -q "not found"'
     chk "GDM remains the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
     chk "night-shift units are present" \

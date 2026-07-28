@@ -35,6 +35,13 @@ so a distro bump forces a fork rebase instead of silently shadowing newer
 code. `topaz check` asserts the binary really deviates from the packaged
 one (rpm verification) and that the version pin still holds.
 
+The `comp-build` stage's Fedora release is pinned to the base image's:
+building on a newer release links against a newer glibc than the image
+ships and the binary fails to load at session start (learned the hard way
+when a builder bump to Fedora 45 black-screened every COSMIC login).
+`topaz check` asserts all of the binary's libraries resolve, so a
+mismatched builder fails the build instead of the login.
+
 The fork was daily-driven and VT-tested through the `topaz dev` overlay
 workflow (ledger 0014) before graduating into the image — that is the
 intended pipeline for any future fork work.

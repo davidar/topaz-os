@@ -4,8 +4,13 @@ COPY build_files /
 COPY system_files /system_files
 
 # Compositor fork: cosmic-comp with config-driven workspace gestures, built
-# at a pinned commit of github.com/davidar/cosmic-comp (ledger 0015)
-FROM registry.fedoraproject.org/fedora:45@sha256:10593dd8683e738d0d9ef53ae3af57c6940ac02efcb5a104dc4655390dc64698 AS comp-build
+# at a pinned commit of github.com/davidar/cosmic-comp (ledger 0015).
+# The builder's Fedora release must match the base image's (currently 44):
+# a newer builder links the binary against a newer glibc than the image
+# ships, and the compositor fails to load at session start. `topaz check`
+# asserts the binary's libraries resolve, so a mismatched bump fails the
+# build rather than the login.
+FROM registry.fedoraproject.org/fedora:44@sha256:590825dbaee41a97a162ecdffc3305264bd11cb3ff1e9cfd710d41ca5f936134 AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
 ARG COSMIC_COMP_REF=5568abdcc88fd27297514be6446cc5c35b509f03
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
