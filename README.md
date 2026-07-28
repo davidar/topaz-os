@@ -49,6 +49,8 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **Opt-in user-setup recipes** — `ujust topaz-{tailscale-tray,wallpaper,dropbox,
   electron-wayland,chrome-integration,claude-desktop,kitty}`; helpers ship inert in
   the image (ledger 0016) and nothing runs until invoked.
+- **KDE Connect** (with the SMS app) baked from Fedora, firewall ports pre-opened —
+  Flathub has neither KDE Connect nor Valent, and Valent lacks SMS (ledger 0019).
 - **A provenance ledger** — every deliberate deviation from the base image has an
   entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
   evidence. Query it with the included `topaz` CLI:

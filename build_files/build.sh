@@ -124,3 +124,12 @@ authselect select custom/local-custom \
 # Preset shipped in system_files; enable in the built image as well so the
 # guarantee does not depend on first-boot preset application.
 systemctl enable supergfxd.service
+
+### KDE Connect (phone integration, including SMS)
+# Chosen over Valent/Flathub alternatives: Fedora's package ships the full
+# app set (kdeconnect-sms was the deciding feature), and Flathub carries
+# neither KDE Connect nor Valent. The firewall service (ports 1714-1764)
+# ships with firewalld; open it in the default zone so pairing works out of
+# the box.
+dnf5 -y install kde-connect
+firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect

@@ -115,6 +115,11 @@ cmd_check() {
         grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
     chk "topaz ujust recipes are present" \
         test -f /usr/share/ublue-os/just/60-custom.just
+    chk "KDE Connect is installed with SMS app and firewall service" \
+        bash -c 'rpm -q kde-connect >/dev/null &&
+                 test -x /usr/bin/kdeconnect-sms &&
+                 grep -q "service name=\"kdeconnect\"" \
+                     /etc/firewalld/zones/FedoraWorkstation.xml'
     chk "user-setup recipe helpers are present and valid" \
         bash -c 'test -f /usr/lib/systemd/user/tailscale-systray.service &&
                  test -f /usr/lib/systemd/user/topaz-dropbox.service &&
