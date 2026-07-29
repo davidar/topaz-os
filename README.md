@@ -86,7 +86,9 @@ systemctl reboot
 
 Images are built daily against the latest Bluefin DX stable and signed with
 [cosign](https://github.com/sigstore/cosign); the public key is in this repository
-(`cosign.pub`).
+(`cosign.pub`). Published images are rechunked with
+[rechunk](https://github.com/hhd-dev/rechunk) against the previous release, so
+updates only download the layers that actually changed.
 
 ## Notes
 

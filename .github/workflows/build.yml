@@ -80,23 +80,51 @@ jobs:
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
-      # This is optional, this provides smaller delta updates
-      - name: Rechunk with rpm-ostree
-        id: rechunk
+      # Rechunk the image so updates only download what changed. rpm-ostree's
+      # chunker groups all non-package content — the initramfs plus every
+      # topaz-authored file — into a single ~600MB layer, so any one-line
+      # change re-downloaded all of it. rechunk groups packages by update
+      # cadence, splits unpackaged content, and reuses the previous published
+      # image's layer plan (prev-ref) so unchanged content keeps identical
+      # layer digests. It is the same tool Bluefin uses to chunk the base
+      # image. The rechunked image drops the labels of its input, so collect
+      # them first and pass them through.
+      - name: Collect image labels
+        id: labels
         run: |
-          sudo -E $(command -v just) ostree-rechunk \
-            ${IMAGE_NAME} \
-            ${DEFAULT_TAG}
+          {
+            echo 'labels<<EOF'
+            sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
+              | jq -r '.[0].Config.Labels
+                       | del(.["org.opencontainers.image.version"])
+                       | to_entries[] | "\(.key)=\(.value)"'
+            echo 'EOF'
+            echo "version=$(sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
+              | jq -r '.[0].Config.Labels["org.opencontainers.image.version"]')"
+          } >> $GITHUB_OUTPUT
 
-      # If you are feeling adventurous, use the new distro agnostic rechunker
-      # https://github.com/coreos/chunkah
-      # You can delete the Rechunk with rpm-ostree portion then if you use this
-      #- name: Rechunk with Chunkah
-      #  id: rechunk
-      #  run: |
-      #    sudo -E $(command -v just) rechunk \
-      #      ${IMAGE_NAME} \
-      #      ${DEFAULT_TAG}
+      - name: Rechunk image
+        id: rechunk
+        uses: hhd-dev/rechunk@5fbe1d3a639615d2548d83bc888360de6267b1a2 # v1.2.4
+        with:
+          ref: localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
+          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          rechunk: ghcr.io/hhd-dev/rechunk:v1.2.4@sha256:8a84bd5a029681aa8db523f927b7c53b5aded9b078b81605ac0a2fedc969f528
+          version: ${{ steps.labels.outputs.version }}
+          labels: ${{ steps.labels.outputs.labels }}
+
+      - name: Load rechunked image
+        run: |
+          sudo skopeo copy ${{ steps.rechunk.outputs.ref }} \
+            containers-storage:localhost/${IMAGE_NAME}:${DEFAULT_TAG}
+          sudo rm -rf ${{ steps.rechunk.outputs.location }}
+
+      # The Containerfile check gate ran before rechunking; re-run it on the
+      # artifact that actually ships, so a rechunker regression fails the
+      # build rather than the deployment.
+      - name: Verify rechunked image
+        run: |
+          sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} topaz check
 
       - name: Generate Build Tags
         id: gen-build-tags
