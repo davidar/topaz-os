@@ -86,3 +86,22 @@ topaz-kitty:
     sed -i "s|Icon=kitty|Icon=$HOME/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g; s|Exec=kitty|Exec=$HOME/.local/kitty.app/bin/kitty|g" \
         "$HOME"/.local/share/applications/kitty*.desktop
     echo "kitty installed to ~/.local/kitty.app (re-run to update)."
+
+# Keep the touchpad active while typing (libinput disables it by default)
+topaz-touchpad-dwt enabled="false":
+    #!/usr/bin/bash
+    set -euo pipefail
+    case "{{ enabled }}" in true | false) ;; *)
+        echo "enabled must be 'true' or 'false'" >&2
+        exit 1
+        ;;
+    esac
+    cfg="$HOME/.config/cosmic/com.system76.CosmicComp/v1/input_touchpad"
+    mkdir -p "$(dirname "$cfg")"
+    [ -f "$cfg" ] || printf '(\n    state: Enabled,\n)\n' > "$cfg"
+    if grep -q 'disable_while_typing:' "$cfg"; then
+        sed -i "s/disable_while_typing: Some([a-z]*)/disable_while_typing: Some({{ enabled }})/" "$cfg"
+    else
+        sed -i "0,/^(/s//(\n    disable_while_typing: Some({{ enabled }}),/" "$cfg"
+    fi
+    echo "disable-while-typing -> {{ enabled }} (cosmic-comp applies it live)"

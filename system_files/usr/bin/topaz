@@ -116,7 +116,9 @@ cmd_check() {
     chk "speech-dispatcher user preset is present" \
         grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
     chk "topaz ujust recipes are present" \
-        test -f /usr/share/ublue-os/just/60-custom.just
+        bash -c 'test -f /usr/share/ublue-os/just/60-custom.just &&
+                 grep -q "^topaz-touchpad-dwt" \
+                     /usr/share/ublue-os/just/60-custom.just'
     chk "KDE Connect is installed with SMS app and firewall service" \
         bash -c 'rpm -q kde-connect >/dev/null &&
                  test -x /usr/bin/kdeconnect-sms &&

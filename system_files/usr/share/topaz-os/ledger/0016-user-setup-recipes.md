@@ -52,6 +52,11 @@ enables them:
   kdeglobals that fights the Kvantum theme.
 - **topaz-kitty** — kitty via the official user-scoped installer with
   desktop integration.
+- **topaz-touchpad-dwt** (added 2026-07-29) — sets
+  `disable_while_typing: Some(false)` in cosmic-comp's `input_touchpad`
+  config (hot-applied). libinput's disable-while-typing guards against
+  palm brushes, but it also makes keyboard-plus-touchpad play (FPS
+  controls) impossible; opt out per user, `enabled=true` restores it.
 
 The image never runs any of this automatically; `topaz check` asserts the
 helper files exist and parse.

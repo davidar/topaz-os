@@ -47,8 +47,8 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **`ujust topaz-qt-dark`** — opt-in recipe making Qt Flatpaks on the KDE runtime follow
   GNOME dark mode (Kvantum + platform-theme arrangement, applied per user).
 - **Opt-in user-setup recipes** — `ujust topaz-{tailscale-tray,wallpaper,dropbox,
-  electron-wayland,chrome-integration,claude-desktop,kitty}`; helpers ship inert in
-  the image (ledger 0016) and nothing runs until invoked.
+  electron-wayland,chrome-integration,claude-desktop,kitty,touchpad-dwt}`; helpers
+  ship inert in the image (ledger 0016) and nothing runs until invoked.
 - **KDE Connect** (with the SMS app) baked from Fedora, firewall ports pre-opened —
   Flathub has neither KDE Connect nor Valent, and Valent lacks SMS (ledger 0019).
 - **A provenance ledger** — every deliberate deviation from the base image has an
