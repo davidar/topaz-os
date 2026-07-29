@@ -39,3 +39,10 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 # matches the claims in its provenance ledger
 RUN /usr/bin/topaz check
 RUN bootc container lint
+
+# Last step by necessity: the check gate's own rpm queries recreate these
+# sqlite sidecars, whose bytes are nondeterministic and would churn the
+# rpmdb chunk on every rebuild (ledger 0020). CI asserts the published
+# artifact ships without them.
+RUN rm -f /usr/share/rpm/rpmdb.sqlite-wal /usr/share/rpm/rpmdb.sqlite-shm \
+    /usr/lib/sysimage/libdnf5/*.sqlite-wal /usr/lib/sysimage/libdnf5/*.sqlite-shm

@@ -141,6 +141,12 @@ cmd_check() {
                  done'
     chk "bootc is available for dev overlays" \
         command -v bootc
+    chk "package install metadata is reproducible" \
+        bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
+                 for p in cosmic-session earlyoom kde-connect; do
+                     t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
+                     [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
+                 done'
     if overlay_active; then
         echo
         echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"

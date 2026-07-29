@@ -121,9 +121,15 @@ jobs:
 
       # The Containerfile check gate ran before rechunking; re-run it on the
       # artifact that actually ships, so a rechunker regression fails the
-      # build rather than the deployment.
+      # build rather than the deployment. The sidecar assertion must run in
+      # its own container first: topaz check's rpm queries recreate the
+      # sidecars, so only a pristine container reflects shipped content
+      # (ledger 0020).
       - name: Verify rechunked image
         run: |
+          sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
+            bash -c 'test ! -e /usr/share/rpm/rpmdb.sqlite-wal &&
+                     test ! -e /usr/share/rpm/rpmdb.sqlite-shm'
           sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} topaz check
 
       - name: Generate Build Tags

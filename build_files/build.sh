@@ -2,6 +2,20 @@
 
 set -ouex pipefail
 
+### Reproducible package installs (ledger 0020)
+# rpm stamps wall-clock INSTALLTIME/INSTALLTID into the rpm database, so two
+# builds of an identical package set differ byte-wise and the rpmdb's update
+# layer churns on every rebuild. rpm honors SOURCE_DATE_EPOCH at install
+# time; clamp it to the base image's newest install time so the database
+# only changes when the base (or the package set) does.
+SOURCE_DATE_EPOCH=$(rpm -qa --qf '%{INSTALLTIME}\n' | sort -n | tail -1)
+export SOURCE_DATE_EPOCH
+# Record the derived epoch so `topaz check` can verify installs were clamped
+# (rpm stamps each package SOURCE_DATE_EPOCH plus a small install-order
+# ordinal, so clamped times sit within a few hundred seconds of it)
+mkdir -p /usr/share/topaz-os
+printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
+
 # Copy system_files/ from the repo into the image
 cp -avf "/ctx/system_files"/. /
 
@@ -133,3 +147,8 @@ systemctl enable supergfxd.service
 # the box.
 dnf5 -y install kde-connect
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
+
+### Reproducible package installs, epilogue (ledger 0020)
+# sqlite sidecar files are dropped in the Containerfile's final step, not
+# here: every rpm invocation (including `topaz check` in the build gate)
+# reopens the database and recreates them.
