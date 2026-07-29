@@ -80,6 +80,21 @@ jobs:
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
+      # Tag generation must run before the rechunk action: it drops scratch
+      # files (previous.manifest.json, the OCI output dir) into the
+      # workspace, and generate-build-tags omits the per-commit tags when
+      # the git tree is dirty.
+      - name: Generate Build Tags
+        id: gen-build-tags
+        run: |
+          alias_tags="$(just generate-build-tags \
+                        ${IMAGE_NAME} \
+                        ${DEFAULT_TAG})"
+
+          echo "Tags for this Action..."
+          echo "${alias_tags}"
+          echo "alias_tags=${alias_tags}" >> $GITHUB_OUTPUT
+
       # Rechunk the image so updates only download what changed. rpm-ostree's
       # chunker groups all non-package content — the initramfs plus every
       # topaz-authored file — into a single ~600MB layer, so any one-line
@@ -88,7 +103,14 @@ jobs:
       # image's layer plan (prev-ref) so unchanged content keeps identical
       # layer digests. It is the same tool Bluefin uses to chunk the base
       # image. The rechunked image drops the labels of its input, so collect
-      # them first and pass them through.
+      # them first and pass them through — except labels the rechunker owns:
+      # dev.hhd.* is its plan/info metadata (the base image's own copy is
+      # inherited by our build and would override the freshly computed one,
+      # breaking prev-ref plan reuse), and ostree.commit/final-diffid are
+      # stale base values it regenerates. Label values must stay free of
+      # double quotes: the action substitutes them textually into a shell
+      # command, which strips quoting (that is how the inherited base label
+      # broke plan reuse before the dev.hhd exclusion).
       - name: Collect image labels
         id: labels
         run: |
@@ -96,7 +118,10 @@ jobs:
             echo 'labels<<EOF'
             sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
               | jq -r '.[0].Config.Labels
-                       | del(.["org.opencontainers.image.version"])
+                       | del(.["org.opencontainers.image.version"],
+                             .["ostree.commit"], .["ostree.final-diffid"],
+                             .["io.artifacthub.package.maintainers"])
+                       | with_entries(select(.key | startswith("dev.hhd") | not))
                        | to_entries[] | "\(.key)=\(.value)"'
             echo 'EOF'
             echo "version=$(sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
@@ -131,17 +156,6 @@ jobs:
             bash -c 'test ! -e /usr/share/rpm/rpmdb.sqlite-wal &&
                      test ! -e /usr/share/rpm/rpmdb.sqlite-shm'
           sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} topaz check
-
-      - name: Generate Build Tags
-        id: gen-build-tags
-        run: |
-          alias_tags="$(just generate-build-tags \
-                        ${IMAGE_NAME} \
-                        ${DEFAULT_TAG})"
-
-          echo "Tags for this Action..."
-          echo "${alias_tags}"
-          echo "alias_tags=${alias_tags}" >> $GITHUB_OUTPUT
 
       - name: Tag Image
         id: tag-images
