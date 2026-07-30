@@ -10,7 +10,7 @@ COPY system_files /system_files
 # ships, and the compositor fails to load at session start. `topaz check`
 # asserts the binary's libraries resolve, so a mismatched bump fails the
 # build rather than the login.
-FROM registry.fedoraproject.org/fedora:44@sha256:cffa25ae42f013b76653abd96137c05c776cd6e6bc1ac4a79290296ff42cbc7b AS comp-build
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
 ARG COSMIC_COMP_REF=5568abdcc88fd27297514be6446cc5c35b509f03
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
