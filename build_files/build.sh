@@ -157,7 +157,15 @@ firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 # mode after the last database write: reads (including the check gate's)
 # no longer create sidecars, and the database opens fine from read-only
 # /usr.
+# python3's sqlite3 module, not the sqlite CLI: the base image ships the
+# former but not the latter.
 for db in /usr/share/rpm/rpmdb.sqlite \
           /usr/lib/sysimage/libdnf5/transaction_history.sqlite; do
-    sqlite3 "$db" 'PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;'
+    python3 -c '
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1], isolation_level=None)
+con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+con.execute("PRAGMA journal_mode=DELETE")
+con.close()
+' "$db"
 done
