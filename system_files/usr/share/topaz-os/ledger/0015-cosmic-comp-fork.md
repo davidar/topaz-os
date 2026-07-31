@@ -11,7 +11,7 @@ paths:
 The compositor binary is not Fedora's: it is compiled in the image build
 (Containerfile `comp-build` stage) from a pinned commit of
 <https://github.com/davidar/cosmic-comp>, branch `topaz`, which carries
-three small patch series on top of the packaged 1.4.0:
+three small patch series on top of the packaged 1.5.0:
 
 - **Config-driven workspace swipe gestures.** Upstream hardcodes
   four-finger workspace switching and silently swallows three-finger

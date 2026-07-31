@@ -12,7 +12,7 @@ COPY system_files /system_files
 # build rather than the login.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
-ARG COSMIC_COMP_REF=5568abdcc88fd27297514be6446cc5c35b509f03
+ARG COSMIC_COMP_REF=4d86252b4d28a81662c697e255cfa442a07ee1a0
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     libseat-devel libinput-devel systemd-devel mesa-libgbm-devel \
     libxkbcommon-devel pixman-devel wayland-devel libglvnd-devel \

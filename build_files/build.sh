@@ -70,7 +70,7 @@ dnf5 -y install \
 # upstream (pop-os/cosmic-epoch#54). Ledger 0015. Guard: fail loudly when
 # Fedora bumps cosmic-comp, so the fork gets rebased rather than silently
 # shadowing a newer base version.
-fork_base_version=1.4.0
+fork_base_version=1.5.0
 packaged_version=$(rpm -q --qf '%{VERSION}' cosmic-comp)
 if [ "$packaged_version" != "$fork_base_version" ]; then
     echo "cosmic-comp is now $packaged_version but the fork is based on $fork_base_version" >&2
