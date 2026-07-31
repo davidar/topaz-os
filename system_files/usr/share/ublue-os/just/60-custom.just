@@ -11,7 +11,9 @@ topaz-qt-dark:
         branches="6.9"
     fi
     for branch in $branches; do
-        flatpak install -y flathub "org.kde.KStyle.Kvantum//$branch" \
+        # --system: with flathub configured as both a system and a user
+        # remote, an unqualified install aborts on the ambiguity prompt
+        flatpak install -y --system flathub "org.kde.KStyle.Kvantum//$branch" \
             || echo "No Kvantum build for runtime $branch (skipped)"
     done
     mkdir -p "$HOME/.config/Kvantum"
