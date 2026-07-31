@@ -40,9 +40,9 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 RUN /usr/bin/topaz check
 RUN bootc container lint
 
-# Last step by necessity: the check gate's own rpm queries recreate these
-# sqlite sidecars, whose bytes are nondeterministic and would churn the
-# rpmdb chunk on every rebuild (ledger 0020). CI asserts the published
-# artifact ships without them.
+# Safety net (ledger 0020): build.sh converts the sqlite databases to
+# DELETE journal mode, after which reads — including the check gate's rpm
+# queries — no longer create these nondeterministic sidecars. Sweep any
+# stragglers; CI asserts the published artifact ships without them.
 RUN rm -f /usr/share/rpm/rpmdb.sqlite-wal /usr/share/rpm/rpmdb.sqlite-shm \
     /usr/lib/sysimage/libdnf5/*.sqlite-wal /usr/lib/sysimage/libdnf5/*.sqlite-shm

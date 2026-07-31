@@ -22,14 +22,19 @@ Two sources of byte-churn, both eliminated:
   install time so it changes only when the base does, and records it at
   `/usr/share/topaz-os/source-date-epoch`.
 - sqlite `-wal`/`-shm` sidecar files hold nondeterministic runtime state
-  and are recreated by any rpm invocation — including the build gate's
-  own checks — so the Containerfile drops them in its final step, after
-  the gate. On a booted system `/usr` is read-only and they stay absent.
+  and are recreated by any rpm invocation for as long as the database is
+  in WAL journal mode. They cannot simply be deleted either: a WAL-mode
+  database without its sidecars is unopenable from read-only `/usr`,
+  breaking every rpm query on the booted system. The build instead
+  checkpoints each database and converts it to DELETE journal mode after
+  the last write — reads no longer create sidecars, and the database
+  stays readable on a booted image.
 
 Verification: `topaz check` asserts the topaz-installed packages'
 install times sit within the ordinal window of the recorded epoch (an
-unclamped transaction overshoots it by weeks); CI asserts the published
-artifact contains no sidecar files.
+unclamped transaction overshoots it by weeks), and that the shipped
+rpmdb is in DELETE journal mode; CI asserts the published artifact
+contains no sidecar files.
 
 The cosmic-comp fork binary (ledger 0015) is outside this entry's
 scope: it is recompiled per build and its reproducibility is not

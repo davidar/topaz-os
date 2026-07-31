@@ -151,6 +151,9 @@ cmd_check() {
                      t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
                      [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
                  done'
+    chk "rpm database is readable from read-only /usr (DELETE journal mode)" \
+        bash -c '[ "$(od -A n -j 18 -N 2 -t u1 /usr/share/rpm/rpmdb.sqlite |
+                      tr -s " ")" = " 1 1" ]'
     if overlay_active; then
         echo
         echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"

@@ -149,6 +149,15 @@ dnf5 -y install kde-connect
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
 ### Reproducible package installs, epilogue (ledger 0020)
-# sqlite sidecar files are dropped in the Containerfile's final step, not
-# here: every rpm invocation (including `topaz check` in the build gate)
-# reopens the database and recreates them.
+# rpm leaves its sqlite databases in WAL journal mode. A WAL database is
+# unreadable without its -wal/-shm sidecars, and those are nondeterministic
+# runtime state the image must not ship — but dropping them from a WAL-mode
+# database breaks every rpm query on the booted system, where read-only
+# /usr prevents recreating them. Checkpoint and convert to DELETE journal
+# mode after the last database write: reads (including the check gate's)
+# no longer create sidecars, and the database opens fine from read-only
+# /usr.
+for db in /usr/share/rpm/rpmdb.sqlite \
+          /usr/lib/sysimage/libdnf5/transaction_history.sqlite; do
+    sqlite3 "$db" 'PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;'
+done
