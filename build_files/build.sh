@@ -131,8 +131,11 @@ grep -Eq 'pam_fprintd\.so\s+\{include if "with-fingerprint"\}' \
     /etc/authselect/custom/local-custom/system-auth
 sed -i 's/pam_fprintd\.so/pam_fprintd.so timeout=5/' \
     /etc/authselect/custom/local-custom/system-auth
+# --nobackup: the automatic backup bakes a timestamped directory into the
+# image, invalidating an otherwise-unchanged layer on every rebuild
+# (ledger 0020); in a container build there is no prior state to restore.
 authselect select custom/local-custom \
-    with-fingerprint with-silent-lastlog with-mdns4 --force
+    with-fingerprint with-silent-lastlog with-mdns4 --force --nobackup
 
 ### supergfxd (GPU mode switching)
 # Preset shipped in system_files; enable in the built image as well so the

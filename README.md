@@ -51,9 +51,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   ship inert in the image (ledger 0016) and nothing runs until invoked.
 - **KDE Connect** (with the SMS app) baked from Fedora, firewall ports pre-opened —
   Flathub has neither KDE Connect nor Valent, and Valent lacks SMS (ledger 0019).
-- **Reproducible package installs** — `SOURCE_DATE_EPOCH` clamps rpm install
-  metadata to the base image's timestamp, so rebuilds only ship real changes
-  (ledger 0020).
+- **Reproducible rebuilds** — `SOURCE_DATE_EPOCH` clamps rpm install metadata, and
+  build-time debris (authselect backups) is suppressed, so rebuilding an unchanged
+  tree ships no spurious layer churn (ledger 0020).
 - **A provenance ledger** — every deliberate deviation from the base image has an
   entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
   evidence. Query it with the included `topaz` CLI:

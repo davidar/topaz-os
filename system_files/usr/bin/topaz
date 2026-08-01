@@ -154,6 +154,8 @@ cmd_check() {
     chk "rpm database is readable from read-only /usr (DELETE journal mode)" \
         bash -c '[ "$(od -A n -j 18 -N 2 -t u1 /usr/share/rpm/rpmdb.sqlite |
                       tr -s " ")" = " 1 1" ]'
+    chk "no build-time authselect backup is baked into the image" \
+        bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
     if overlay_active; then
         echo
         echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"
