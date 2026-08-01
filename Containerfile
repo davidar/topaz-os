@@ -20,7 +20,13 @@ RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$COSMIC_COMP_REPO" "$COSMIC_COMP_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
-    cargo build --release --manifest-path=/src/Cargo.toml && \
+    # SOURCE_DATE_EPOCH = commit time: rust-embed bakes the i18n files'
+    # created/modified timestamps into the binary (it honors this variable,
+    # overriding both), so checkout-time stamps would make every build unique
+    # and churn the image's compositor chunk on otherwise no-op rebuilds.
+    # With this, the same REF + toolchain reproduces bit-identically.
+    SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
+        cargo build --release --manifest-path=/src/Cargo.toml && \
     install -Dm0755 /src/target/release/cosmic-comp /out/cosmic-comp && \
     printf 'repo=%s\nref=%s\n' "$COSMIC_COMP_REPO" "$COSMIC_COMP_REF" \
         > /out/fork-info
