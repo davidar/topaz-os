@@ -76,8 +76,10 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   events (failed units, journal errors, OOM activity, staged updates, the
   self-check) into a morning report. Analysis is a pluggable hook: point
   `TRIAGE_CMD` at any command that reads the digest on stdin — an AI agent, a
-  local model, or a script — or leave it unset for raw digests. Disabled by
-  default; `topaz nightshift enable` to opt in. See
+  local model, or a script — or leave it unset for raw digests. The digest
+  carries memory between runs: the previous report, plus optional owner notes
+  (`~/.config/topaz/nightshift-notes.md`) describing expected state. Disabled
+  by default; `topaz nightshift enable` to opt in. See
   `/usr/share/topaz-os/nightshift.conf.example`.
 
 ## Usage

@@ -31,6 +31,13 @@ Design decisions:
   hook, raw digests are saved.
 - **The image never auto-runs remote installers.** Whatever backend the user
   chooses, they install it themselves in mutable space.
+- **The night shift has memory.** The digest includes the previous morning
+  report and, if the user keeps one, `~/.config/topaz/nightshift-notes.md` —
+  standing notes on what is expected: known-benign log signatures, planned
+  transitions, watch items. Nightly triage becomes a continuing
+  investigation instead of a stateless snapshot, and day-time work has a
+  handoff channel to the night shift. Both are plain-text digest sections; a
+  non-LLM backend can ignore them, and no note content ships in the image.
 - **`topaz check` closes the loop.** Every deviation this ledger records is
   verified at image build time and re-verified by each night-shift run, so
   drift between the ledger's claims and reality is detected rather than
