@@ -75,6 +75,8 @@ cmd_check() {
         test -L /etc/systemd/system/multi-user.target.wants/earlyoom.service
     chk "earlyoom config has swap threshold (-s 50)" \
         grep -q -- '-s 50' /etc/default/earlyoom
+    chk "earlyoom avoid list shields the COSMIC session" \
+        grep -q 'cosmic-comp' /etc/default/earlyoom
     chk "GTK4 GL renderer default is present" \
         grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
     chk "Goodix fingerprint TOD driver is installed" \
@@ -158,6 +160,19 @@ cmd_check() {
         bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
+    # Runtime-only: on a booted system, machine /etc shadows the image's
+    # /usr/etc defaults, so a stale local copy can silently mask an updated
+    # image config (found the hard way when an old /etc/default/earlyoom hid
+    # the avoid-list shielding the compositor). Files listed here are ones
+    # the image ships deliberately and where local divergence is drift, not
+    # configuration; content-level assertions above still cover the rest.
+    if [ -e /run/ostree-booted ]; then
+        chk "machine /etc matches image defaults for ledgered configs" \
+            bash -c 'for f in /etc/default/earlyoom; do
+                         [ -e "/usr$f" ] || continue
+                         cmp -s "$f" "/usr$f" || exit 1
+                     done'
+    fi
     if overlay_active; then
         echo
         echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"
