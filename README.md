@@ -42,6 +42,8 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
   export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
 - **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.
+- **`plugdev` group declared** (sysusers.d) — base-image udev rules reference this
+  Debian-style group; declaring it silences ~100 boot errors (ledger 0021).
 - **speech-dispatcher socket enabled** for user sessions, fixing text-to-speech in
   Flatpak browsers out of the box.
 - **`ujust topaz-qt-dark`** — opt-in recipe making Qt Flatpaks on the KDE runtime follow

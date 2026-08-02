@@ -156,6 +156,8 @@ cmd_check() {
                       tr -s " ")" = " 1 1" ]'
     chk "no build-time authselect backup is baked into the image" \
         bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
+    chk "plugdev group is declared for base-image udev rules" \
+        grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
     if overlay_active; then
         echo
         echo "[DEV ] A transient /usr overlay is ACTIVE — this system currently"
