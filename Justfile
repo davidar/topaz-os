@@ -126,6 +126,10 @@ build $target_image=image_name $tag=default_tag:
 
     podman build "${PODMAN_BUILD_ARGS[@]}" .
 
+# Regenerate build_files/packages.lock against the pinned base + today's repos
+lock:
+    bash build_files/gen-lockfile.sh
+
 # Split the image for smaller updates (New)!
 rechunk $target_image=image_name $tag=default_tag:
     #!/usr/bin/env bash

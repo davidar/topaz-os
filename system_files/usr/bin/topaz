@@ -163,6 +163,12 @@ cmd_check() {
                      [ -L "$f" ] && continue
                      LC_ALL=C sort -C "$f" || exit 1
                  done'
+    chk "installed package set matches the shipped lockfile" \
+        bash -c 'lock=/usr/share/topaz-os/packages.lock &&
+                 rpm -q $(sed -n "s/^+//p" "$lock") > /dev/null &&
+                 ! sed -n "s/^-//p" "$lock" \
+                     | xargs -r -n1 rpm -q 2>/dev/null \
+                     | grep -qv "is not installed"'
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
     # Runtime-only: on a booted system, machine /etc shadows the image's

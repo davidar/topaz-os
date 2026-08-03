@@ -16,6 +16,13 @@ export SOURCE_DATE_EPOCH
 mkdir -p /usr/share/topaz-os
 printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 
+### Locked package set, prologue (ledger 0022)
+# Census the base image's packages before any transaction below runs; the
+# epilogue asserts that the delta the transactions produce matches the
+# committed lockfile.
+rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+    | grep -v '^gpg-pubkey' | LC_ALL=C sort > /tmp/rpm-pre.list
+
 # Copy system_files/ from the repo into the image
 cp -avf "/ctx/system_files"/. /
 
@@ -150,6 +157,27 @@ systemctl enable supergfxd.service
 # the box.
 dnf5 -y install kde-connect
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
+
+### Locked package set, epilogue (ledger 0022)
+# The transactions above resolve against whatever the Fedora repositories
+# hold at build time. Assert that the resolved delta matches the committed
+# lockfile, so repository drift becomes an explicit, reviewable lockfile
+# bump instead of silent image churn. Refresh with `just lock`
+# (build_files/gen-lockfile.sh mirrors the transactions above). The lock
+# ships in the image so `topaz check` can re-verify it on a booted system.
+rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+    | grep -v '^gpg-pubkey' | LC_ALL=C sort > /tmp/rpm-post.list
+{
+    LC_ALL=C comm -13 /tmp/rpm-pre.list /tmp/rpm-post.list | sed 's/^/+/'
+    LC_ALL=C comm -23 /tmp/rpm-pre.list /tmp/rpm-post.list | sed 's/^/-/'
+} > /tmp/packages.delta
+if ! diff -u /ctx/packages.lock /tmp/packages.delta; then
+    echo "Resolved package set does not match build_files/packages.lock." >&2
+    echo "Review the diff above; run 'just lock' if the drift is intended." >&2
+    exit 1
+fi
+cp /tmp/packages.delta /usr/share/topaz-os/packages.lock
+chmod 644 /usr/share/topaz-os/packages.lock
 
 ### Reproducible package installs, epilogue (ledger 0020)
 # rpm leaves its sqlite databases in WAL journal mode. A WAL database is

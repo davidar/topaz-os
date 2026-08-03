@@ -56,6 +56,9 @@ AMD+NVIDIA laptops. Built from the Universal Blue
 - **Reproducible rebuilds** — `SOURCE_DATE_EPOCH` clamps rpm install metadata, and
   build-time nondeterminism (authselect backups, sgml catalog order) is suppressed,
   so rebuilding an unchanged tree ships no spurious layer churn (ledger 0020).
+- **Locked package set** — the build fails unless dnf resolves exactly the NEVRAs
+  in `build_files/packages.lock`; package updates are explicit `just lock` bumps
+  reviewed in git, never silent repo drift (ledger 0022).
 - **A provenance ledger** — every deliberate deviation from the base image has an
   entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
   evidence. Query it with the included `topaz` CLI:
