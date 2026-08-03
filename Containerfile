@@ -32,7 +32,7 @@ RUN git init -q /src && \
         > /out/fork-info
 
 # Base: Bluefin DX with NVIDIA open kernel modules
-FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:c46734507cf7e10ab6008b5a6658244fc8d6e2b2a0ba5fade8496195fdf23738
+FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:1f05e5bbd7075c9bb83b93b73739e93c34e60cd2425fb7dd8f32e76a8c63ee2b
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=comp-build,source=/out,target=/comp \
