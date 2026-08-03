@@ -7,6 +7,7 @@ paths:
   - /usr/lib/sysimage/libdnf5
   - /usr/share/topaz-os/source-date-epoch
   - /usr/lib/authselect/backups
+  - /usr/etc/sgml
 ---
 # Reproducible rebuilds (rpmdb, build-time debris)
 
@@ -14,7 +15,7 @@ A rebuild with an unchanged package set must produce an unchanged rpm
 database; otherwise the rpmdb layer (~110MB) is invalidated by every
 rebuild and dominates otherwise-small updates.
 
-Three sources of byte-churn, all eliminated:
+Four sources of byte-churn, all eliminated:
 
 - rpm stamps wall-clock `INSTALLTIME`/`INSTALLTID` into each install
   transaction. With `SOURCE_DATE_EPOCH` set, rpm instead assigns the
@@ -35,12 +36,19 @@ Three sources of byte-churn, all eliminated:
   directory under `/usr/lib/authselect/backups/`, baking a fresh name
   into every build. The build passes `--nobackup` — a container build
   has no prior configuration worth restoring.
+- the docbook-dtds `%post` (reached through kde-connect's kf6-kdoctools
+  dependency) generates the `/etc/sgml` catalogs with libxml2's
+  `xmlcatalog`, which serializes SGML catalogs from a hash table seeded
+  per process — a fresh line order on every install. The lines only
+  delegate to disjoint per-DTD catalogs, so order carries no meaning;
+  the build sorts each catalog into a canonical order.
 
 Verification: `topaz check` asserts the topaz-installed packages'
 install times sit within the ordinal window of the recorded epoch (an
 unclamped transaction overshoots it by weeks), that the shipped rpmdb
-is in DELETE journal mode, and that no authselect backup directory is
-present; CI asserts the published artifact contains no sidecar files.
+is in DELETE journal mode, that no authselect backup directory is
+present, and that the sgml catalogs are sorted; CI asserts the
+published artifact contains no sidecar files.
 
 The cosmic-comp fork binary (ledger 0015) is outside this entry's
 scope: it is recompiled per build and its reproducibility is not

@@ -158,6 +158,11 @@ cmd_check() {
                       tr -s " ")" = " 1 1" ]'
     chk "no build-time authselect backup is baked into the image" \
         bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
+    chk "sgml catalogs are in canonical order" \
+        bash -c 'for f in /etc/sgml/catalog /etc/sgml/*.cat; do
+                     [ -L "$f" ] && continue
+                     LC_ALL=C sort -C "$f" || exit 1
+                 done'
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
     # Runtime-only: on a booted system, machine /etc shadows the image's

@@ -172,3 +172,15 @@ con.execute("PRAGMA journal_mode=DELETE")
 con.close()
 ' "$db"
 done
+
+# libxml2's xmlcatalog assembles SGML catalogs in a hash table seeded per
+# process, so the docbook-dtds %post (reached through kde-connect's
+# kf6-kdoctools dependency) writes the /etc/sgml catalogs in a fresh line
+# order on every install. The lines only delegate to disjoint per-DTD
+# catalogs, so order carries no meaning — sort each file into a canonical
+# order.
+grep -q '^CATALOG ' /etc/sgml/catalog
+for f in /etc/sgml/catalog /etc/sgml/*.cat; do
+    [ -L "$f" ] && continue
+    LC_ALL=C sort -o "$f" "$f"
+done
