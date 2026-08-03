@@ -2,17 +2,15 @@
 
 # Regenerate build_files/packages.lock (ledger 0022).
 #
-# Runs the image's package transactions against the Containerfile's pinned
-# base image and today's repositories, and records the resulting package
-# delta as one +NEVRA (added) or -NEVRA (removed) line per package,
-# dependencies included. build.sh performs the same transactions and fails
-# the build if its resolved delta differs from the committed lockfile, so
-# repository drift surfaces as a reviewable lockfile diff instead of
-# silently changing the image.
-#
-# The transaction list below MUST mirror build.sh's dnf5 calls. The two
-# cannot drift silently: a mismatch changes the resolved delta, and the
-# build's lockfile assertion fails until they agree again.
+# This file defines the image's package INTENT: the named packages below
+# are resolved (with all dependencies) against the Containerfile's pinned
+# base image and today's repositories, and the resulting closure is
+# recorded as one line per package: +NEVRA (added) or -NEVRA (removed),
+# followed by the package's source rpm. build.sh does not resolve names at
+# all — it installs exactly this closure, fetching any build the mirrors
+# have since dropped from koji (whose archive paths derive from the source
+# rpm field). Repository drift therefore cannot change or break a build;
+# it only ever appears as a reviewable diff of this file.
 #
 # Usage: just lock   (or: bash build_files/gen-lockfile.sh)
 
@@ -25,7 +23,7 @@ echo "Resolving package transactions against base: $base" >&2
 
 podman run --rm "$base" bash -euo pipefail -c '
     census() {
-        rpm -qa --qf "%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n" \
+        rpm -qa --qf "%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n" \
             | grep -v "^gpg-pubkey" | LC_ALL=C sort
     }
     census > /tmp/pre

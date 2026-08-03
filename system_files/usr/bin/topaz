@@ -165,8 +165,9 @@ cmd_check() {
                  done'
     chk "installed package set matches the shipped lockfile" \
         bash -c 'lock=/usr/share/topaz-os/packages.lock &&
-                 rpm -q $(sed -n "s/^+//p" "$lock") > /dev/null &&
-                 ! sed -n "s/^-//p" "$lock" \
+                 rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
+                     > /dev/null &&
+                 ! sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
                      | xargs -r -n1 rpm -q 2>/dev/null \
                      | grep -qv "is not installed"'
     chk "plugdev group is declared for base-image udev rules" \

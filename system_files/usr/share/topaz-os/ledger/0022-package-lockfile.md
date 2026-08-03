@@ -12,15 +12,18 @@ repositories (and one COPR) hold at build time, so two builds of the same
 commit can install different package versions — silent drift the image's
 other reproducibility measures (ledger 0020) cannot see.
 
-`build_files/packages.lock` records the exact package delta the build is
-allowed to produce relative to the pinned base image: one `+NEVRA` line
-per added package (dependencies included) and one `-NEVRA` line per
-removed package. build.sh censuses the rpm database before and after its
-transactions and fails the build if the resolved delta differs from the
-lockfile. Repository drift therefore surfaces as a reviewable lockfile
-diff in git history instead of changing the image unreviewed; refresh
-with `just lock` (build_files/gen-lockfile.sh replays the transactions
-against the pinned base).
+`build_files/packages.lock` records the exact package delta relative to
+the pinned base image: one `+NEVRA` (added) or `-NEVRA` (removed) line
+per package, dependencies included, each followed by its source rpm. The
+build does not resolve package names at all — it installs precisely this
+closure, fetching any build the mirrors have since dropped from koji's
+permanent archive (whose paths derive from the source rpm field), then
+censuses the rpm database and fails if the installed delta differs from
+the lock. Repository state therefore cannot change or break a build;
+package updates happen only when `just lock` (or the weekly
+refresh-inputs workflow) re-resolves the intent declared in
+build_files/gen-lockfile.sh and the resulting diff is reviewed and
+merged.
 
 Together with the base image digest pin and the compositor fork's commit
 pin, every package input to the image is now named exactly by the git

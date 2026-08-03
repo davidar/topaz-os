@@ -17,10 +17,9 @@ mkdir -p /usr/share/topaz-os
 printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 
 ### Locked package set, prologue (ledger 0022)
-# Census the base image's packages before any transaction below runs; the
-# epilogue asserts that the delta the transactions produce matches the
-# committed lockfile.
-rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+# Census the base image's packages before the locked install below; the
+# epilogue asserts that the delta it produced matches the lockfile exactly.
+rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n' \
     | grep -v '^gpg-pubkey' | LC_ALL=C sort > /tmp/rpm-pre.list
 
 # Copy system_files/ from the repo into the image
@@ -40,34 +39,56 @@ sed -i \
     -e "s/^PRETTY_NAME=.*/PRETTY_NAME=\"topaz-os (Bluefin $base_version)\"/" \
     /usr/lib/os-release
 
-### COSMIC desktop
-# Installed alongside the base image's GNOME; selectable from the GDM session
-# picker. cosmic-greeter comes along as a hard dependency of cosmic-session
-# but is not enabled: GDM remains the display manager (verified by
-# `topaz check`).
-dnf5 -y install \
-    cosmic-session \
-    cosmic-comp \
-    cosmic-panel \
-    cosmic-launcher \
-    cosmic-applets \
-    cosmic-app-library \
-    cosmic-settings \
-    cosmic-settings-daemon \
-    cosmic-bg \
-    cosmic-files \
-    cosmic-term \
-    cosmic-edit \
-    cosmic-store \
-    cosmic-screenshot \
-    cosmic-osd \
-    cosmic-notifications \
-    cosmic-idle \
-    cosmic-randr \
-    cosmic-workspaces \
-    cosmic-icon-theme \
-    cosmic-wallpapers \
-    cosmic-config-fedora
+### Packages: COSMIC desktop, fingerprint driver, earlyoom, KDE Connect
+# Installed as the exact NEVRA closure recorded in the lockfile — names are
+# resolved only when the lock is regenerated (build_files/gen-lockfile.sh,
+# which also documents what each group is for; rationale in ledgers 0001,
+# 0003, 0004, 0019, 0022). Fedora's repositories drop superseded builds, so
+# any locked package the mirrors no longer serve is fetched from koji,
+# which keeps every build permanently at a path derived from its source rpm
+# (the lockfile's second field).
+dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
+
+# The libfprint-tod driver (pinned-version COPR, ledger 0003) conflicts
+# with the in-tree libfprint at the file level only, which rpm accepts
+# solely when removal and install share one transaction — hence a swap
+# rather than lines in the locked install below. The COPR carries a single
+# version and the epilogue assert verifies the exact NEVRAs installed, so
+# this name-level resolution cannot drift unnoticed; the lockfile records
+# the removal.
+dnf5 -y swap libfprint libfprint-tod-goodix
+
+awk '/^\+/ { print substr($1, 2), $2 }' /ctx/packages.lock > /tmp/lock.adds
+
+# Availability check on epoch-less name-ver-rel.arch (epoch never affects
+# what a mirror serves); anything missing gets a koji URL instead.
+# shellcheck disable=SC2046 # NEVRAs contain no whitespace; splitting is wanted
+dnf5 -q repoquery --queryformat '%{name}-%{version}-%{release}.%{arch}\n' \
+    $(cut -d' ' -f1 /tmp/lock.adds) | LC_ALL=C sort -u > /tmp/repo.nvras
+specs=()
+while read -r nevra srpm; do
+    nvra=$(sed 's/-[0-9]*:/-/' <<< "$nevra")
+    if grep -qxF "$nvra" /tmp/repo.nvras; then
+        specs+=("$nevra")
+    else
+        src=${srpm%.src.rpm}
+        srcrel=${src##*-}
+        rest=${src%-*}
+        srcver=${rest##*-}
+        srcname=${rest%-*}
+        arch=${nvra##*.}
+        echo "locked ${nvra} is no longer on the mirrors; using koji" >&2
+        specs+=("https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}/${arch}/${nvra}.rpm")
+    fi
+done < /tmp/lock.adds
+dnf5 -y install "${specs[@]}"
+
+dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
+
+# COSMIC installs alongside the base image's GNOME; selectable from the GDM
+# session picker. cosmic-greeter comes along as a hard dependency of
+# cosmic-session but is not enabled: GDM remains the display manager
+# (verified by `topaz check`).
 
 ### Forked cosmic-comp (config-driven workspace gestures)
 # The Fedora binary is replaced with a build of the topaz fork
@@ -109,17 +130,9 @@ grep -q '^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$' \
 sed -i '/^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$/d' \
     /usr/lib/udev/rules.d/60-openrgb.rules
 
-### Fingerprint reader support (Goodix 27c6:550a)
-# The in-tree libfprint has no driver for this sensor; swap in libfprint-tod
-# plus the Goodix TOD driver from COPR.
-dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
-dnf5 -y swap libfprint libfprint-tod-goodix
-dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
-
-### earlyoom
+### earlyoom (installed via the lockfile above)
 # Intervenes on memory pressure earlier than systemd-oomd; configuration in
 # system_files/etc/default/earlyoom adds a swap threshold to catch thrashing.
-dnf5 -y install earlyoom
 systemctl enable earlyoom.service
 
 ### Fingerprint-friendly PAM stack (authselect)
@@ -149,31 +162,30 @@ authselect select custom/local-custom \
 # guarantee does not depend on first-boot preset application.
 systemctl enable supergfxd.service
 
-### KDE Connect (phone integration, including SMS)
+### KDE Connect (installed via the lockfile above; phone integration + SMS)
 # Chosen over Valent/Flathub alternatives: Fedora's package ships the full
 # app set (kdeconnect-sms was the deciding feature), and Flathub carries
 # neither KDE Connect nor Valent. The firewall service (ports 1714-1764)
 # ships with firewalld; open it in the default zone so pairing works out of
 # the box.
-dnf5 -y install kde-connect
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
 ### Locked package set, epilogue (ledger 0022)
-# The transactions above resolve against whatever the Fedora repositories
-# hold at build time. Assert that the resolved delta matches the committed
-# lockfile, so repository drift becomes an explicit, reviewable lockfile
-# bump instead of silent image churn. Refresh with `just lock`
-# (build_files/gen-lockfile.sh mirrors the transactions above). The lock
-# ships in the image so `topaz check` can re-verify it on a booted system.
-rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+# The install above took exact NEVRAs, so this assertion can no longer fail
+# from repository drift — it verifies mechanism, not luck: that the closure
+# on disk (weak deps, conflicts, scriptlet side effects included) is
+# byte-for-byte the committed lockfile. The lock ships in the image so
+# `topaz check` can re-verify it on a booted system.
+rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n' \
     | grep -v '^gpg-pubkey' | LC_ALL=C sort > /tmp/rpm-post.list
 {
     LC_ALL=C comm -13 /tmp/rpm-pre.list /tmp/rpm-post.list | sed 's/^/+/'
     LC_ALL=C comm -23 /tmp/rpm-pre.list /tmp/rpm-post.list | sed 's/^/-/'
 } > /tmp/packages.delta
 if ! diff -u /ctx/packages.lock /tmp/packages.delta; then
-    echo "Resolved package set does not match build_files/packages.lock." >&2
-    echo "Review the diff above; run 'just lock' if the drift is intended." >&2
+    echo "Installed package set does not match build_files/packages.lock." >&2
+    echo "The locked install and the lock disagree — check gen-lockfile.sh" >&2
+    echo "and the transaction output above; 'just lock' rebases the lock." >&2
     exit 1
 fi
 cp /tmp/packages.delta /usr/share/topaz-os/packages.lock
