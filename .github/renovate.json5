@@ -18,6 +18,15 @@
       "matchFileNames": [".github/workflows/**.yaml", ".github/workflows/**.yml"],
     },
     {
+      // The base image digest is owned by .github/workflows/refresh-inputs.yml,
+      // which bumps it together with the package lockfile it invalidates
+      // (ledger 0022): the two must move atomically, and Renovate cannot
+      // regenerate rpm lockfiles.
+      "enabled": false,
+      "matchPackageNames": ["ghcr.io/ublue-os/bluefin-dx-nvidia-open"],
+      "matchUpdateTypes": ["digest"],
+    },
+    {
       // cosign v3 signs with the new Sigstore bundle format, which podman,
       // skopeo, and rpm-ostree cannot verify yet. Stay on v2 until
       // https://github.com/containers/container-libs/issues/388 is resolved,

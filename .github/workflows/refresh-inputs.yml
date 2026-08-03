@@ -1,0 +1,86 @@
+# Weekly refresh of the image's two repository-tracking inputs (ledger 0022).
+#
+# The base image digest and the package lockfile must move atomically: the
+# lock records the package delta relative to the pinned base, so bumping
+# one without the other fails the build's lockfile assertion by design.
+# Renovate cannot regenerate rpm lockfiles, so digest updates for the base
+# image are disabled in renovate.json5 and owned here instead: this
+# workflow resolves the current base digest, replays the package
+# transactions against it, and opens one pull request carrying both
+# changes — always self-consistent, CI-green on arrival.
+#
+# Scheduled a day ahead of build.yml's Saturday reproducibility rebuild.
+#
+# Requires the repository setting "Allow GitHub Actions to create and
+# approve pull requests". PRs created with GITHUB_TOKEN do not trigger
+# pull_request workflows, so the last step dispatches build.yml against
+# the branch explicitly (workflow_dispatch is the documented exception to
+# that rule); its check run attaches to the PR's head commit.
+
+name: Refresh image inputs
+
+on:
+  schedule:
+    - cron: '0 16 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bump base image digest
+        run: |
+          set -euo pipefail
+          command -v skopeo > /dev/null || sudo apt-get install -y skopeo
+          # Guard: fail loudly if the FROM line no longer looks as expected.
+          grep -Eq '^FROM ghcr\.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:[0-9a-f]+$' Containerfile
+          digest=$(skopeo inspect --no-tags --format '{{.Digest}}' \
+              docker://ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable)
+          sed -E -i \
+              "s|(bluefin-dx-nvidia-open:stable@)sha256:[0-9a-f]+|\1${digest}|" \
+              Containerfile
+          echo "Base digest: ${digest}"
+
+      - name: Regenerate lockfile against the (possibly bumped) base
+        run: bash build_files/gen-lockfile.sh
+
+      - name: Open a pull request if any input moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Containerfile build_files/packages.lock; then
+            echo "Base digest and lockfile unchanged; nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="refresh-inputs-$(date -u +%Y%m%d)"
+          git checkout -b "$branch"
+          git add Containerfile build_files/packages.lock
+          git commit -m "Refresh base image digest and package lockfile"
+          git push -u origin "$branch"
+          {
+            echo "Automated weekly input refresh (see ledger 0022)."
+            echo
+            echo '```'
+            git diff HEAD~1 --stat -- Containerfile build_files/packages.lock
+            echo '```'
+            echo
+            echo "Base digest and package lockfile move together so the"
+            echo "build's lockfile assertion holds. A CI build for this"
+            echo "branch is dispatched by the workflow that opened this PR."
+          } > /tmp/pr-body.md
+          gh pr create \
+            --title "Refresh image inputs ($(date -u +%Y-%m-%d))" \
+            --body-file /tmp/pr-body.md \
+            --base main --head "$branch"
+          gh workflow run build.yml --ref "$branch"
