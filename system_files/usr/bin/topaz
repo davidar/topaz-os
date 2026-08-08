@@ -133,6 +133,8 @@ cmd_check() {
     chk "user-setup recipe helpers are present and valid" \
         bash -c 'test -f /usr/lib/systemd/user/tailscale-systray.service &&
                  test -f /usr/lib/systemd/user/topaz-dropbox.service &&
+                 test -f /usr/lib/systemd/user/topaz-dropbox-restart.service &&
+                 test -f /usr/lib/systemd/user/topaz-dropbox-restart.path &&
                  test -f /usr/lib/systemd/user/topaz-bluefin-wallpaper.timer &&
                  test -f /usr/lib/systemd/user/topaz-bluefin-wallpaper.service &&
                  test -x /usr/libexec/topaz-dropbox-icons &&

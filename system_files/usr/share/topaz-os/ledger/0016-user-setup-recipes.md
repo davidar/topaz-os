@@ -6,6 +6,8 @@ paths:
   - /usr/share/ublue-os/just/60-custom.just
   - /usr/lib/systemd/user/tailscale-systray.service
   - /usr/lib/systemd/user/topaz-dropbox.service
+  - /usr/lib/systemd/user/topaz-dropbox-restart.service
+  - /usr/lib/systemd/user/topaz-dropbox-restart.path
   - /usr/lib/systemd/user/topaz-bluefin-wallpaper.service
   - /usr/lib/systemd/user/topaz-bluefin-wallpaper.timer
   - /usr/libexec/topaz-dropbox-icons
@@ -29,13 +31,16 @@ enables them:
   points cosmic-config at the image's own jxl files, so new art arrives
   with image updates.
 - **topaz-dropbox** — installs the Dropbox Flatpak and enables a launcher
-  unit. Two hard-won fixes are encoded: the unit is `oneshot` because
+  unit. Three hard-won fixes are encoded: the unit is `oneshot` because
   `dropbox start` hands the daemon to the Flatpak session helper and
   exits (the daemon lives outside the unit's cgroup — restarts need
-  `flatpak kill`), and a helper syncs the sandbox-private tray icons into
+  `flatpak kill`); a helper syncs the sandbox-private tray icons into
   the user icon theme, without which COSMIC's panel renders a
   missing-image placeholder (the Flatpak advertises an IconThemePath the
-  host cannot read).
+  host cannot read); and a path unit watches the Flatpak's deploy
+  symlink and bounces the app on update (added 2026-08-08) — otherwise
+  the old daemon keeps running against replaced files and its tray
+  registration silently dies until the next manual restart.
 - **topaz-electron-wayland** — per-app `ELECTRON_OZONE_PLATFORM_HINT=auto`
   Flatpak overrides. Electron apps default to XWayland, and image pastes
   into them cross the compositor's X11 selection bridge, which drops

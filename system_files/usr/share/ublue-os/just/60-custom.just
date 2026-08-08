@@ -44,11 +44,14 @@ topaz-dropbox:
     set -euo pipefail
     flatpak install -y flathub com.dropbox.Client
     systemctl --user enable --now topaz-dropbox.service
+    systemctl --user enable --now topaz-dropbox-restart.path
     echo "Dropbox installed and started. Link the account via the app window."
     echo "If the tray icon shows as a broken image, restart the panel once:"
     echo "  pkill cosmic-panel   # cosmic-session respawns it"
-    echo "Note: 'systemctl restart' does not restart a running daemon (it"
-    echo "lives in a Flatpak scope); use 'flatpak kill com.dropbox.Client'."
+    echo "Flatpak updates restart the daemon automatically (the stale binary"
+    echo "would otherwise keep running with a dead tray registration)."
+    echo "Manual restarts need 'flatpak kill com.dropbox.Client' first (the"
+    echo "daemon lives in a Flatpak scope, outside the unit's cgroup)."
 
 # Run Electron Flatpaks Wayland-native (fixes empty image pastes into Discord)
 topaz-electron-wayland apps="com.discordapp.Discord":
