@@ -41,6 +41,12 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh
 
+# Some podman versions (the CI runner's) commit the freshly created
+# /var/cache and /var/log cache-mount targets above as empty directories;
+# build.sh can't remove them while they are mounted. Sweep them in a
+# mount-free step so the empty-/var gate below sees the shipped tree.
+RUN rm -rf /var/cache /var/log
+
 # Verify final image and contents are correct, and that the image still
 # matches the claims in its provenance ledger. Lint warnings are fatal:
 # stray /var and /run content is exactly the build debris that made

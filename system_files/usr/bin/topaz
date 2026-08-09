@@ -184,8 +184,12 @@ cmd_check() {
     # state; the image must ship none (only an empty /var/tmp, matching
     # the base — build debris there churns rebuilds, see ledger 0024).
     if [ ! -e /run/ostree-booted ]; then
-        chk "image ships an empty /var" \
-            bash -c '[ -z "$(find /var -mindepth 1 -not -path /var/tmp)" ]'
+        # List offenders before the verdict — chk swallows command output,
+        # and a bare FAIL from a remote build log is undebuggable.
+        local stray
+        stray="$(find /var -mindepth 1 -not -path /var/tmp)"
+        [ -z "$stray" ] || printf 'stray /var content:\n%s\n' "$stray"
+        chk "image ships an empty /var" test -z "$stray"
     fi
     # Runtime-only: on a booted system, machine /etc shadows the image's
     # /usr/etc defaults, so a stale local copy can silently mask an updated
