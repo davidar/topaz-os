@@ -174,6 +174,9 @@ cmd_check() {
                      | grep -qv "is not installed"'
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
+    chk "nethogs holds packet-capture file capabilities" \
+        bash -c '[ "$(getcap /usr/sbin/nethogs)" = \
+            "/usr/sbin/nethogs cap_dac_read_search,cap_net_admin,cap_net_raw,cap_sys_ptrace=ep" ]'
     # Runtime-only: on a booted system, machine /etc shadows the image's
     # /usr/etc defaults, so a stale local copy can silently mask an updated
     # image config (found the hard way when an old /etc/default/earlyoom hid

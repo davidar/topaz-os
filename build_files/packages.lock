@@ -124,6 +124,7 @@
 +libqalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
 +libseat-0:0.9.3-1.fc44.x86_64 seatd-0.9.3-1.fc44.src.rpm
 +media-player-info-0:23-20.fc44.noarch media-player-info-23-20.fc44.src.rpm
++nethogs-0:0.8.8-4.fc44.x86_64 nethogs-0.8.8-4.fc44.src.rpm
 +openxr-libs-0:1.1.62-1.fc44.x86_64 openxr-1.1.62-1.fc44.src.rpm
 +plasma-activities-0:6.7.4-1.fc44.x86_64 plasma-activities-6.7.4-1.fc44.src.rpm
 +plasma-activities-stats-0:6.7.4-1.fc44.x86_64 plasma-activities-stats-6.7.4-1.fc44.src.rpm

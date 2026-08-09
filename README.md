@@ -53,6 +53,8 @@ AMD+NVIDIA laptops. Built from the Universal Blue
   ship inert in the image (ledger 0016) and nothing runs until invoked.
 - **KDE Connect** (with the SMS app) baked from Fedora, firewall ports pre-opened —
   Flathub has neither KDE Connect nor Valent, and Valent lacks SMS (ledger 0019).
+- **nethogs with packet-capture capabilities** — lets sandboxed system monitors
+  (e.g. Mission Center) show per-app network usage via the host binary (ledger 0023).
 - **Reproducible rebuilds** — `SOURCE_DATE_EPOCH` clamps rpm install metadata, and
   build-time nondeterminism (authselect backups, sgml catalog order) is suppressed,
   so rebuilding an unchanged tree ships no spurious layer churn (ledger 0020).

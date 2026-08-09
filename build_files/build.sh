@@ -170,6 +170,16 @@ systemctl enable supergfxd.service
 # the box.
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
+### nethogs (installed via the lockfile above; ledger 0023)
+# Per-process network accounting needs packet capture, which the tool gets
+# via file capabilities instead of running as root. This is the exact
+# capability set Mission Center's own helper installer applies on mutable
+# distros; granting it here lets sandboxed monitors (which cannot hold
+# these capabilities themselves) delegate to the host binary. Capabilities
+# ride the image as security.capability xattrs, verified by `topaz check`.
+setcap 'cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+pe' \
+    /usr/sbin/nethogs
+
 ### Locked package set, epilogue (ledger 0022)
 # The install above took exact NEVRAs, so this assertion can no longer fail
 # from repository drift — it verifies mechanism, not luck: that the closure

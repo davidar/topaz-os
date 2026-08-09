@@ -57,6 +57,7 @@ podman run --rm "$base" bash -euo pipefail -c '
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y install earlyoom
         dnf5 -y install kde-connect
+        dnf5 -y install nethogs
     } >&2
 
     census > /tmp/post
