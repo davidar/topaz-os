@@ -56,8 +56,8 @@ install times sit within the ordinal window of the recorded epoch (an
 unclamped transaction overshoots it by weeks), that the shipped rpmdb
 is in DELETE journal mode, that no authselect backup directory is
 present, that the sgml catalogs are sorted, and (in the build container)
-that `/var` ships empty (ledger 0024); CI asserts the published artifact
-contains no sidecar files.
+that `/var` ships empty (ledger 0024); the Containerfile gate additionally
+asserts the artifact ships no sidecar files.
 
 The cosmic-comp fork binary (ledger 0015) is outside this entry's
 scope: it is recompiled per build and its reproducibility is not

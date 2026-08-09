@@ -46,15 +46,15 @@ systemctl reboot
 ```
 
 Images are built in CI on every push and signed with cosign (the public key is in this
-repository, `cosign.pub`). Published images are rechunked with
-[rechunk](https://github.com/hhd-dev/rechunk) against the previous release, so updates
-only download the layers that actually changed. A weekly scheduled job rebuilds the
-unchanged tree and fails if the result diverges from the published image.
+repository, `cosign.pub`). The image is ordinary content-keyed OCI layers (packages,
+compositor, config), so updates only download the layers whose inputs changed. Builds
+are byte-reproducible; a weekly scheduled job rebuilds the unchanged tree and fails if
+the result diverges from the published image by even one layer.
 
 ## Notes
 
 - This is a personal image tuned for one person's hardware. Everything here is
-  reproducible from the `Containerfile` and `build_files/build.sh` — fork and adjust
-  rather than consuming directly if your hardware differs.
+  reproducible from the `Containerfile` and the scripts in `build_files/` — fork and
+  adjust rather than consuming directly if your hardware differs.
 - The base image does all the heavy lifting; see the
   [Bluefin documentation](https://docs.projectbluefin.io/) for everything it provides.

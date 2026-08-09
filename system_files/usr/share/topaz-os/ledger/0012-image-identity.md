@@ -16,7 +16,7 @@ deployment and its Bluefin rollback as byte-identical lines — e.g.
 custom image from the escape hatch at exactly the moment that distinction
 matters (observed on first boot, 2026-07-26).
 
-`build.sh` rewrites `NAME` and `PRETTY_NAME` to identify the image as
+`configure.sh` rewrites `NAME` and `PRETTY_NAME` to identify the image as
 topaz-os, embedding the base Bluefin version it was built from (e.g.
 `topaz-os (Bluefin 44.20260721)`). All other fields — `ID=bluefin`,
 `ID_LIKE`, `VARIANT_ID`, `IMAGE_ID`, `CPE_NAME`, version fields — are left

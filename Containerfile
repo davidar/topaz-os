@@ -34,29 +34,44 @@ RUN git init -q /src && \
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:effbd5225119adb6d95202eb45b980b5fba6f57170d2158f6b8e3d17559f0489
 
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=bind,from=comp-build,source=/out,target=/comp \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh
+# The image ships as ordinary content-keyed OCI layers — no rechunking.
+# Each RUN below is one layer, ordered least- to most-frequently changing,
+# and mounts only the inputs it is keyed on, so an edit invalidates (and a
+# machine re-downloads) only the layers whose inputs actually changed: the
+# package layer moves on a lock change, the compositor layer on a fork
+# bump, and everything topaz-authored rides in a kilobyte-sized tail
+# layer. Builds pass --timestamp 0 (Justfile) so layer file timestamps
+# never churn a digest — the same canonicalization ostree applies on
+# deployment anyway.
 
-# Some podman versions (the CI runner's) commit the freshly created
-# /var/cache and /var/log cache-mount targets above as empty directories;
-# build.sh can't remove them while they are mounted. Sweep them in a
-# mount-free step so the empty-/var gate below sees the shipped tree.
-RUN rm -rf /var/cache /var/log
+# Locked package set (ledger 0022), plus everything derived purely from
+# it: nethogs capabilities, reproducibility fixups, /var scrub.
+RUN --mount=type=bind,from=ctx,source=/install-packages.sh,target=/ctx/install-packages.sh \
+    --mount=type=bind,from=ctx,source=/packages.lock,target=/ctx/packages.lock \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/install-packages.sh
+
+# Forked cosmic-comp from the comp-build stage (ledger 0015)
+RUN --mount=type=bind,from=ctx,source=/install-comp.sh,target=/ctx/install-comp.sh \
+    --mount=type=bind,from=comp-build,source=/out,target=/comp \
+    /ctx/install-comp.sh
+
+# topaz system files and configuration on top of the installed set
+RUN --mount=type=bind,from=ctx,source=/configure.sh,target=/ctx/configure.sh \
+    --mount=type=bind,from=ctx,source=/system_files,target=/ctx/system_files \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/configure.sh
 
 # Verify final image and contents are correct, and that the image still
 # matches the claims in its provenance ledger. Lint warnings are fatal:
 # stray /var and /run content is exactly the build debris that made
 # rebuilds nondeterministic (ledger 0024), so new debris fails the build.
-RUN /usr/bin/topaz check
-RUN bootc container lint --fatal-warnings
-
-# Safety net (ledger 0020): build.sh converts the sqlite databases to
-# DELETE journal mode, after which reads — including the check gate's rpm
-# queries — no longer create these nondeterministic sidecars. Sweep any
-# stragglers; CI asserts the published artifact ships without them.
-RUN rm -f /usr/share/rpm/rpmdb.sqlite-wal /usr/share/rpm/rpmdb.sqlite-shm \
-    /usr/lib/sysimage/libdnf5/*.sqlite-wal /usr/lib/sysimage/libdnf5/*.sqlite-shm
+# The sidecar assertion holds because the databases are in DELETE journal
+# mode (ledger 0020) — the check's own rpm queries no longer create them.
+# One RUN: anything a gate command created would die in this same layer.
+RUN /usr/bin/topaz check && \
+    bootc container lint --fatal-warnings && \
+    bash -c 'shopt -s nullglob; \
+             sidecars=(/usr/share/rpm/*.sqlite-{wal,shm} \
+                       /usr/lib/sysimage/libdnf5/*.sqlite-{wal,shm}); \
+             [ ${#sidecars[@]} -eq 0 ]'

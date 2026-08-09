@@ -19,7 +19,7 @@ The build installs `nethogs` (via the package lockfile) and grants
 same capability set Mission Center's helper applies. The capabilities ride
 the image as `security.capability` xattrs, which ostree preserves; `topaz
 check` asserts the exact `getcap` output so a capability-stripping regression
-anywhere in the pipeline (rpm, ostree commit, rechunk) fails the build.
+anywhere in the pipeline fails the build.
 
 Verified end to end 2026-08-09 on a transient `bootc usroverlay` before
 baking: with the capabilities in place, Mission Center's per-app network

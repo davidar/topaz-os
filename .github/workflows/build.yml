@@ -9,8 +9,8 @@ on:
     # is pinned by the git tree (base digest, packages.lock, comp REF), so a
     # rebuild of an unchanged tree must reproduce the published image.
     # Scheduled runs rebuild HEAD, compare layers against :latest, and never
-    # push — a divergence beyond the known ostree-timestamp layer fails the
-    # run. Saturday 16:00 UTC, a day after refresh-inputs.yml's Friday PR.
+    # push — any layer divergence fails the run. Saturday 16:00 UTC, a day
+    # after refresh-inputs.yml's Friday PR.
     - cron: '0 16 * * 6'
   push:
     branches:
@@ -83,10 +83,6 @@ jobs:
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
-      # Tag generation must run before the rechunk action: it drops scratch
-      # files (previous.manifest.json, the OCI output dir) into the
-      # workspace, and generate-build-tags omits the per-commit tags when
-      # the git tree is dirty.
       - name: Generate Build Tags
         id: gen-build-tags
         run: |
@@ -98,74 +94,11 @@ jobs:
           echo "${alias_tags}"
           echo "alias_tags=${alias_tags}" >> $GITHUB_OUTPUT
 
-      # Rechunk the image so updates only download what changed. rpm-ostree's
-      # chunker groups all non-package content — the initramfs plus every
-      # topaz-authored file — into a single ~600MB layer, so any one-line
-      # change re-downloaded all of it. rechunk groups packages by update
-      # cadence, splits unpackaged content, and reuses the previous published
-      # image's layer plan (prev-ref) so unchanged content keeps identical
-      # layer digests. It is the same tool Bluefin uses to chunk the base
-      # image. The rechunked image drops the labels of its input, so collect
-      # them first and pass them through — except labels the rechunker owns:
-      # dev.hhd.* is its plan/info metadata (the base image's own copy is
-      # inherited by our build and would override the freshly computed one,
-      # breaking prev-ref plan reuse), and ostree.commit/final-diffid are
-      # stale base values it regenerates. Label values must stay free of
-      # double quotes: the action substitutes them textually into a shell
-      # command, which strips quoting (that is how the inherited base label
-      # broke plan reuse before the dev.hhd exclusion).
-      - name: Collect image labels
-        id: labels
-        run: |
-          {
-            echo 'labels<<EOF'
-            sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
-              | jq -r '.[0].Config.Labels
-                       | del(.["org.opencontainers.image.version"],
-                             .["ostree.commit"], .["ostree.final-diffid"],
-                             .["io.artifacthub.package.maintainers"])
-                       | with_entries(select(.key | startswith("dev.hhd") | not))
-                       | to_entries[] | "\(.key)=\(.value)"'
-            echo 'EOF'
-            echo "version=$(sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
-              | jq -r '.[0].Config.Labels["org.opencontainers.image.version"]')"
-          } >> $GITHUB_OUTPUT
-
-      - name: Rechunk image
-        id: rechunk
-        uses: hhd-dev/rechunk@5fbe1d3a639615d2548d83bc888360de6267b1a2 # v1.2.4
-        with:
-          ref: localhost/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
-          prev-ref: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          rechunk: ghcr.io/hhd-dev/rechunk:v1.2.4@sha256:8a84bd5a029681aa8db523f927b7c53b5aded9b078b81605ac0a2fedc969f528
-          version: ${{ steps.labels.outputs.version }}
-          labels: ${{ steps.labels.outputs.labels }}
-
-      - name: Load rechunked image
-        run: |
-          sudo skopeo copy ${{ steps.rechunk.outputs.ref }} \
-            containers-storage:localhost/${IMAGE_NAME}:${DEFAULT_TAG}
-          sudo rm -rf ${{ steps.rechunk.outputs.location }}
-
-      # The Containerfile check gate ran before rechunking; re-run it on the
-      # artifact that actually ships, so a rechunker regression fails the
-      # build rather than the deployment. The sidecar assertion must run in
-      # its own container first: topaz check's rpm queries recreate the
-      # sidecars, so only a pristine container reflects shipped content
-      # (ledger 0020).
-      - name: Verify rechunked image
-        run: |
-          sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
-            bash -c 'test ! -e /usr/share/rpm/rpmdb.sqlite-wal &&
-                     test ! -e /usr/share/rpm/rpmdb.sqlite-shm'
-          sudo podman run --rm localhost/${IMAGE_NAME}:${DEFAULT_TAG} topaz check
-
       # Scheduled runs exist to answer one question: does rebuilding the
       # unchanged tree reproduce the published artifact? Compare uncompressed
       # layer digests (diff_ids — compression-independent) of this rebuild
-      # against :latest. Known residue: the ostree metadata layer embeds a
-      # wall-clock commit timestamp (rechunk lacks SOURCE_DATE_EPOCH support;
-      # upstream fix pending), so exactly one differing layer is tolerated.
+      # against :latest. The image is plain content-keyed layers built with
+      # --timestamp 0, so any divergence at all is a regression.
       - name: Compare rebuild against published image
         if: github.event_name == 'schedule'
         run: |
@@ -182,17 +115,11 @@ jobs:
             | jq -r '.rootfs.diff_ids[]' | sort > /tmp/published.diffids
           sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
             | jq -r '.[0].RootFS.Layers[]' | sort > /tmp/rebuilt.diffids
-          differing=$(comm -3 /tmp/published.diffids /tmp/rebuilt.diffids | wc -l)
-          if [ "$differing" -eq 0 ]; then
+          if diff /tmp/published.diffids /tmp/rebuilt.diffids; then
             echo "REPRODUCIBLE: rebuild is layer-identical to the published image."
-          elif [ "$differing" -le 2 ]; then
-            echo "Rebuild matches the published image except one layer" \
-                 "(expected: ostree commit timestamp):"
-            comm -3 /tmp/published.diffids /tmp/rebuilt.diffids
           else
             echo "REPRODUCIBILITY REGRESSION: rebuild diverges from the" \
-                 "published image in $((differing)) layer entries:" >&2
-            comm -3 /tmp/published.diffids /tmp/rebuilt.diffids >&2
+                 "published image (diff above)." >&2
             exit 1
           fi
 
