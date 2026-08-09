@@ -1,6 +1,16 @@
-# Build context: scripts and system files referenced without being copied into the final image
-FROM scratch AS ctx
-COPY build_files /
+# Build contexts: scripts and system files referenced without being copied
+# into the final image. One context stage per layer, because podman keys a
+# RUN's cache on the whole source stage of its bind mounts — a single
+# shared context would re-run the package install for any system-file
+# edit.
+FROM scratch AS ctx-packages
+COPY build_files/install-packages.sh build_files/packages.lock /
+
+FROM scratch AS ctx-comp
+COPY build_files/install-comp.sh /
+
+FROM scratch AS ctx-files
+COPY build_files/configure.sh /
 COPY system_files /system_files
 
 # Compositor fork: cosmic-comp with config-driven workspace gestures, built
@@ -46,19 +56,19 @@ FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:effbd5225119adb6d9520
 
 # Locked package set (ledger 0022), plus everything derived purely from
 # it: nethogs capabilities, reproducibility fixups, /var scrub.
-RUN --mount=type=bind,from=ctx,source=/install-packages.sh,target=/ctx/install-packages.sh \
-    --mount=type=bind,from=ctx,source=/packages.lock,target=/ctx/packages.lock \
+RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/install-packages.sh \
+    --mount=type=bind,from=ctx-packages,source=/packages.lock,target=/ctx/packages.lock \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/install-packages.sh
 
 # Forked cosmic-comp from the comp-build stage (ledger 0015)
-RUN --mount=type=bind,from=ctx,source=/install-comp.sh,target=/ctx/install-comp.sh \
+RUN --mount=type=bind,from=ctx-comp,source=/install-comp.sh,target=/ctx/install-comp.sh \
     --mount=type=bind,from=comp-build,source=/out,target=/comp \
     /ctx/install-comp.sh
 
 # topaz system files and configuration on top of the installed set
-RUN --mount=type=bind,from=ctx,source=/configure.sh,target=/ctx/configure.sh \
-    --mount=type=bind,from=ctx,source=/system_files,target=/ctx/system_files \
+RUN --mount=type=bind,from=ctx-files,source=/configure.sh,target=/ctx/configure.sh \
+    --mount=type=bind,from=ctx-files,source=/system_files,target=/ctx/system_files \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/configure.sh
 
