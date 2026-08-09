@@ -177,6 +177,16 @@ cmd_check() {
     chk "nethogs holds packet-capture file capabilities" \
         bash -c '[ "$(getcap /usr/sbin/nethogs)" = \
             "/usr/sbin/nethogs cap_dac_read_search,cap_net_admin,cap_net_raw,cap_sys_ptrace=ep" ]'
+    chk "greeter portal mask ships declaratively (tmpfiles.d, not /var content)" \
+        grep -q 'xdg-desktop-portal.service - - - - /dev/null' \
+            /usr/lib/tmpfiles.d/topaz-greetd-portal-mask.conf
+    # Build-container only: a booted machine's /var is legitimate machine
+    # state; the image must ship none (only an empty /var/tmp, matching
+    # the base — build debris there churns rebuilds, see ledger 0024).
+    if [ ! -e /run/ostree-booted ]; then
+        chk "image ships an empty /var" \
+            bash -c '[ -z "$(find /var -mindepth 1 -not -path /var/tmp)" ]'
+    fi
     # Runtime-only: on a booted system, machine /etc shadows the image's
     # /usr/etc defaults, so a stale local copy can silently mask an updated
     # image config (found the hard way when an old /etc/default/earlyoom hid

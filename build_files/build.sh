@@ -234,3 +234,28 @@ for f in /etc/sgml/catalog /etc/sgml/*.cat; do
     [ -L "$f" ] && continue
     LC_ALL=C sort -o "$f" "$f"
 done
+
+### Empty /var (ledger 0024)
+# /var is machine state: the image's copy is factory content used once on
+# first deploy, then dead weight in every update — and everything the
+# build leaves there is a reproducibility hazard (dnf's countme cookies
+# roll a random request budget per build, which broke the weekly rebuild
+# check). The base image ships /var containing only an empty /var/tmp;
+# match it. The one functional item our packages put there — greetd's
+# xdg-desktop-portal mask in its home directory — is recreated at boot by
+# a tmpfiles.d entry shipped in /usr instead.
+grep -q 'xdg-desktop-portal.service - - - - /dev/null' \
+    /usr/lib/tmpfiles.d/topaz-greetd-portal-mask.conf
+# /run is runtime-only and gets the same treatment (dnf and selinux
+# tooling leave debris there too). /var/cache and /var/log are cache
+# mounts during this RUN (they never reach the image) and podman mounts
+# files at arbitrary depth under /run (resolv.conf, secrets): skip
+# mounted trees, and tolerate busy leaves elsewhere — mount contents
+# never commit to the image, and the fatal lint gate in the
+# Containerfile is the authority on what actually ships.
+for p in /var/* /var/.[!.]* /run/* /run/.[!.]*; do
+    [ -e "$p" ] || continue
+    findmnt -n "$p" > /dev/null && continue
+    rm -rf "$p" 2>/dev/null || true
+done
+mkdir -p /var/tmp

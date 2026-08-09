@@ -42,13 +42,22 @@ Four sources of byte-churn, all eliminated:
   per process — a fresh line order on every install. The lines only
   delegate to disjoint per-DTD catalogs, so order carries no meaning;
   the build sorts each catalog into a canonical order.
+- the build's dnf transactions leave per-repo `countme` cookies under
+  `/var/lib/dnf`. Fedora's privacy-preserving user counting draws a
+  random request budget and stamps window epochs into each cookie, so
+  the bytes differ between otherwise identical builds — and sometimes
+  collide, which made rebuild comparisons flicker between one and two
+  differing layers (root-caused 2026-08-09 by object-diffing the
+  unpackaged chunks of two same-content builds). Fixed as part of the
+  general rule that the image ships an empty `/var` (ledger 0024).
 
 Verification: `topaz check` asserts the topaz-installed packages'
 install times sit within the ordinal window of the recorded epoch (an
 unclamped transaction overshoots it by weeks), that the shipped rpmdb
 is in DELETE journal mode, that no authselect backup directory is
-present, and that the sgml catalogs are sorted; CI asserts the
-published artifact contains no sidecar files.
+present, that the sgml catalogs are sorted, and (in the build container)
+that `/var` ships empty (ledger 0024); CI asserts the published artifact
+contains no sidecar files.
 
 The cosmic-comp fork binary (ledger 0015) is outside this entry's
 scope: it is recompiled per build and its reproducibility is not

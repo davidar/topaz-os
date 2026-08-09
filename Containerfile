@@ -42,9 +42,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build.sh
 
 # Verify final image and contents are correct, and that the image still
-# matches the claims in its provenance ledger
+# matches the claims in its provenance ledger. Lint warnings are fatal:
+# stray /var and /run content is exactly the build debris that made
+# rebuilds nondeterministic (ledger 0024), so new debris fails the build.
 RUN /usr/bin/topaz check
-RUN bootc container lint
+RUN bootc container lint --fatal-warnings
 
 # Safety net (ledger 0020): build.sh converts the sqlite databases to
 # DELETE journal mode, after which reads — including the check gate's rpm
