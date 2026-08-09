@@ -24,8 +24,11 @@ Containerfile) — the image must match the claims in its provenance ledger.
   authoritative list; README stays a thematic overview — touch it only when a
   change adds or removes a headline capability.
 - Ledger entry numbers are stable; gaps from removed entries are fine.
-- Prefer patching base-image files in `build_files/build.sh` (with a grep guard
-  that fails loudly if upstream drifts) over shipping full replacement copies.
+- Prefer patching base-image files in `build_files/configure.sh` (with a grep
+  guard that fails loudly if upstream drifts) over shipping full replacement
+  copies. Build steps live in the script matching their layer: locked
+  packages and their fixups in `install-packages.sh`, the compositor in
+  `install-comp.sh`, system files and configuration in `configure.sh`.
 - Per-user configuration ships as opt-in ujust recipes in
   `system_files/usr/share/ublue-os/just/60-custom.just` (imported via the
   base's optional `60-custom.just` hook), never as baked user state.

@@ -100,6 +100,17 @@ build $target_image=image_name $tag=default_tag:
 
     BUILD_ARGS=()
     LABELS=()
+    # Registry-backed layer cache (CI: stateless runners rebuild everything
+    # otherwise). CACHE_FROM reuses published intermediate layers — notably
+    # the compositor toolchain+build stage and the package layer; CACHE_TO
+    # publishes them. The weekly reproducibility rebuild sets neither: a
+    # cache hit would make that check vacuous.
+    if [[ -n "${CACHE_FROM:-}" ]]; then
+        BUILD_ARGS+=("--cache-from" "${CACHE_FROM}")
+    fi
+    if [[ -n "${CACHE_TO:-}" ]]; then
+        BUILD_ARGS+=("--cache-to" "${CACHE_TO}")
+    fi
     if [[ -z "$(git status -s)" ]]; then
         GIT_SHA=$(git rev-parse --short HEAD)
         LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
@@ -122,62 +133,16 @@ build $target_image=image_name $tag=default_tag:
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
 
     # This actually builds the image!
-    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
+    # --timestamp 0 clamps layer file timestamps and the created stamp so
+    # rebuilds of unchanged content produce identical layer digests
+    # (ostree canonicalizes mtimes to zero on deployment regardless).
+    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --timestamp 0 --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
 
     podman build "${PODMAN_BUILD_ARGS[@]}" .
 
 # Regenerate build_files/packages.lock against the pinned base + today's repos
 lock:
     bash build_files/gen-lockfile.sh
-
-# Split the image for smaller updates (New)!
-rechunk $target_image=image_name $tag=default_tag:
-    #!/usr/bin/env bash
-
-    set -xeuo pipefail
-
-    # TODO: pin chunkah image to hash once mature enough
-    # You may run into space issues on github runenrs as we are making a
-    # complete copy of the image
-    export CHUNKAH_CONFIG_STR=$(podman inspect "${target_image}")
-    podman run --rm --mount=type=image,src="${target_image}",target=/chunkah \
-    -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest \
-    build \
-    --verbose \
-    --compressed \
-    --max-layers 128 \
-    --prune /sysroot/ \
-    --label ostree.commit- --label ostree.final-diffid- \
-    --tag "${target_image}:${tag}" | podman load
-
-# Split the image for smaller updates (Classical)!
-ostree-rechunk $target_image=image_name $tag=default_tag:
-    #!/usr/bin/env bash
-
-    set -xeuo pipefail
-
-    # TODO: This is the only blocker for rootless CI
-    # https://github.com/coreos/rpm-ostree/issues/5346
-    if [[ ! "${UID}" -eq "0" ]]; then
-      echo "This needs to run as root."
-      exit 1
-    fi
-
-    # You can use your own base image here to avoid pulling fedora-bootc
-    RPM_OSTREE_CHUNKER_IMAGE="quay.io/fedora/fedora-bootc:latest"
-
-    podman run --rm \
-      --pull=newer \
-      --privileged \
-      -v "/var/lib/containers:/var/lib/containers" \
-      --entrypoint /usr/bin/rpm-ostree \
-      "${RPM_OSTREE_CHUNKER_IMAGE}" \
-      compose build-chunked-oci \
-      --max-layers 127 \
-      --format-version=2 \
-      --bootc \
-      --from "localhost/${target_image}:${tag}" \
-      --output containers-storage:"localhost/${target_image}:${tag}"
 
 # Generate Default Tag
 [group('Utility')]

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Package layer: everything derived purely from the locked package set.
+# This layer is keyed on packages.lock (plus this script), so it is
+# invalidated only when the lock changes — edits to system files or
+# configuration rebuild only the later, kilobyte-sized layers.
+
 set -ouex pipefail
 
 ### Reproducible package installs (ledger 0020)
@@ -21,23 +26,6 @@ printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 # epilogue asserts that the delta it produced matches the lockfile exactly.
 rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n' \
     | grep -v '^gpg-pubkey' | LC_ALL=C sort > /tmp/rpm-pre.list
-
-# Copy system_files/ from the repo into the image
-cp -avf "/ctx/system_files"/. /
-
-### Image identity (os-release)
-# GRUB titles boot entries with os-release PRETTY_NAME, so without this the
-# booted topaz-os deployment and its Bluefin rollback render as identical
-# menu lines. Rebrand NAME and PRETTY_NAME only; ID, ID_LIKE, VARIANT_ID,
-# IMAGE_ID and the rest stay Bluefin's so tooling keyed on them still works.
-# Guard: fail loudly if the base image reshapes the fields we rewrite
-grep -q '^NAME="Bluefin"' /usr/lib/os-release
-grep -q '^PRETTY_NAME="Bluefin ' /usr/lib/os-release
-base_version=$(. /usr/lib/os-release && echo "$IMAGE_VERSION")
-sed -i \
-    -e 's/^NAME=.*/NAME="topaz-os"/' \
-    -e "s/^PRETTY_NAME=.*/PRETTY_NAME=\"topaz-os (Bluefin $base_version)\"/" \
-    /usr/lib/os-release
 
 ### Packages: COSMIC desktop, fingerprint driver, earlyoom, KDE Connect
 # Installed as the exact NEVRA closure recorded in the lockfile — names are
@@ -90,87 +78,7 @@ dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 # cosmic-session but is not enabled: GDM remains the display manager
 # (verified by `topaz check`).
 
-### Forked cosmic-comp (config-driven workspace gestures)
-# The Fedora binary is replaced with a build of the topaz fork
-# (github.com/davidar/cosmic-comp, compiled in the Containerfile's
-# comp-build stage at a pinned commit): workspace-swipe finger count, swipe
-# physics, and rubber-band edge bounce become hot-reloadable config, pending
-# upstream (pop-os/cosmic-epoch#54). Ledger 0015. Guard: fail loudly when
-# Fedora bumps cosmic-comp, so the fork gets rebased rather than silently
-# shadowing a newer base version.
-fork_base_version=1.5.0
-packaged_version=$(rpm -q --qf '%{VERSION}' cosmic-comp)
-if [ "$packaged_version" != "$fork_base_version" ]; then
-    echo "cosmic-comp is now $packaged_version but the fork is based on $fork_base_version" >&2
-    echo "Rebase github.com/davidar/cosmic-comp (branch topaz) and update COSMIC_COMP_REF" >&2
-    exit 1
-fi
-install -m0755 /comp/cosmic-comp /usr/bin/cosmic-comp
-{ cat /comp/fork-info; echo "base=$fork_base_version"; } \
-    > /usr/share/topaz-os/cosmic-comp-fork
-
-### No passwordless DDC/CI access to GPU i2c buses
-# cosmic-settings-daemon's brightness module blindly DDC-probes every GPU
-# i2c bus (including disconnected DP ports) about a second after the
-# compositor starts. On this hardware (amdgpu DCN 3.1.4, PSR eDP), a raw
-# AUX transaction to a disconnected port before the panel's first PSR
-# arming wedges that arming forever, freezing COSMIC at the first idle —
-# ledger 0013 has the full investigation. The daemon reaches /dev/i2c-*
-# through seat-user ACLs granted by udev `uaccess` rules; two base-image
-# packages ship one. Closing both (and the wider unprivileged-DDC surface)
-# leaves `sudo ddcutil` and OpenRGB's non-i2c device access working. Drop
-# once the daemon probes politely. Guards: fail the build if either rule
-# moves or changes shape upstream; `topaz check` additionally sweeps the
-# whole rules directory for any i2c uaccess grant.
-grep -q 'SUBSYSTEM=="i2c-dev".*TAG+="uaccess"' \
-    /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
-rm /usr/lib/udev/rules.d/60-ddcutil-i2c.rules
-grep -q '^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$' \
-    /usr/lib/udev/rules.d/60-openrgb.rules
-sed -i '/^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$/d' \
-    /usr/lib/udev/rules.d/60-openrgb.rules
-
-### earlyoom (installed via the lockfile above)
-# Intervenes on memory pressure earlier than systemd-oomd; configuration in
-# system_files/etc/default/earlyoom adds a swap threshold to catch thrashing.
-systemctl enable earlyoom.service
-
-### Fingerprint-friendly PAM stack (authselect)
-# The default fingerprint PAM flow blocks password entry until fprintd times
-# out (30s). Generate a custom profile from the base `local` profile: every
-# file is a symlink back to the base, so upstream profile changes flow through
-# automatically, except system-auth, which is copied and patched to set
-# timeout=5 so the password prompt appears after 5s if the reader is unused.
-authselect create-profile local-custom --base-on local \
-    --symlink-meta --symlink-nsswitch --symlink-dconf --symlink-pam
-rm /etc/authselect/custom/local-custom/system-auth
-cp /usr/share/authselect/default/local/system-auth \
-    /etc/authselect/custom/local-custom/system-auth
-# Guard: fail the build if upstream reshaped the pam_fprintd line
-grep -Eq 'pam_fprintd\.so\s+\{include if "with-fingerprint"\}' \
-    /etc/authselect/custom/local-custom/system-auth
-sed -i 's/pam_fprintd\.so/pam_fprintd.so timeout=5/' \
-    /etc/authselect/custom/local-custom/system-auth
-# --nobackup: the automatic backup bakes a timestamped directory into the
-# image, invalidating an otherwise-unchanged layer on every rebuild
-# (ledger 0020); in a container build there is no prior state to restore.
-authselect select custom/local-custom \
-    with-fingerprint with-silent-lastlog with-mdns4 --force --nobackup
-
-### supergfxd (GPU mode switching)
-# Preset shipped in system_files; enable in the built image as well so the
-# guarantee does not depend on first-boot preset application.
-systemctl enable supergfxd.service
-
-### KDE Connect (installed via the lockfile above; phone integration + SMS)
-# Chosen over Valent/Flathub alternatives: Fedora's package ships the full
-# app set (kdeconnect-sms was the deciding feature), and Flathub carries
-# neither KDE Connect nor Valent. The firewall service (ports 1714-1764)
-# ships with firewalld; open it in the default zone so pairing works out of
-# the box.
-firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
-
-### nethogs (installed via the lockfile above; ledger 0023)
+### nethogs (ledger 0023)
 # Per-process network accounting needs packet capture, which the tool gets
 # via file capabilities instead of running as root. This is the exact
 # capability set Mission Center's own helper installer applies on mutable
@@ -241,18 +149,12 @@ done
 # build leaves there is a reproducibility hazard (dnf's countme cookies
 # roll a random request budget per build, which broke the weekly rebuild
 # check). The base image ships /var containing only an empty /var/tmp;
-# match it. The one functional item our packages put there — greetd's
-# xdg-desktop-portal mask in its home directory — is recreated at boot by
-# a tmpfiles.d entry shipped in /usr instead.
-grep -q 'xdg-desktop-portal.service - - - - /dev/null' \
-    /usr/lib/tmpfiles.d/topaz-greetd-portal-mask.conf
-# /run is runtime-only and gets the same treatment (dnf and selinux
-# tooling leave debris there too). /var/cache and /var/log are cache
-# mounts during this RUN (they never reach the image) and podman mounts
-# files at arbitrary depth under /run (resolv.conf, secrets): skip
-# mounted trees, and tolerate busy leaves elsewhere — mount contents
-# never commit to the image, and the fatal lint gate in the
-# Containerfile is the authority on what actually ships.
+# match it. Scrub the dnf/selinux debris this layer created in /var and
+# /run at the end of the same RUN, so none of it is ever committed.
+# podman mounts files at arbitrary depth under /run (resolv.conf,
+# secrets): skip mounted trees and tolerate busy leaves — mount contents
+# never commit to the image, and the check/lint gate in the Containerfile
+# is the authority on what actually ships.
 for p in /var/* /var/.[!.]* /run/* /run/.[!.]*; do
     [ -e "$p" ] || continue
     findmnt -n "$p" > /dev/null && continue
