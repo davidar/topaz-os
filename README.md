@@ -6,88 +6,37 @@ A custom [bootc](https://github.com/bootc-dev/bootc) image based on
 AMD+NVIDIA laptops. Built from the Universal Blue
 [image-template](https://github.com/ublue-os/image-template).
 
-## What's added on top of Bluefin DX
+## What's different from Bluefin DX
 
-- **Identifies as topaz-os** — `NAME`/`PRETTY_NAME` rebranded in `os-release` so GRUB
-  can tell this image apart from its Bluefin rollback; all machine-readable fields stay
-  Bluefin's for tooling compatibility.
-- **COSMIC desktop (1.4.x, from the Fedora repos)** — installed alongside GNOME; pick
-  your session at the GDM login screen. `cosmic-greeter` comes along as a hard
-  dependency of `cosmic-session` but is not enabled: GDM remains the display
-  manager (verified by `topaz check`).
-- **No passwordless i2c (DDC/CI) access** — the ddcutil and OpenRGB `uaccess` udev
-  rules are removed: cosmic-settings-daemon's blind monitor probing otherwise wedges
-  amdgpu PSR arming and freezes COSMIC (ledger 0013). `sudo ddcutil` still works.
-- **Panel Self Refresh disabled** (`amdgpu.dcdebugmask=0x10` via bootc `kargs.d`) —
-  eDP PSR entry can wedge DMUB firmware and permanently freeze the display (ledger 0018).
-- **`GSK_RENDERER=gl` system-wide** — GTK4's default Vulkan renderer makes the NVIDIA
-  Vulkan ICD enumerate devices at startup, which wakes a runtime-suspended dGPU and adds
-  ~2 seconds to every GTK4 app launch on hybrid laptops
-  ([upstream report](https://forums.developer.nvidia.com/t/288095)). The GL renderer
-  avoids the wake entirely, letting the dGPU stay asleep until something actually needs it.
-- **Goodix fingerprint reader support (27c6:550a)** — `libfprint` swapped for
-  `libfprint-tod` + the Goodix TOD driver
-  (COPR: [antiderivative/libfprint-tod-goodix-0.0.9](https://copr.fedorainfracloud.org/coprs/antiderivative/libfprint-tod-goodix-0.0.9/)).
-  Found on the Lenovo Legion Slim 5 14APH8 and various other laptops.
-- **earlyoom, enabled by default** — with a swap-usage threshold added to the Fedora
-  defaults so memory-pressure intervention happens before swap thrashing makes the
-  desktop unresponsive.
-- **Fingerprint-friendly PAM** — custom authselect profile (generated at build
-  time from the base profile, with a 5s fprintd timeout patched into
-  `system-auth`) so the password prompt isn't blocked for 30s when fingerprint
-  auth is enrolled.
-- **Fingerprint unlock on the COSMIC lock screen** — a polkit rule lets
-  `cosmic-greeter` call fprintd; it runs outside the logind session scope, so
-  fprintd's defaults silently deny it (ledger 0017).
-- **`/opt/google/chrome/chrome`** recreated at boot as a symlink to the Chrome Flatpak
-  export (tmpfiles.d), so Playwright and similar tools find Chrome at their hardcoded path.
-- **supergfxd enabled** by preset for GPU mode switching on hybrid laptops.
-- **`plugdev` group declared** (sysusers.d) — base-image udev rules reference this
-  Debian-style group; declaring it silences ~100 boot errors (ledger 0021).
-- **speech-dispatcher socket enabled** for user sessions, fixing text-to-speech in
-  Flatpak browsers out of the box.
-- **`ujust topaz-qt-dark`** — opt-in recipe making Qt Flatpaks on the KDE runtime follow
-  GNOME dark mode (Kvantum + platform-theme arrangement, applied per user).
-- **Opt-in user-setup recipes** — `ujust topaz-{tailscale-tray,wallpaper,dropbox,
-  electron-wayland,chrome-integration,claude-desktop,kitty,touchpad-dwt}`; helpers
-  ship inert in the image (ledger 0016) and nothing runs until invoked.
-- **KDE Connect** (with the SMS app) baked from Fedora, firewall ports pre-opened —
-  Flathub has neither KDE Connect nor Valent, and Valent lacks SMS (ledger 0019).
-- **nethogs with packet-capture capabilities** — lets sandboxed system monitors
-  (e.g. Mission Center) show per-app network usage via the host binary (ledger 0023).
-- **Reproducible rebuilds** — `SOURCE_DATE_EPOCH` clamps rpm install metadata, and
-  build-time nondeterminism (authselect backups, sgml catalog order) is suppressed,
-  so rebuilding an unchanged tree ships no spurious layer churn (ledger 0020).
-- **Locked package set** — the build installs exactly the NEVRAs in
-  `build_files/packages.lock` (koji backfills builds the mirrors dropped); package
-  updates are explicit `just lock` diffs reviewed in git, never repo drift (ledger 0022).
-- **A provenance ledger** — every deliberate deviation from the base image has an
-  entry under `/usr/share/topaz-os/ledger/` recording what changed, why, and the
-  evidence. Query it with the included `topaz` CLI:
+Every deliberate deviation from the base image is recorded in a provenance ledger
+shipped inside the image (`/usr/share/topaz-os/ledger/`) — what changed, why, and the
+evidence — and `topaz check` verifies the deviations at build time, so an image that no
+longer matches its own ledger fails to build. The ledger, not this README, is the
+authoritative list:
 
-  ```
-  $ topaz why /etc/default/earlyoom     # why does this file deviate?
-  $ topaz ledger                        # list all recorded deviations
-  $ topaz check                         # verify the deviations actually hold
-  ```
+```
+$ topaz ledger                        # list all recorded deviations
+$ topaz why /etc/default/earlyoom     # why does this file deviate?
+$ topaz check                         # verify the deviations actually hold
+```
 
-  `topaz check` also runs at image build time, so an image that no longer
-  matches its own ledger fails to build.
-- **cosmic-comp from the [topaz fork](https://github.com/davidar/cosmic-comp)** —
-  workspace-swipe finger count, physics, and rubber-band edge bounce are
-  hot-reloadable config (pinned commit, built from source; pending upstream).
-- **`topaz dev`** — transient `/usr` overlay workflow (`bootc usroverlay`) for
-  daily-driving locally built binaries; a reboot restores the signed image, and
-  `topaz check` loudly reports any active overlay.
-- **An opt-in "night shift"** — a daily systemd user timer that digests system
-  events (failed units, journal errors, OOM activity, staged updates, the
-  self-check) into a morning report. Analysis is a pluggable hook: point
-  `TRIAGE_CMD` at any command that reads the digest on stdin — an AI agent, a
-  local model, or a script — or leave it unset for raw digests. The digest
-  carries memory between runs: the previous report, plus optional owner notes
-  (`~/.config/topaz/nightshift-notes.md`) describing expected state. Disabled
-  by default; `topaz nightshift enable` to opt in. See
-  `/usr/share/topaz-os/nightshift.conf.example`.
+In broad strokes:
+
+- **COSMIC desktop** (Fedora packages) alongside the base image's GNOME — pick your
+  session at the GDM login screen. cosmic-comp comes from the
+  [topaz fork](https://github.com/davidar/cosmic-comp): hot-reloadable workspace-gesture
+  and physics config, pending upstream.
+- **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
+  PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
+  fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.
+- **Supply-chain hygiene** — the build installs exactly the NEVRAs in
+  `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
+  byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).
+- **Opt-in extras** — `ujust topaz-*` user-setup recipes (inert until invoked), the
+  `topaz dev` transient-overlay workflow for daily-driving locally built binaries, and
+  an opt-in "night shift": a daily user timer that digests system events into a morning
+  report through a pluggable `TRIAGE_CMD` hook (AI agent, local model, or plain script —
+  your choice; see `/usr/share/topaz-os/nightshift.conf.example`).
 
 ## Usage
 
@@ -96,11 +45,11 @@ sudo bootc switch ghcr.io/davidar/topaz-os:latest
 systemctl reboot
 ```
 
-Images are built daily against the latest Bluefin DX stable and signed with
-[cosign](https://github.com/sigstore/cosign); the public key is in this repository
-(`cosign.pub`). Published images are rechunked with
-[rechunk](https://github.com/hhd-dev/rechunk) against the previous release, so
-updates only download the layers that actually changed.
+Images are built in CI on every push and signed with cosign (the public key is in this
+repository, `cosign.pub`). Published images are rechunked with
+[rechunk](https://github.com/hhd-dev/rechunk) against the previous release, so updates
+only download the layers that actually changed. A weekly scheduled job rebuilds the
+unchanged tree and fails if the result diverges from the published image.
 
 ## Notes
 

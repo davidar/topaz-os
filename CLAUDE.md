@@ -17,10 +17,12 @@ Containerfile) — the image must match the claims in its provenance ledger.
 
 ## Conventions
 
-- **Every deliberate deviation from the base image gets three things:** a ledger
+- **Every deliberate deviation from the base image gets two things:** a ledger
   entry in `system_files/usr/share/topaz-os/ledger/` (frontmatter: title, date,
-  status, paths), a `topaz check` assertion where build-time verifiable
-  (`cmd_check` in `system_files/usr/bin/topaz`), and a README bullet.
+  status, paths) and a `topaz check` assertion where build-time verifiable
+  (`cmd_check` in `system_files/usr/bin/topaz`). The ledger is the
+  authoritative list; README stays a thematic overview — touch it only when a
+  change adds or removes a headline capability.
 - Ledger entry numbers are stable; gaps from removed entries are fine.
 - Prefer patching base-image files in `build_files/build.sh` (with a grep guard
   that fails loudly if upstream drifts) over shipping full replacement copies.
