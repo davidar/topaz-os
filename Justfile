@@ -100,6 +100,17 @@ build $target_image=image_name $tag=default_tag:
 
     BUILD_ARGS=()
     LABELS=()
+    # Registry-backed layer cache (CI: stateless runners rebuild everything
+    # otherwise). CACHE_FROM reuses published intermediate layers — notably
+    # the compositor toolchain+build stage and the package layer; CACHE_TO
+    # publishes them. The weekly reproducibility rebuild sets neither: a
+    # cache hit would make that check vacuous.
+    if [[ -n "${CACHE_FROM:-}" ]]; then
+        BUILD_ARGS+=("--cache-from" "${CACHE_FROM}")
+    fi
+    if [[ -n "${CACHE_TO:-}" ]]; then
+        BUILD_ARGS+=("--cache-to" "${CACHE_TO}")
+    fi
     if [[ -z "$(git status -s)" ]]; then
         GIT_SHA=$(git rev-parse --short HEAD)
         LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")

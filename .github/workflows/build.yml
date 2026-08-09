@@ -75,9 +75,27 @@ jobs:
           echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
           echo "IMAGE_NAME=${IMAGE_NAME,,}" >> ${GITHUB_ENV}
 
-      # This actually builds the container image
+      # Login happens before the build so the registry layer cache is
+      # readable (the cache package is private) and, on main, writable.
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # This actually builds the container image. Runners are stateless, so
+      # unchanged expensive layers (compositor toolchain + build, the locked
+      # package install) come from a registry cache instead of rebuilding.
+      # Scheduled runs build cold on purpose — they exist to prove a real
+      # rebuild reproduces the published image, and a cache hit would prove
+      # nothing. Only main pushes write the cache, so branches can't poison
+      # it.
       - name: Build Image
         id: build-image
+        env:
+          CACHE_FROM: ${{ github.event_name != 'schedule' && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
+          CACHE_TO: ${{ github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
         run: |
           sudo -E $(command -v just) build \
             ${IMAGE_NAME} \
@@ -135,14 +153,6 @@ jobs:
 
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Push To GHCR
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
