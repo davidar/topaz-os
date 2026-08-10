@@ -29,7 +29,10 @@ podman run --rm "$base" bash -euo pipefail -c '
     census > /tmp/pre
 
     {
-        dnf5 -y install \
+        # cosmic-session Recommends cosmic-wallpapers; excluded rather than
+        # merely unlisted so the weak dependency cannot pull it back in
+        # (ledger 0025).
+        dnf5 -y install --exclude=cosmic-wallpapers \
             cosmic-session \
             cosmic-comp \
             cosmic-panel \
@@ -50,7 +53,6 @@ podman run --rm "$base" bash -euo pipefail -c '
             cosmic-randr \
             cosmic-workspaces \
             cosmic-icon-theme \
-            cosmic-wallpapers \
             cosmic-config-fedora
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap libfprint libfprint-tod-goodix
@@ -58,6 +60,11 @@ podman run --rm "$base" bash -euo pipefail -c '
         dnf5 -y install earlyoom
         dnf5 -y install kde-connect
         dnf5 -y install nethogs
+        # cosmic-session hard-Requires cosmic-initial-setup, but the image
+        # deliberately ships no first-boot wizard (ledger 0025): drop it
+        # after the transaction. --nodeps detaches only the dependency
+        # entry, and the census below never records the package.
+        rpm -e --nodeps cosmic-initial-setup
     } >&2
 
     census > /tmp/post

@@ -13,7 +13,6 @@
 +cosmic-greeter-0:1.5.0-1.fc44.x86_64 cosmic-greeter-1.5.0-1.fc44.src.rpm
 +cosmic-icon-theme-0:1.5.0-1.fc44.noarch cosmic-icon-theme-1.5.0-1.fc44.src.rpm
 +cosmic-idle-0:1.5.0-1.fc44.x86_64 cosmic-idle-1.5.0-1.fc44.src.rpm
-+cosmic-initial-setup-0:1.5.0-1.fc44.x86_64 cosmic-initial-setup-1.5.0-1.fc44.src.rpm
 +cosmic-launcher-0:1.5.0-1.fc44.x86_64 cosmic-launcher-1.5.0-1.fc44.src.rpm
 +cosmic-notifications-0:1.5.0-1.fc44.x86_64 cosmic-notifications-1.5.0-1.fc44.src.rpm
 +cosmic-osd-0:1.5.0-1.fc44.x86_64 cosmic-osd-1.5.0-1.fc44.src.rpm
@@ -25,7 +24,6 @@
 +cosmic-settings-daemon-0:1.5.0-1.fc44.x86_64 cosmic-settings-daemon-1.5.0-1.fc44.src.rpm
 +cosmic-store-0:1.5.0-1.fc44.x86_64 cosmic-store-1.5.0-1.fc44.src.rpm
 +cosmic-term-0:1.5.0-1.fc44.x86_64 cosmic-term-1.5.0-1.fc44.src.rpm
-+cosmic-wallpapers-0:1.5.0-1.fc44.noarch cosmic-wallpapers-1.5.0-1.fc44.src.rpm
 +cosmic-workspaces-0:1.5.0-1.fc44.x86_64 cosmic-workspaces-1.5.0-1.fc44.src.rpm
 +cutecosmic-qt6-0:0.1^git20260121.8e58441-3.fc44.x86_64 cutecosmic-0.1^git20260121.8e58441-3.fc44.src.rpm
 +desktop-backgrounds-compat-0:44.0.0-2.fc44.noarch desktop-backgrounds-44.0.0-2.fc44.src.rpm

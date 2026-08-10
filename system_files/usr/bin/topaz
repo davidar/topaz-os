@@ -172,6 +172,9 @@ cmd_check() {
                  ! sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
                      | xargs -r -n1 rpm -q 2>/dev/null \
                      | grep -qv "is not installed"'
+    chk "trimmed app-suite packages are absent (ledger 0025)" \
+        bash -c '! rpm -q cosmic-initial-setup > /dev/null 2>&1 &&
+                 ! rpm -q cosmic-wallpapers > /dev/null 2>&1'
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
     chk "nethogs holds packet-capture file capabilities" \
