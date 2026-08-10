@@ -57,6 +57,15 @@ enables them:
   kdeglobals that fights the Kvantum theme.
 - **topaz-kitty** — kitty via the official user-scoped installer with
   desktop integration.
+- **topaz-applets** (added 2026-08-10) — builds a pinned set of COSMIC
+  panel applets (minimon — a fork carrying an NVML no-wake fix and
+  combined GPU charts pending upstreaming — plus caffeine and
+  observatory) from source in a disposable container on the image's
+  Fedora release, then installs via each repo's own `justfile` into
+  `~/.local`, fixing desktop `Exec` lines to absolute paths (the panel's
+  PATH may not include `~/.local/bin`). Commit pins live in the recipe
+  and move only by deliberate edit, mirroring the compositor fork's REF
+  discipline (ledger 0015).
 - **topaz-touchpad-dwt** (added 2026-07-29) — sets
   `disable_while_typing: Some(false)` in cosmic-comp's `input_touchpad`
   config (hot-applied). libinput's disable-while-typing guards against

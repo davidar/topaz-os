@@ -92,6 +92,65 @@ topaz-kitty:
         "$HOME"/.local/share/applications/kitty*.desktop
     echo "kitty installed to ~/.local/kitty.app (re-run to update)."
 
+# Build the pinned COSMIC applets from source and install them to ~/.local
+topaz-applets applet="all":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # Pinned commits, same discipline as the compositor fork's REF
+    # (ledger 0015): updates arrive as deliberate bumps here, and a re-run
+    # rebuilds. minimon is a fork (NVML no-wake fix + combined GPU charts)
+    # until those changes land upstream.
+    declare -A repo ref bin
+    repo[minimon]="https://github.com/davidar/minimon-applet"
+    ref[minimon]="155971bf22f13ebddf626ce14d1b970b20e63ed5"
+    bin[minimon]="cosmic-ext-applet-minimon"
+    repo[caffeine]="https://github.com/tropicbliss/cosmic-ext-applet-caffeine"
+    ref[caffeine]="e427a1a903fd612a09477d0e90bd4aed4a494a08"
+    bin[caffeine]="cosmic-ext-applet-caffeine"
+    repo[observatory]="https://github.com/cosmic-utils/observatory"
+    ref[observatory]="f62326dc4a00074e8c72f307ca9df4858f2b3ad9"
+    bin[observatory]="observatory"
+    sel="{{ applet }}"
+    [ "$sel" = all ] && sel="minimon caffeine observatory"
+    for a in $sel; do
+        if [ -z "${repo[$a]:-}" ]; then
+            echo "unknown applet: $a (minimon|caffeine|observatory|all)" >&2
+            exit 1
+        fi
+        src="$HOME/.cache/topaz-applets/$a"
+        [ -d "$src/.git" ] || git init -q "$src"
+        git -C "$src" fetch -q --depth=1 "${repo[$a]}" "${ref[$a]}"
+        git -C "$src" checkout -q FETCH_HEAD
+        # Build in a disposable container on the image's Fedora release:
+        # the binary links the container's glibc, which must not be newer
+        # than the image's (the compositor-builder rule, ledger 0015) —
+        # bump the release together with the base image. target/ lives in
+        # the mounted checkout and the cargo registry in a named volume,
+        # so only the first build is cold (libcosmic is heavy — expect
+        # ~15 minutes per applet; later runs are incremental).
+        podman run --rm -v "$src":/src:Z -w /src \
+            -v topaz-applets-cargo:/root/.cargo \
+            registry.fedoraproject.org/fedora:44 \
+            bash -c 'dnf -y -q install gcc cargo rust just git-core \
+                pkgconf-pkg-config libxkbcommon-devel wayland-devel \
+                fontconfig-devel mesa-libgbm-devel libglvnd-devel \
+                expat-devel && just build-release'
+        # Each repo's own install target does the placement (they all
+        # honor rootdir/prefix). Note: caffeine's upstream install target
+        # resets the applet's own config directory.
+        (cd "$src" && just rootdir='' prefix="$HOME/.local" install)
+        # The panel's PATH may not include ~/.local/bin: applet desktop
+        # files need absolute Exec paths (same fix as topaz-kitty).
+        desk=$(grep -rlE "^Exec=${bin[$a]}( |$)" \
+            "$HOME/.local/share/applications" | head -1)
+        if [ -n "$desk" ]; then
+            sed -i "s|^Exec=${bin[$a]}|Exec=$HOME/.local/bin/${bin[$a]}|" "$desk"
+        fi
+        echo "$a installed at ${ref[$a]:0:7}"
+    done
+    echo "Restart the panel to load new applet binaries: pkill cosmic-panel"
+    echo "(cosmic-session respawns it)"
+
 # Keep the touchpad active while typing (libinput disables it by default)
 topaz-touchpad-dwt enabled="false":
     #!/usr/bin/bash
