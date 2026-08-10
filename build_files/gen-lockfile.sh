@@ -35,10 +35,17 @@ podman run --rm "$base" bash -euo pipefail -c '
     census > /tmp/pre
 
     {
+        # Weak dependencies are off in every transaction (and in the
+        # install scripts, which mirror this): the closure is exactly the
+        # named intent plus hard requires, so repository-side Recommends
+        # can never grow the image unreviewed. Wanted weak dependencies
+        # are named explicitly at the end of this transaction.
+        #
         # cosmic-session Recommends cosmic-wallpapers; excluded rather than
         # merely unlisted so the weak dependency cannot pull it back in
         # (ledger 0025).
-        dnf5 -y install --exclude=cosmic-wallpapers \
+        dnf5 -y install --setopt=install_weak_deps=False \
+            --exclude=cosmic-wallpapers \
             cosmic-session \
             cosmic-comp \
             cosmic-panel \
@@ -60,11 +67,21 @@ podman run --rm "$base" bash -euo pipefail -c '
             cosmic-workspaces \
             cosmic-icon-theme \
             cosmic-config-fedora
+        # Wanted weak dependencies, promoted to explicit intent: cutecosmic
+        # and qt6ct make native Qt apps follow the COSMIC dark theme (the
+        # ledger 0011 story depends on them), playerctl backs the media
+        # keys in cosmic-settings-daemon, sonnet-hunspell gives Qt apps
+        # spell checking.
+        dnf5 -y install --setopt=install_weak_deps=False \
+            cutecosmic-qt6 \
+            qt6ct \
+            playerctl \
+            kf6-sonnet-hunspell
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
-        dnf5 -y swap libfprint libfprint-tod-goodix
+        dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
-        dnf5 -y install earlyoom
-        dnf5 -y install nethogs
+        dnf5 -y install --setopt=install_weak_deps=False earlyoom
+        dnf5 -y install --setopt=install_weak_deps=False nethogs
         # cosmic-session hard-Requires cosmic-initial-setup, but the image
         # deliberately ships no first-boot wizard (ledger 0025): drop it
         # after the transaction. --nodeps detaches only the dependency
@@ -74,7 +91,7 @@ podman run --rm "$base" bash -euo pipefail -c '
 
     census > /tmp/mid
 
-    dnf5 -y install kde-connect >&2
+    dnf5 -y install --setopt=install_weak_deps=False kde-connect >&2
 
     census > /tmp/post
 

@@ -42,6 +42,19 @@ package transaction rewrites the rpm database, and each layer's diff
 carries the database as mutated so far — only layers above the change
 stay byte-identical.
 
+Since 2026-08-10 every transaction — lock generation and locked install
+alike — runs with `install_weak_deps=False`. An audit found ~40 packages
+(~119 MiB, most of a legacy kf5 stack among them) present only through
+Recommends and Supplements edges; the closure is now exactly the named
+intent plus hard requires, and repository-side weak dependencies can no
+longer grow the image unreviewed. Weak dependencies the image genuinely
+relies on are promoted to explicit intent in gen-lockfile.sh
+(cutecosmic-qt6 and qt6ct for Qt theming, playerctl for media keys,
+kf6-sonnet-hunspell for Qt spell checking). kio-extras is absent from the
+closure: device browse in kde-connect mounts over fuse-sshfs, a hard
+dependency that remains, and no application on the image resolves KIO
+protocol URLs.
+
 The lockfiles ship at `/usr/share/topaz-os/packages.lock` and
 `/usr/share/topaz-os/packages-kde.lock`; `topaz check` verifies every
 added NEVRA is installed and every removed one is absent, on the build

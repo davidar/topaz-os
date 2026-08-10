@@ -36,7 +36,7 @@ dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
 # version and the epilogue assert verifies the exact NEVRAs installed, so
 # this name-level resolution cannot drift unnoticed; the lockfile records
 # the removal.
-dnf5 -y swap libfprint libfprint-tod-goodix
+dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
 
 # cosmic-session Recommends cosmic-wallpapers, which the lock deliberately
 # omits (ledger 0025); exclude it so the weak dependency cannot pull an

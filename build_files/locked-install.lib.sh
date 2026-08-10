@@ -28,10 +28,13 @@ clamp_install_times() {
 # Install the exact NEVRA closure recorded in a lockfile ($1); any further
 # arguments are passed to dnf5 (the main layer excludes a weak dependency
 # this way). Names are resolved only when the lock is regenerated
-# (build_files/gen-lockfile.sh). Fedora's repositories drop superseded
-# builds, so any locked package the mirrors no longer serve is fetched from
-# koji, which keeps every build permanently at a path derived from its
-# source rpm (the lockfile's second field).
+# (build_files/gen-lockfile.sh). Weak dependencies stay off: the locks are
+# resolved without them (wanted ones are named in gen-lockfile.sh), so a
+# Recommends of a locked package must not ride along here either — the
+# census assert would fail the build on the surplus. Fedora's repositories
+# drop superseded builds, so any locked package the mirrors no longer serve
+# is fetched from koji, which keeps every build permanently at a path
+# derived from its source rpm (the lockfile's second field).
 locked_install() {
     local lock=$1
     shift
@@ -59,7 +62,7 @@ locked_install() {
             specs+=("https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}/${arch}/${nvra}.rpm")
         fi
     done < /tmp/lock.adds
-    dnf5 -y install "$@" "${specs[@]}"
+    dnf5 -y install --setopt=install_weak_deps=False "$@" "${specs[@]}"
 }
 
 ### Locked package set, epilogue (ledger 0022)
