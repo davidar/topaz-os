@@ -57,7 +57,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- Containerfile build_files/packages.lock; then
+          if git diff --quiet -- Containerfile 'build_files/packages*.lock'; then
             echo "Base digest and lockfile unchanged; nothing to do."
             exit 0
           fi
@@ -65,14 +65,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="refresh-inputs-$(date -u +%Y%m%d)"
           git checkout -b "$branch"
-          git add Containerfile build_files/packages.lock
-          git commit -m "Refresh base image digest and package lockfile"
+          git add Containerfile 'build_files/packages*.lock'
+          git commit -m "Refresh base image digest and package lockfiles"
           git push -u origin "$branch"
           {
             echo "Automated weekly input refresh (see ledger 0022)."
             echo
             echo '```'
-            git diff HEAD~1 --stat -- Containerfile build_files/packages.lock
+            git diff HEAD~1 --stat -- Containerfile 'build_files/packages*.lock'
             echo '```'
             echo
             echo "Base digest and package lockfile move together so the"

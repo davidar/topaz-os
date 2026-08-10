@@ -165,13 +165,15 @@ cmd_check() {
                      [ -L "$f" ] && continue
                      LC_ALL=C sort -C "$f" || exit 1
                  done'
-    chk "installed package set matches the shipped lockfile" \
-        bash -c 'lock=/usr/share/topaz-os/packages.lock &&
-                 rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
-                     > /dev/null &&
-                 ! sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
-                     | xargs -r -n1 rpm -q 2>/dev/null \
-                     | grep -qv "is not installed"'
+    chk "installed package set matches the shipped lockfiles" \
+        bash -c 'for lock in /usr/share/topaz-os/packages.lock \
+                             /usr/share/topaz-os/packages-kde.lock; do
+                     rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
+                         > /dev/null || exit 1
+                     sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
+                         | xargs -r -n1 rpm -q 2>/dev/null \
+                         | grep -qv "is not installed" && exit 1
+                 done; true'
     chk "trimmed app-suite packages are absent (ledger 0025)" \
         bash -c '! rpm -q cosmic-initial-setup > /dev/null 2>&1 &&
                  ! rpm -q cosmic-wallpapers > /dev/null 2>&1'

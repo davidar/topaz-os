@@ -4,6 +4,7 @@ date: 2026-08-03
 status: active
 paths:
   - /usr/share/topaz-os/packages.lock
+  - /usr/share/topaz-os/packages-kde.lock
 ---
 # Locked package set (packages.lock)
 
@@ -29,6 +30,19 @@ Together with the base image digest pin and the compositor fork's commit
 pin, every package input to the image is now named exactly by the git
 tree that builds it.
 
-The lockfile ships at `/usr/share/topaz-os/packages.lock`; `topaz check`
-verifies every added NEVRA is installed and every removed one is absent,
-on the build gate and on a booted system alike.
+Since 2026-08-10 the closure ships as two content-keyed layers with one
+lockfile each: `packages.lock` (the COSMIC desktop and system packages)
+and `packages-kde.lock` (the kde-connect subtree, whose Qt/KF6 dependency
+graph is disjoint from the COSMIC set and rebuilds on a faster cadence in
+Fedora). The lockfile generator censuses at the same boundary the
+Containerfile builds at, so each lock keys exactly one layer and a
+kde-only update re-ships ~420 MiB instead of the whole ~1 GiB package
+layer. The kde layer sits last of the package layers because every
+package transaction rewrites the rpm database, and each layer's diff
+carries the database as mutated so far — only layers above the change
+stay byte-identical.
+
+The lockfiles ship at `/usr/share/topaz-os/packages.lock` and
+`/usr/share/topaz-os/packages-kde.lock`; `topaz check` verifies every
+added NEVRA is installed and every removed one is absent, on the build
+gate and on a booted system alike.
