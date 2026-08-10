@@ -32,11 +32,11 @@ In broad strokes:
 - **Supply-chain hygiene** — the build installs exactly the NEVRAs in
   `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
   byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).
-- **Opt-in extras** — `ujust topaz-*` user-setup recipes (inert until invoked), the
-  `topaz dev` transient-overlay workflow for daily-driving locally built binaries, and
-  an opt-in "night shift": a daily user timer that digests system events into a morning
-  report through a pluggable `TRIAGE_CMD` hook (AI agent, local model, or plain script —
-  your choice; see `/usr/share/topaz-os/nightshift.conf.example`).
+- **Opt-in extras** — the `topaz dev` transient-overlay workflow for daily-driving
+  locally built binaries, and `ujust topaz-home` to fetch
+  [topaz-home](https://github.com/davidar/topaz-home), the userland companion repo
+  (night-shift triage, desktop services and fixes) that updates at git speed instead
+  of being baked into the image.
 
 ## Usage
 

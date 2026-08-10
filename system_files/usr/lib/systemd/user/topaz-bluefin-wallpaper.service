@@ -1,6 +1,0 @@
-[Unit]
-Description=Sync COSMIC wallpaper to Bluefin's monthly artwork
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/topaz-bluefin-wallpaper

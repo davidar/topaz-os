@@ -29,12 +29,13 @@ Containerfile) — the image must match the claims in its provenance ledger.
   copies. Build steps live in the script matching their layer: locked
   packages and their fixups in `install-packages.sh`, the compositor in
   `install-comp.sh`, system files and configuration in `configure.sh`.
-- Per-user configuration ships as opt-in ujust recipes in
-  `system_files/usr/share/ublue-os/just/60-custom.just` (imported via the
-  base's optional `60-custom.just` hook), never as baked user state.
-- The image must stay analysis-tool-agnostic: the night shift's triage backend
-  is user-configured (`TRIAGE_CMD`), and the image never auto-runs remote
-  installers.
+- Userland lives in the topaz-home companion repo (ledger 0026), not in the
+  image: per-user services, recipes, and installers go there and update at
+  git speed. The image keeps only what needs atomic updates and rollback
+  (boot path, compositor, packages) plus the `ujust topaz-home` bootstrap
+  recipe in `system_files/usr/share/ublue-os/just/60-custom.just` — which
+  clones and never applies; the image never auto-runs remote installers,
+  and per-user state is never baked.
 - This is a public repository: comments, commit messages, and docs should read
   cleanly to strangers.
 

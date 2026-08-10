@@ -5,7 +5,6 @@
 #   topaz ledger         List all recorded deviations
 #   topaz check          Verify the image's recorded deviations actually hold
 #   topaz report         Show the most recent night-shift report
-#   topaz nightshift ... Manage the night-shift triage timer
 #   topaz dev ...        Transient /usr overlay for locally built binaries
 set -euo pipefail
 
@@ -14,7 +13,7 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/topaz"
 DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
-    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -96,8 +95,6 @@ cmd_check() {
         bash -c '! ldd /usr/bin/cosmic-comp | grep -q "not found"'
     chk "GDM remains the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
-    chk "night-shift units are present" \
-        test -f /usr/lib/systemd/user/topaz-nightshift.timer
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
     chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \
@@ -117,9 +114,9 @@ cmd_check() {
         bash -c 'ls /etc/systemd/system/*.wants/supergfxd.service >/dev/null 2>&1'
     chk "speech-dispatcher user preset is present" \
         grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
-    chk "topaz ujust recipes are present" \
+    chk "topaz-home bootstrap recipe is present" \
         bash -c 'test -f /usr/share/ublue-os/just/60-custom.just &&
-                 grep -q "^topaz-touchpad-dwt" \
+                 grep -q "^topaz-home" \
                      /usr/share/ublue-os/just/60-custom.just'
     # the zone dir is root-only readable, so unprivileged runs (nightshift)
     # verify the packages and skip the zone-file grep; the build gate runs
@@ -130,19 +127,6 @@ cmd_check() {
                  { [ ! -r /etc/firewalld/zones/FedoraWorkstation.xml ] ||
                    grep -q "service name=\"kdeconnect\"" \
                        /etc/firewalld/zones/FedoraWorkstation.xml; }'
-    chk "user-setup recipe helpers are present and valid" \
-        bash -c 'test -f /usr/lib/systemd/user/tailscale-systray.service &&
-                 test -f /usr/lib/systemd/user/topaz-dropbox.service &&
-                 test -f /usr/lib/systemd/user/topaz-dropbox-restart.service &&
-                 test -f /usr/lib/systemd/user/topaz-dropbox-restart.path &&
-                 test -f /usr/lib/systemd/user/topaz-bluefin-wallpaper.timer &&
-                 test -f /usr/lib/systemd/user/topaz-bluefin-wallpaper.service &&
-                 test -x /usr/libexec/topaz-dropbox-icons &&
-                 test -x /usr/bin/topaz-bluefin-wallpaper &&
-                 test -x /usr/bin/topaz-claude-desktop-update &&
-                 bash -n /usr/libexec/topaz-dropbox-icons &&
-                 bash -n /usr/bin/topaz-bluefin-wallpaper &&
-                 bash -n /usr/bin/topaz-claude-desktop-update'
     chk "ledger entries are well-formed" \
         bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
                      grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
@@ -295,40 +279,12 @@ cmd_report() {
     latest=$(ls -1 "$STATE_DIR/reports"/*.md 2>/dev/null | tail -1 || true)
     if [ -z "$latest" ]; then
         echo "No night-shift reports yet."
-        echo "Enable the night shift with: topaz nightshift enable"
+        echo "The night shift lives in the topaz-home companion (ujust topaz-home"
+        echo "to fetch it); enable with 'just nightshift enable' in its checkout."
         exit 1
     fi
     echo "== $(basename "$latest") =="
     cat "$latest"
-}
-
-cmd_nightshift() {
-    case "${1:-status}" in
-    enable)
-        systemctl --user enable --now topaz-nightshift.timer
-        echo "Night shift enabled. Reports will appear in $STATE_DIR/reports/"
-        if [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/topaz/nightshift.conf" ]; then
-            echo
-            echo "No triage command configured — reports will be raw event digests."
-            echo "To plug in an analysis tool, copy and edit:"
-            echo "  /usr/share/topaz-os/nightshift.conf.example -> ~/.config/topaz/nightshift.conf"
-        fi
-        ;;
-    disable)
-        systemctl --user disable --now topaz-nightshift.timer
-        echo "Night shift disabled."
-        ;;
-    run)
-        exec /usr/libexec/topaz-nightshift
-        ;;
-    status)
-        systemctl --user status topaz-nightshift.timer --no-pager || true
-        ;;
-    *)
-        echo "Usage: topaz nightshift [enable|disable|run|status]"
-        exit 1
-        ;;
-    esac
 }
 
 case "${1:-}" in
@@ -336,7 +292,6 @@ case "${1:-}" in
     ledger)     cmd_ledger ;;
     check)      cmd_check ;;
     report)     cmd_report ;;
-    nightshift) shift; cmd_nightshift "$@" ;;
     dev)        shift; cmd_dev "$@" ;;
     -h|--help|"") usage ;;
     *) usage 1 ;;
