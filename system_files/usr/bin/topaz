@@ -4,16 +4,14 @@
 #   topaz why <path>     Why does this file deviate from the base image?
 #   topaz ledger         List all recorded deviations
 #   topaz check          Verify the image's recorded deviations actually hold
-#   topaz report         Show the most recent night-shift report
 #   topaz dev ...        Transient /usr overlay for locally built binaries
 set -euo pipefail
 
 LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/topaz"
 DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -274,24 +272,10 @@ cmd_dev() {
     esac
 }
 
-cmd_report() {
-    local latest
-    latest=$(ls -1 "$STATE_DIR/reports"/*.md 2>/dev/null | tail -1 || true)
-    if [ -z "$latest" ]; then
-        echo "No night-shift reports yet."
-        echo "The night shift lives in the topaz-home companion (ujust topaz-home"
-        echo "to fetch it); enable with 'just nightshift enable' in its checkout."
-        exit 1
-    fi
-    echo "== $(basename "$latest") =="
-    cat "$latest"
-}
-
 case "${1:-}" in
     why)        [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
     ledger)     cmd_ledger ;;
     check)      cmd_check ;;
-    report)     cmd_report ;;
     dev)        shift; cmd_dev "$@" ;;
     -h|--help|"") usage ;;
     *) usage 1 ;;

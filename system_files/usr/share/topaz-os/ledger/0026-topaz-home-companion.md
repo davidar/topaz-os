@@ -24,5 +24,6 @@ without a reboot.
 The image's only reference to the companion is the `ujust topaz-home`
 recipe in the path above: it clones the repo and prints next steps, and
 never applies anything — the image still runs nothing from it
-automatically. `topaz report` remains in the image as a plain reader of
-`~/.local/state/topaz/reports/`, where the companion's night shift writes.
+automatically. The `topaz` CLI keeps only its image-coupled verbs (`why`,
+`ledger`, `check`, `dev`); night-shift management and report reading are
+companion verbs.
