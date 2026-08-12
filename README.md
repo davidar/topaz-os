@@ -48,10 +48,11 @@ systemctl reboot
 ```
 
 Images are built in CI on every push and signed with cosign (the public key is in this
-repository, `cosign.pub`). The image is ordinary content-keyed OCI layers (packages,
-compositor, config), so updates only download the layers whose inputs changed. Builds
-are byte-reproducible; a weekly scheduled job rebuilds the unchanged tree and fails if
-the result diverges from the published image by even one layer.
+repository, `cosign.pub`). The published image is split into content-based layers with
+[chunkah](https://github.com/coreos/chunkah) — roughly one per package — so updates
+only download the packages that actually changed. Builds are byte-reproducible; a
+weekly scheduled job rebuilds the unchanged tree and fails if the result diverges from
+the published image by even one layer.
 
 ## Notes
 

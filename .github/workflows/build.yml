@@ -101,6 +101,21 @@ jobs:
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
+      # Rewrite the gated build into content-based layers (ledger 0028):
+      # roughly one layer per package, the rpm database in its own, so
+      # machines download only the packages that changed instead of whole
+      # locked-install layers. The Containerfile's coarse layers remain the
+      # build-cache units; this reshapes only the published artifact. The
+      # rewrite is deterministic (SOURCE_DATE_EPOCH=0), so the scheduled
+      # reproducibility check below compares chunked output like-for-like.
+      - name: Chunk Image
+        id: chunk-image
+        run: |
+          sudo -E $(command -v just) chunk \
+            ${IMAGE_NAME} \
+            ${DEFAULT_TAG} \
+            /tmp/chunked-oci
+
       - name: Generate Build Tags
         id: gen-build-tags
         run: |
@@ -114,9 +129,10 @@ jobs:
 
       # Scheduled runs exist to answer one question: does rebuilding the
       # unchanged tree reproduce the published artifact? Compare uncompressed
-      # layer digests (diff_ids — compression-independent) of this rebuild
-      # against :latest. The image is plain content-keyed layers built with
-      # --timestamp 0, so any divergence at all is a regression.
+      # layer digests (diff_ids — compression-independent) of this rebuild's
+      # chunked output against :latest. The build (--timestamp 0) and the
+      # chunk rewrite (SOURCE_DATE_EPOCH=0) are both deterministic, so any
+      # divergence at all is a regression.
       - name: Compare rebuild against published image
         if: github.event_name == 'schedule'
         run: |
@@ -131,8 +147,10 @@ jobs:
           fi
           skopeo inspect --no-tags --config "$ref" \
             | jq -r '.rootfs.diff_ids[]' | sort > /tmp/published.diffids
-          sudo podman inspect localhost/${IMAGE_NAME}:${DEFAULT_TAG} \
-            | jq -r '.[0].RootFS.Layers[]' | sort > /tmp/rebuilt.diffids
+          manifest=$(sudo jq -r '.manifests[0].digest' /tmp/chunked-oci/index.json | cut -d: -f2)
+          config=$(sudo jq -r '.config.digest' "/tmp/chunked-oci/blobs/sha256/${manifest}" | cut -d: -f2)
+          sudo jq -r '.rootfs.diff_ids[]' "/tmp/chunked-oci/blobs/sha256/${config}" \
+            | sort > /tmp/rebuilt.diffids
           if diff /tmp/published.diffids /tmp/rebuilt.diffids; then
             echo "REPRODUCIBLE: rebuild is layer-identical to the published image."
           else
@@ -141,18 +159,11 @@ jobs:
             exit 1
           fi
 
-      - name: Tag Image
-        id: tag-images
-        env:
-          ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
-        run: |
-          sudo -E $(command -v just) tag-images \
-            "${IMAGE_NAME}" \
-            "${DEFAULT_TAG}" \
-            "${ALIAS_TAGS}"
-
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
+      # The chunked OCI directory is what ships; skopeo preserves its
+      # manifest (layer set, annotations) byte-for-byte, where podman push
+      # would re-encode it.
       - name: Push To GHCR
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
@@ -161,7 +172,7 @@ jobs:
         run: |
           set -euox pipefail
           for tag in ${ALIAS_TAGS}; do
-            sudo -E podman push --digestfile=/tmp/digestfile ${IMAGE_NAME}:${tag} ${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
+            sudo -E skopeo copy --digestfile=/tmp/digestfile oci:/tmp/chunked-oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
           done
 
           digest=$(< /tmp/digestfile)
