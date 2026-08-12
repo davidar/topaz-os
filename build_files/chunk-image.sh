@@ -11,6 +11,12 @@ set -ouex pipefail
 
 image=$1  # name:tag in the invoking user's containers-storage
 outdir=$2 # OCI directory to create (must not already exist)
+shift 2
+# Remaining arguments: --label key=value pairs to stamp on the output.
+# The build applies no labels of its own (they would poison its layer
+# cache keys — see the Justfile), so the caller provides them here and
+# they take precedence over same-key labels inherited from the base.
+caller_labels=("$@")
 
 # podman build stores unqualified tags under localhost/; podman resolves
 # the short name back, but skopeo's containers-storage: reference does
@@ -34,15 +40,23 @@ skopeo inspect --config "containers-storage:${image}" > "${workdir}/config.json"
 
 # chunkah does not carry the config file's labels into the output image
 # (21 labels in, 0 out, observed at the pinned digest) — silently losing
-# org.opencontainers.image.version, which the weekly reproducibility
-# check keys on. Re-add every label explicitly, minus the two ostree
-# ones chunkah's bootc recipe strips anyway: they describe the pre-chunk
-# layer set and would be stale in the rewritten image.
+# everything the base image declares. Re-add every inherited label
+# explicitly, minus the two ostree ones chunkah's bootc recipe strips
+# anyway (they describe the pre-chunk layer set and would be stale) and
+# minus any key the caller is stamping itself, so the caller's value
+# wins regardless of how chunkah orders duplicate --label flags.
+caller_keys=()
+for ((i = 1; i < ${#caller_labels[@]}; i += 2)); do
+    caller_keys+=("${caller_labels[i]%%=*}")
+done
+caller_keys_json=$(printf '%s\n' "${caller_keys[@]+"${caller_keys[@]}"}" \
+    | jq -R . | jq -s .)
 label_args=()
 while IFS= read -r kv; do
     label_args+=(--label "$kv")
-done < <(jq -r '.config.Labels // {}
+done < <(jq -r --argjson drop "$caller_keys_json" '.config.Labels // {}
     | del(."ostree.commit", ."ostree.final-diffid")
+    | with_entries(select(.key as $k | $drop | index($k) | not))
     | to_entries[] | "\(.key)=\(.value)"' "${workdir}/config.json")
 
 # SOURCE_DATE_EPOCH=0 matches the build's --timestamp 0 (Justfile): the
@@ -64,6 +78,7 @@ podman run --rm \
     --max-layers 400 \
     --compressed \
     "${label_args[@]}" \
+    "${caller_labels[@]+"${caller_labels[@]}"}" \
     --output oci:/work/out
 
 mv "${workdir}/out" "$outdir"

@@ -81,9 +81,6 @@ sudoif command *args:
 #   $target_image - The tag you want to apply to the image (default: $image_name).
 #   $tag - The tag for the image (default: $default_tag).
 #
-# The script constructs the version string using the tag and the current date.
-# If the git working directory is clean, it also includes the short SHA of the current HEAD.
-#
 # just build $target_image $tag
 #
 # Example usage:
@@ -99,10 +96,9 @@ build $target_image=image_name $tag=default_tag:
     set -euox pipefail
 
     BUILD_ARGS=()
-    LABELS=()
     # Registry-backed layer cache (CI: stateless runners rebuild everything
     # otherwise). CACHE_FROM reuses published intermediate layers — notably
-    # the compositor toolchain+build stage and the package layer; CACHE_TO
+    # the compositor toolchain+build stage and the package layers; CACHE_TO
     # publishes them. The weekly reproducibility rebuild sets neither: a
     # cache hit would make that check vacuous.
     if [[ -n "${CACHE_FROM:-}" ]]; then
@@ -111,32 +107,17 @@ build $target_image=image_name $tag=default_tag:
     if [[ -n "${CACHE_TO:-}" ]]; then
         BUILD_ARGS+=("--cache-to" "${CACHE_TO}")
     fi
-    if [[ -z "$(git status -s)" ]]; then
-        GIT_SHA=$(git rev-parse --short HEAD)
-        LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
-        LABELS+=("--label" "org.opencontainers.image.documentation=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
-        LABELS+=("--label" "org.opencontainers.image.source=https://github.com/{{ repo_organization }}/{{ image_name }}/blob/${GIT_SHA}/Containerfile")
-        LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/{{ image_name }}/tree/${GIT_SHA}")
-        LABELS+=("--label" "org.opencontainers.image.version={{ default_tag }}.$(date +%Y%m%d)-${GIT_SHA}")
-    fi
 
-    # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
-    # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
-    LABELS+=("--label" "io.artifacthub.package.deprecated=false")
-    LABELS+=("--label" "io.artifacthub.package.keywords={{ image_keywords }}")
-    LABELS+=("--label" "io.artifacthub.package.license=Apache-2.0")
-    LABELS+=("--label" "io.artifacthub.package.logo-url={{ image_logo_url }}")
-    LABELS+=("--label" "io.artifacthub.package.prerelease=false")
-    LABELS+=("--label" "org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)")
-    LABELS+=("--label" "org.opencontainers.image.description={{ image_desc }}")
-    LABELS+=("--label" "org.opencontainers.image.title={{ image_name }}")
-    LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
-
-    # This actually builds the image!
+    # No --label here, deliberately: podman folds label values into the
+    # final stage's step cache keys, so any per-invocation label (a
+    # wall-clock created stamp, a commit-specific URL) forces every layer
+    # in the target stage to rebuild and defeats the cache above. Labels
+    # are stamped onto the published artifact by `just chunk` instead.
+    #
     # --timestamp 0 clamps layer file timestamps and the created stamp so
     # rebuilds of unchanged content produce identical layer digests
     # (ostree canonicalizes mtimes to zero on deployment regardless).
-    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --timestamp 0 --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
+    PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" --timestamp 0 --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
 
     podman build "${PODMAN_BUILD_ARGS[@]}" .
 
@@ -146,7 +127,38 @@ lock:
 
 # Rewrite a built image into content-based layers (ledger 0028)
 chunk $target_image=image_name $tag=default_tag $outdir="chunked-oci":
-    bash build_files/chunk-image.sh "${target_image}:${tag}" "${outdir}"
+    #!/usr/bin/env bash
+    set -euox pipefail
+
+    # Labels are stamped here, on the published artifact, rather than at
+    # build time where they would poison the layer cache keys (see the
+    # build recipe). Timestamps derive from the commit, not the wall
+    # clock, so rechunking the same commit reproduces the same manifest.
+    LABELS=()
+    if [[ -z "$(git status -s)" ]]; then
+        GIT_SHA=$(git rev-parse --short HEAD)
+        GIT_DATE=$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y%m%d)
+        GIT_STAMP=$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)
+        LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
+        LABELS+=("--label" "org.opencontainers.image.documentation=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
+        LABELS+=("--label" "org.opencontainers.image.source=https://github.com/{{ repo_organization }}/{{ image_name }}/blob/${GIT_SHA}/Containerfile")
+        LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/{{ image_name }}/tree/${GIT_SHA}")
+        LABELS+=("--label" "org.opencontainers.image.version={{ default_tag }}.${GIT_DATE}-${GIT_SHA}")
+        LABELS+=("--label" "org.opencontainers.image.created=${GIT_STAMP}")
+    fi
+
+    # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
+    # The metadata by itself is not going to do anything, you choose if you want your image to be on ArtifactHub or not.
+    LABELS+=("--label" "io.artifacthub.package.deprecated=false")
+    LABELS+=("--label" "io.artifacthub.package.keywords={{ image_keywords }}")
+    LABELS+=("--label" "io.artifacthub.package.license=Apache-2.0")
+    LABELS+=("--label" "io.artifacthub.package.logo-url={{ image_logo_url }}")
+    LABELS+=("--label" "io.artifacthub.package.prerelease=false")
+    LABELS+=("--label" "org.opencontainers.image.description={{ image_desc }}")
+    LABELS+=("--label" "org.opencontainers.image.title={{ image_name }}")
+    LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
+
+    bash build_files/chunk-image.sh "${target_image}:${tag}" "${outdir}" "${LABELS[@]}"
 
 # Generate Default Tag
 [group('Utility')]
