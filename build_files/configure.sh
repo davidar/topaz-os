@@ -45,11 +45,6 @@ grep -q '^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$' \
 sed -i '/^KERNEL=="i2c-\[0-99\]\*", TAG+="uaccess"$/d' \
     /usr/lib/udev/rules.d/60-openrgb.rules
 
-### earlyoom (installed via the lockfile)
-# Intervenes on memory pressure earlier than systemd-oomd; configuration in
-# system_files/etc/default/earlyoom adds a swap threshold to catch thrashing.
-systemctl enable earlyoom.service
-
 ### Fingerprint-friendly PAM stack (authselect)
 # The default fingerprint PAM flow blocks password entry until fprintd times
 # out (30s). Generate a custom profile from the base `local` profile: every

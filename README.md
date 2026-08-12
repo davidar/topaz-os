@@ -16,7 +16,7 @@ authoritative list:
 
 ```
 $ topaz ledger                        # list all recorded deviations
-$ topaz why /etc/default/earlyoom     # why does this file deviate?
+$ topaz why /usr/lib/environment.d/50-gsk-renderer.conf   # why does this file deviate?
 $ topaz check                         # verify the deviations actually hold
 ```
 

@@ -24,7 +24,6 @@
 +cosmic-workspaces-0:1.5.0-1.fc44.x86_64 cosmic-workspaces-1.5.0-1.fc44.src.rpm
 +cutecosmic-qt6-0:0.1^git20260121.8e58441-3.fc44.x86_64 cutecosmic-0.1^git20260121.8e58441-3.fc44.src.rpm
 +desktop-backgrounds-compat-0:44.0.0-2.fc44.noarch desktop-backgrounds-44.0.0-2.fc44.src.rpm
-+earlyoom-0:1.9.0-2.fc44.x86_64 earlyoom-1.9.0-2.fc44.src.rpm
 +fd-find-0:10.4.2-4.fc44.x86_64 rust-fd-find-10.4.2-4.fc44.src.rpm
 +gnome-icon-theme-0:3.12.0-27.fc44.noarch gnome-icon-theme-3.12.0-27.fc44.src.rpm
 +greetd-0:0.10.3-6.fc44.x86_64 greetd-0.10.3-6.fc44.src.rpm

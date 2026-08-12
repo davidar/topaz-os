@@ -80,7 +80,6 @@ podman run --rm "$base" bash -euo pipefail -c '
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
-        dnf5 -y install --setopt=install_weak_deps=False earlyoom
         dnf5 -y install --setopt=install_weak_deps=False nethogs
         # cosmic-session hard-Requires cosmic-initial-setup, but the image
         # deliberately ships no first-boot wizard (ledger 0025): drop it

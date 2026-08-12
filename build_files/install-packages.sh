@@ -26,7 +26,7 @@ printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 ### Locked package set, prologue (ledger 0022)
 census > /tmp/rpm-pre.list
 
-### Packages: COSMIC desktop, fingerprint driver, earlyoom, nethogs
+### Packages: COSMIC desktop, fingerprint driver, nethogs
 dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
 
 # The libfprint-tod driver (pinned-version COPR, ledger 0003) conflicts
