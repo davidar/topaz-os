@@ -29,6 +29,8 @@ In broad strokes:
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.
+- **No memory-thrash lockups** — MGLRU `min_ttl_ms` (ChromeOS's policy) kills runaway
+  allocations in ~1s instead of thrashing; SysRq enabled as the manual escape hatch.
 - **Supply-chain hygiene** — the build installs exactly the NEVRAs in
   `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
   byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).

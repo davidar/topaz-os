@@ -68,6 +68,13 @@ chk() { # chk <description> <command...>
 }
 
 cmd_check() {
+    chk "MGLRU anti-thrash threshold ships (kill fast instead of thrashing)" \
+        grep -q 'min_ttl_ms - - - - 1000' /usr/lib/tmpfiles.d/topaz-mglru.conf
+    chk "SysRq is fully enabled (manual OOM kill escape hatch)" \
+        grep -qx 'kernel.sysrq = 1' /usr/lib/sysctl.d/99-topaz-sysrq.conf
+    chk "systemd-oomd acts on 5s of sustained pressure" \
+        grep -qx 'DefaultMemoryPressureDurationSec=5s' \
+            /usr/lib/systemd/oomd.conf.d/topaz.conf
     chk "GTK4 GL renderer default is present" \
         grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
     chk "Goodix fingerprint TOD driver is installed" \
