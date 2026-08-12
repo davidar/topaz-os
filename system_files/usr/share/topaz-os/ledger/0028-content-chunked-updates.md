@@ -33,12 +33,10 @@ no longer exists and are stripped, per chunkah's documented bootc
 recipe.
 
 Image labels (version, source URLs, ArtifactHub metadata) are stamped
-at this rewrite stage, not at build time: podman folds `--label`
-values into the final stage's step cache keys, so any per-invocation
-value — the wall-clock `created` stamp, commit-specific URLs — forced
-every layer in the target stage to rebuild, defeating the CI layer
-cache and quietly turning the post-gate cache push into a second,
-ungated build. The build is now label-free, and label timestamps
-derive from the commit rather than the wall clock, so rechunking the
-same commit reproduces the same manifest bit-for-bit. Labels the base
-image declares are carried through unchanged unless overridden here.
+at this rewrite stage rather than at build time: they describe the
+published artifact, and deriving their timestamps from the commit
+rather than the wall clock keeps the rewrite deterministic — chunking
+the same commit twice reproduces the manifest bit-for-bit, which the
+wall-clock `created` stamp had silently broken. The build itself is
+label-free. Labels the base image declares are carried through
+unchanged unless overridden here.
