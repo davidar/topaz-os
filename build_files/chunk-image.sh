@@ -32,11 +32,23 @@ trap 'rm -rf "$workdir"' EXIT
 # kernel's per-string exec limit for an environment variable.
 skopeo inspect --config "containers-storage:${image}" > "${workdir}/config.json"
 
+# chunkah does not carry the config file's labels into the output image
+# (21 labels in, 0 out, observed at the pinned digest) — silently losing
+# org.opencontainers.image.version, which the weekly reproducibility
+# check keys on. Re-add every label explicitly, minus the two ostree
+# ones chunkah's bootc recipe strips anyway: they describe the pre-chunk
+# layer set and would be stale in the rewritten image.
+label_args=()
+while IFS= read -r kv; do
+    label_args+=(--label "$kv")
+done < <(jq -r '.config.Labels // {}
+    | del(."ostree.commit", ."ostree.final-diffid")
+    | to_entries[] | "\(.key)=\(.value)"' "${workdir}/config.json")
+
 # SOURCE_DATE_EPOCH=0 matches the build's --timestamp 0 (Justfile): the
 # same input image must chunk to byte-identical output, or the weekly
-# reproducibility check could never hold. --prune /sysroot/ and the
-# ostree label removals are chunkah's documented bootc recipe — the
-# labels describe the pre-chunk layer set and would be stale here.
+# reproducibility check could never hold. --prune /sysroot/ is chunkah's
+# documented bootc recipe.
 # --max-layers 400: measured on a real update, 128 layers packed ~11
 # packages each and re-shipped ~477 MiB of unchanged bystanders when one
 # package moved; at 400 that collateral fell to ~19 MiB. Stay under
@@ -51,7 +63,7 @@ podman run --rm \
     --prune /sysroot/ \
     --max-layers 400 \
     --compressed \
-    --label ostree.commit- --label ostree.final-diffid- \
+    "${label_args[@]}" \
     --output oci:/work/out
 
 mv "${workdir}/out" "$outdir"
