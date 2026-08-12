@@ -30,7 +30,12 @@ Four sources of byte-churn, all eliminated:
   breaking every rpm query on the booted system. The build instead
   checkpoints each database and converts it to DELETE journal mode after
   the last write — reads no longer create sidecars, and the database
-  stays readable on a booted image.
+  stays readable on a booted image. The conversion runs on a tmpfs copy
+  rather than in place (in-place sqlite page writes through an overlayfs
+  copy-up once committed a torn database, 2026-08-12), the result is
+  integrity-checked so a torn database fails its own layer before it can
+  be committed or cached, and each layer refuses to build if rpm reports
+  any error reading the database it inherited.
 - `authselect select --force` (the fingerprint PAM profile, ledger 0006)
   snapshots the files it replaces into a timestamped, random-suffixed
   directory under `/usr/lib/authselect/backups/`, baking a fresh name

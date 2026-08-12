@@ -95,7 +95,24 @@ jobs:
         id: build-image
         env:
           CACHE_FROM: ${{ github.event_name != 'schedule' && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
-          CACHE_TO: ${{ github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
+        run: |
+          sudo -E $(command -v just) build \
+            ${IMAGE_NAME} \
+            ${DEFAULT_TAG}
+
+      # Populate the registry layer cache only after the gated build
+      # succeeded. --cache-to on the build itself uploads entries as each
+      # step completes, so a build that later fails its gate has already
+      # poisoned the cache — and podman never overwrites an existing cache
+      # key, so a bad entry does not self-heal (2026-08-12: a torn rpmdb
+      # from a failed push build was served to every later run; recovery
+      # is deleting that version from the topaz-os-build-cache package).
+      # This re-run resolves every step from the just-built local layers
+      # and uploads exactly the content the gate approved.
+      - name: Push Build Cache
+        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          CACHE_TO: ${{ format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) }}
         run: |
           sudo -E $(command -v just) build \
             ${IMAGE_NAME} \

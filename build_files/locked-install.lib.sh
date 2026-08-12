@@ -7,10 +7,31 @@
 # output, and no /var or /run debris. The steps live here once; the
 # per-layer scripts define only what their layer installs.
 
+# rpm exits 0 even when its database is corrupt — it skips unreadable
+# headers with only a note on stderr. A layer that trusts such a read
+# fails much later with misleading symptoms (2026-08-12: a torn rpmdb
+# made dnf5 lose the release version and die on a literal-$releasever
+# mirror 404, two steps after rpm had already said "region trailer:
+# BAD"). Every database read below routes stderr here; any output
+# fails the layer on the spot.
+rpm_stderr_fatal() {
+    [ -s /tmp/rpm-stderr ] || return 0
+    cat /tmp/rpm-stderr >&2
+    echo "rpm reported database errors — the rpm database this layer" >&2
+    echo "inherited is unreadable. In CI, suspect a poisoned entry in the" >&2
+    echo "registry build cache (podman never overwrites an existing cache" >&2
+    echo "key, so a bad entry persists until deleted from the" >&2
+    echo "topaz-os-build-cache package)." >&2
+    exit 1
+}
+
 # One line per installed package, stable order, for lockfile deltas.
 census() {
-    rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n' \
-        | grep -v '^gpg-pubkey' | LC_ALL=C sort
+    local pkgs
+    pkgs=$(rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n' \
+        2> /tmp/rpm-stderr)
+    rpm_stderr_fatal
+    grep -v '^gpg-pubkey' <<< "$pkgs" | LC_ALL=C sort
 }
 
 ### Reproducible package installs, prologue (ledger 0020)
@@ -21,7 +42,10 @@ census() {
 # previous layer's for the ones after), so the database only changes when
 # the package set does.
 clamp_install_times() {
-    SOURCE_DATE_EPOCH=$(rpm -qa --qf '%{INSTALLTIME}\n' | sort -n | tail -1)
+    local times
+    times=$(rpm -qa --qf '%{INSTALLTIME}\n' 2> /tmp/rpm-stderr)
+    rpm_stderr_fatal
+    SOURCE_DATE_EPOCH=$(sort -n <<< "$times" | tail -1)
     export SOURCE_DATE_EPOCH
 }
 
@@ -101,16 +125,39 @@ commit_clean_layer() {
     # (a later package layer's dnf run flips its database back to WAL, so
     # every package layer ends with this). python3's sqlite3 module, not
     # the sqlite CLI: the base image ships the former but not the latter.
-    local db
+    #
+    # The conversion runs on a tmpfs copy, never in place: sqlite page
+    # surgery on a database inherited through an overlayfs copy-up once
+    # committed a torn file (2026-08-12, "h# 2322 region trailer: BAD" —
+    # which a failed run's --cache-to then served to every later build).
+    # The sidecars travel with the copy (the -wal holds the final
+    # unCheckpointed writes), the converted database is integrity-checked
+    # so a torn result fails this layer before it can be committed or
+    # cached, and the copy back is a single sequential write.
+    local db tmp side
     for db in /usr/share/rpm/rpmdb.sqlite \
               /usr/lib/sysimage/libdnf5/transaction_history.sqlite; do
+        tmp="/tmp/$(basename "$db")"
+        cp "$db" "$tmp"
+        for side in wal shm; do
+            if [ -e "$db-$side" ]; then
+                cp "$db-$side" "$tmp-$side"
+            fi
+        done
         python3 -c '
 import sqlite3, sys
 con = sqlite3.connect(sys.argv[1], isolation_level=None)
 con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 con.execute("PRAGMA journal_mode=DELETE")
+verdict = con.execute("PRAGMA integrity_check").fetchone()[0]
 con.close()
-' "$db"
+if verdict != "ok":
+    sys.exit(f"{sys.argv[1]}: integrity_check: {verdict}")
+' "$tmp"
+        rm -f "$db" "$db-wal" "$db-shm"
+        cp "$tmp" "$db"
+        chmod 0644 "$db"
+        rm -f "$tmp" "$tmp-wal" "$tmp-shm"
     done
 
     # libxml2's xmlcatalog assembles SGML catalogs in a hash table seeded
