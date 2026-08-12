@@ -1,0 +1,32 @@
+---
+title: Updates ship as content-based layers
+date: 2026-08-12
+status: active
+paths:
+  - .github/workflows/build.yml
+  - build_files/chunk-image.sh
+---
+# Updates ship as content-based layers
+
+The Containerfile builds a few coarse content-keyed layers (packages,
+kde-connect, compositor, config) — the right shape for build caching,
+the wrong shape for updates: dropping a single package re-shipped the
+whole ~900 MiB locked install, plus the kde layer stacked on its rpm
+database, with each package layer dragging a ~139 MiB rpmdb copy along.
+
+After the build gate passes, CI rewrites the image into ~400
+content-based layers with [chunkah](https://github.com/coreos/chunkah)
+(successor to rpm-ostree's `build-chunked-oci`; Fedora CoreOS is
+adopting the same tool): roughly one layer per package, the rpm
+database isolated in its own, so a machine downloads only the packages
+that actually changed. Measured on a real update (one package removed,
+two updated): 1218 MiB before, 262 MiB after, of which only ~19 MiB was
+repacking collateral.
+
+The rewrite is deterministic (`SOURCE_DATE_EPOCH=0`, matching the
+build's `--timestamp 0`), verified by the weekly job that rebuilds the
+unchanged tree and requires zero layer divergence from the published
+image. The chunked artifact is a plain bootc image: the pre-chunk
+`ostree.commit`/`ostree.final-diffid` labels describe a layer set that
+no longer exists and are stripped, per chunkah's documented bootc
+recipe.

@@ -144,6 +144,10 @@ build $target_image=image_name $tag=default_tag:
 lock:
     bash build_files/gen-lockfile.sh
 
+# Rewrite a built image into content-based layers (ledger 0028)
+chunk $target_image=image_name $tag=default_tag $outdir="chunked-oci":
+    bash build_files/chunk-image.sh "${target_image}:${tag}" "${outdir}"
+
 # Generate Default Tag
 [group('Utility')]
 generate-default-tag $tag=default_tag:

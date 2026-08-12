@@ -6,6 +6,20 @@
 
   "rebaseWhen": "never",
 
+  "customManagers": [
+    {
+      // The chunkah tool pin in the chunk step (ledger 0028). Tracks the
+      // published :latest digest — chunkah documents its bootc rechunking
+      // support on main, ahead of tagged releases.
+      "customType": "regex",
+      "managerFilePatterns": ["/^build_files/chunk-image\\.sh$/"],
+      "matchStrings": [
+        "chunkah_image=\"(?<depName>[^:@\\s\"]+):(?<currentValue>[^@\\s\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\"",
+      ],
+      "datasourceTemplate": "docker",
+    },
+  ],
+
   "packageRules": [
     {
       "automerge": true,
