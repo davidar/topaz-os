@@ -35,7 +35,8 @@ In broad strokes:
   `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
   byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).
 - **Opt-in extras** — the `topaz dev` transient-overlay workflow for daily-driving
-  locally built binaries, and `ujust topaz-home` to fetch
+  locally built binaries, `topaz pull` to fetch big updates at full link speed
+  (bootc pulls serially until bootc#20), and `ujust topaz-home` to fetch
   [topaz-home](https://github.com/davidar/topaz-home), the userland companion repo
   (night-shift triage, desktop services and fixes) that updates at git speed instead
   of being baked into the image.

@@ -5,13 +5,14 @@
 #   topaz ledger         List all recorded deviations
 #   topaz check          Verify the image's recorded deviations actually hold
 #   topaz dev ...        Transient /usr overlay for locally built binaries
+#   topaz pull [image]   Fetch a big update in parallel and stage it for reboot
 set -euo pipefail
 
 LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
 DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
-    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -132,6 +133,8 @@ cmd_check() {
                  done'
     chk "bootc is available for dev overlays" \
         command -v bootc
+    chk "podman and jq are present for parallel pulls (topaz pull)" \
+        bash -c 'command -v podman && command -v jq'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
                  for p in cosmic-session nethogs kde-connect; do
@@ -260,11 +263,53 @@ cmd_dev() {
     esac
 }
 
+# --- pull: parallel-fetch big updates, then stage them via bootc ------------
+# bootc downloads layers serially through its image proxy (bootc#20), which
+# wastes most of a fast link — and content-based layers (ledger 0028) add a
+# round trip per layer. podman downloads layers in parallel. For big pulls
+# (tag switches, the first fetch after a layer-scheme change — not small
+# incremental updates, where serial is fine) this fetches with podman into
+# root's containers-storage, imports locally, repoints the origin back at
+# the registry so automatic updates keep tracking it (a no-op fetch: every
+# layer is already imported), and drops the podman copy. Disk usage doubles
+# while the image transiently exists in both stores.
+
+cmd_pull() {
+    [ "$(id -u)" -eq 0 ] || {
+        echo "topaz pull needs root (try: pkexec topaz pull)"
+        exit 1
+    }
+    local image="${1:-}"
+    if [ -z "$image" ]; then
+        local spec transport
+        spec=$(bootc status --format json)
+        transport=$(jq -r '.spec.image.transport' <<<"$spec")
+        [ "$transport" = registry ] || {
+            echo "Origin transport is '$transport', not a registry —"
+            echo "pass the image to fetch explicitly: topaz pull <registry-ref>"
+            exit 1
+        }
+        image=$(jq -r '.spec.image.image' <<<"$spec")
+    fi
+    echo "Fetching $image with parallel layer downloads…"
+    podman pull "$image"
+    echo "Importing into bootc from local container storage…"
+    bootc switch --transport containers-storage "$image"
+    echo "Repointing the origin at the registry (all layers already imported)…"
+    bootc switch "$image"
+    echo "Reclaiming the temporary podman copy…"
+    podman rmi "$image" > /dev/null
+    echo
+    echo "Staged. Reboot cleanly to activate — a power cut discards staged"
+    echo "deployments."
+}
+
 case "${1:-}" in
     why)        [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
     ledger)     cmd_ledger ;;
     check)      cmd_check ;;
     dev)        shift; cmd_dev "$@" ;;
+    pull)       shift; cmd_pull "$@" ;;
     -h|--help|"") usage ;;
     *) usage 1 ;;
 esac
