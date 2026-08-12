@@ -42,7 +42,7 @@ skopeo inspect --config "containers-storage:${image}" > "${workdir}/config.json"
 # package moved; at 400 that collateral fell to ~19 MiB. Stay under
 # containers-storage's limit of 500 layers.
 podman run --rm \
-    --mount="type=image,src=${image},dest=/chunkah" \
+    --mount="type=image,src=${image},destination=/chunkah" \
     -v "${workdir}/config.json:/config.json:ro,z" \
     -v "${workdir}:/work:z" \
     -e SOURCE_DATE_EPOCH=0 \
