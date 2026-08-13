@@ -102,8 +102,12 @@ jobs:
         id: build-image
         env:
           CACHE_FROM: ${{ github.event_name != 'schedule' && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
+        # --preserve-env=<list>, not -E: the 26.04 runner's sudo is
+        # sudo-rs, which ignores blanket -E with only a warning — the
+        # cache env vars silently never reached the build (2026-08-13).
+        # The targeted list form works in both sudo-rs and classic sudo.
         run: |
-          sudo -E $(command -v just) build \
+          sudo --preserve-env=CACHE_FROM $(command -v just) build \
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
@@ -125,7 +129,7 @@ jobs:
         env:
           CACHE_TO: ${{ format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) }}
         run: |
-          sudo -E $(command -v just) build \
+          sudo --preserve-env=CACHE_TO $(command -v just) build \
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
@@ -139,7 +143,7 @@ jobs:
       - name: Chunk Image
         id: chunk-image
         run: |
-          sudo -E $(command -v just) chunk \
+          sudo $(command -v just) chunk \
             ${IMAGE_NAME} \
             ${DEFAULT_TAG} \
             /tmp/chunked-oci
@@ -208,7 +212,7 @@ jobs:
           skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:47853bb9fb24202af9110531ebd6e43c5f97701254ca290596640290d17942f4"
           mkdir -p /tmp/push-out
           for tag in ${ALIAS_TAGS}; do
-            sudo -E podman run --rm \
+            sudo podman run --rm \
               -v /tmp/chunked-oci:/oci:ro \
               -v /tmp/push-out:/out \
               -v "${HOME}/.docker/config.json:/auth.json:ro" \
