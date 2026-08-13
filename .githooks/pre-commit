@@ -28,7 +28,11 @@ done
 # Ignore stylistic findings inherited from the upstream template
 # (shellcheck quoting, and inputs defined only in ublue's multi-image
 # pipelines). Syntax errors such as duplicate keys always fail.
+# -config-file points at the working-tree config explicitly: the staged
+# copies live under $tmp, so actionlint's own project-root walk would
+# never find .github/actionlint.yaml there.
 actionlint \
+    -config-file .github/actionlint.yaml \
     -ignore 'shellcheck reported issue' \
     -ignore 'not defined in object type' \
     "${staged[@]}"

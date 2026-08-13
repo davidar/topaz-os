@@ -1,0 +1,8 @@
+# Extends actionlint's built-in GitHub-hosted runner list, which does
+# not yet know the ubuntu-26.04 preview label (checked at v1.7.12, the
+# latest release). The key is named for self-hosted runners, but it is
+# also the documented way to teach actionlint hosted labels it has not
+# learned yet. Drop entries once actionlint's built-in list catches up.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

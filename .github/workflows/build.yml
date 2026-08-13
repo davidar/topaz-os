@@ -32,7 +32,14 @@ concurrency:
 jobs:
   build_push:
     name: Build and push image
-    runs-on: ubuntu-24.04
+    # ubuntu-26.04 (preview) for its podman 5.7 / buildah 1.42: the 24.04
+    # runner's buildah 1.33 never served RUN steps that bind-mount from
+    # another stage out of cache, which is every final-stage layer here —
+    # they rebuilt on all runs, cache or not. If the preview runner
+    # misbehaves (capacity, image churn), reverting to ubuntu-24.04 only
+    # costs that caching. The first run after a builder version change
+    # builds cold: the old cache entries no longer key-match.
+    runs-on: ubuntu-26.04
 
     permissions:
       contents: read
@@ -107,13 +114,12 @@ jobs:
       # key, so a bad entry does not self-heal (2026-08-12: a torn rpmdb
       # from a failed push build was served to every later run; recovery
       # is deleting that version from the topaz-os-build-cache package).
-      # Known limitation: the runner's buildah (1.33) never serves RUN
-      # steps that bind-mount from another stage out of cache, so this
-      # re-run rebuilds the final-stage layers instead of reusing the
-      # gated ones (each layer still self-verifies its rpm database:
-      # census assert, sqlite integrity check, fatal rpm stderr), and
-      # Build Image gets no cache benefit for them either. With
-      # buildah >= 1.35 both become cache hits.
+      # This re-run should be all cache hits — an instant re-upload of
+      # the layers the gated build just made (each layer still
+      # self-verifies its rpm database: census assert, sqlite integrity
+      # check, fatal rpm stderr). That requires buildah >= 1.35 (see
+      # runs-on above); buildah 1.33 rebuilt every final-stage layer
+      # here because it never cache-served bind-mount RUN steps.
       - name: Push Build Cache
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
