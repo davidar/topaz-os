@@ -205,7 +205,7 @@ jobs:
           # blob-reuse path where released skopeo falls back to a plain
           # upload (observed twice on the first ubuntu-26.04 runs,
           # 2026-08-13 — identical failure at the same blob on a re-run).
-          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:47853bb9fb24202af9110531ebd6e43c5f97701254ca290596640290d17942f4"
+          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
           mkdir -p /tmp/push-out
           for tag in ${ALIAS_TAGS}; do
             sudo -E podman run --rm \
