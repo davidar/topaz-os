@@ -145,6 +145,13 @@ chunk $target_image=image_name $tag=default_tag $outdir="chunked-oci":
         LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/{{ image_name }}/tree/${GIT_SHA}")
         LABELS+=("--label" "org.opencontainers.image.version={{ default_tag }}.${GIT_DATE}-${GIT_SHA}")
         LABELS+=("--label" "org.opencontainers.image.created=${GIT_STAMP}")
+        # The same stamp again as a MANIFEST ANNOTATION: bootc derives the
+        # deployment's ostree commit timestamp from this annotation, falling
+        # back to the config's created field — which SOURCE_DATE_EPOCH=0
+        # pins to the epoch, and rpm-ostree's status printer aborts on a
+        # zero commit timestamp. The label above does not cover this: only
+        # the manifest annotation (or config created) is consulted.
+        LABELS+=("--annotation" "org.opencontainers.image.created=${GIT_STAMP}")
     fi
 
     # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images

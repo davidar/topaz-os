@@ -40,3 +40,16 @@ the same commit twice reproduces the manifest bit-for-bit, which the
 wall-clock `created` stamp had silently broken. The build itself is
 label-free. Labels the base image declares are carried through
 unchanged unless overridden here.
+
+The commit timestamp is also stamped as the manifest annotation
+`org.opencontainers.image.created` (chunkah drops the base's manifest
+annotations just as it drops labels): bootc derives the deployment's
+ostree commit timestamp from that annotation, falling back to the
+config's `created` field — which `SOURCE_DATE_EPOCH=0` pins to the
+epoch, leaving the deployment with timestamp zero and crashing
+rpm-ostree's status printer. Raising `SOURCE_DATE_EPOCH` itself is not
+an option: it is also the mtime clamp for layer contents, and
+directory mtimes in extracted image storage are extraction wall-clock,
+so a per-commit epoch would re-stamp every directory entry and churn
+every layer on every update. The annotation carries the real timestamp
+with zero layer impact.
