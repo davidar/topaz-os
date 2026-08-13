@@ -199,11 +199,25 @@ jobs:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
         run: |
           set -euox pipefail
+          # Released skopeo from its official image, pinned by digest
+          # (Renovate-managed): the runner's baked skopeo is a -dev build
+          # from git main, and it fatals on a GHCR bearer-token 403 in the
+          # blob-reuse path where released skopeo falls back to a plain
+          # upload (observed twice on the first ubuntu-26.04 runs,
+          # 2026-08-13 — identical failure at the same blob on a re-run).
+          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:47853bb9fb24202af9110531ebd6e43c5f97701254ca290596640290d17942f4"
+          mkdir -p /tmp/push-out
           for tag in ${ALIAS_TAGS}; do
-            sudo -E skopeo copy --digestfile=/tmp/digestfile oci:/tmp/chunked-oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
+            sudo -E podman run --rm \
+              -v /tmp/chunked-oci:/oci:ro \
+              -v /tmp/push-out:/out \
+              -v "${HOME}/.docker/config.json:/auth.json:ro" \
+              -e REGISTRY_AUTH_FILE=/auth.json \
+              "${skopeo_image}" \
+              copy --digestfile=/out/digestfile oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
           done
 
-          digest=$(< /tmp/digestfile)
+          digest=$(< /tmp/push-out/digestfile)
 
           echo "digest=${digest}" >> $GITHUB_OUTPUT
 

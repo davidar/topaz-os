@@ -18,6 +18,16 @@
       ],
       "datasourceTemplate": "docker",
     },
+    {
+      // The released-skopeo image used for the registry push (the
+      // runner's baked skopeo is a git dev build — see build.yml).
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/build\\.yml$/"],
+      "matchStrings": [
+        "skopeo_image=\"(?<depName>[^:@\\s\"]+):(?<currentValue>[^@\\s\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\"",
+      ],
+      "datasourceTemplate": "docker",
+    },
   ],
 
   "packageRules": [
