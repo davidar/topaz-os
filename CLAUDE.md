@@ -15,6 +15,26 @@ git config core.hooksPath .githooks      # one-time: pre-commit lint of workflow
 The build fails unless `topaz check` passes (`RUN /usr/bin/topaz check` in the
 Containerfile) — the image must match the claims in its provenance ledger.
 
+## Ethos
+
+The image is built around enforced invariants: the ledger describes every
+deviation, lockfiles pin every input, `/var` ships empty, and the same
+commit must rebuild to the same bytes. Reproducibility is the load-bearing
+one — kept not as an end in itself but because it is the cheapest
+universal anomaly detector there is. Any unexplained byte between two
+builds of the same inputs is a real event that has not been root-caused
+yet; chasing such bytes has surfaced silent file corruption in the build
+environment, bugs in the CI substrate, and distro backport gaps that
+nothing else would have caught (ledger 0020 records several). Corollaries
+the repo lives by: verify the state a tool should have left rather than
+trusting its exit code; treat "it passed on rerun" as a finding about
+shared state, not a fix; prefer making bad states impossible (pins,
+exact installs) over asserting them away — and where prevention is out of
+reach, make detection loud enough to block publishing. Above all: when
+something breaks, the fix lands here first, whoever's fault it is —
+root-causing exists to name the owner, never to gate the repair.
+Upstream gets the report as a gift, not as a dependency.
+
 ## Conventions
 
 - **Every deliberate deviation from the base image gets two things:** a ledger
