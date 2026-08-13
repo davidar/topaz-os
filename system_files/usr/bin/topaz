@@ -108,6 +108,9 @@ cmd_check() {
                      /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules'
     chk "authselect profile symlinks to the base profile" \
         test -L /etc/authselect/custom/local-custom/password-auth
+    chk "authselect state file records the custom profile" \
+        bash -c '[ "$(cat /etc/authselect/authselect.conf)" = "$(printf \
+            "custom/local-custom\nwith-fingerprint\nwith-silent-lastlog\nwith-mdns4")" ]'
     chk "Playwright Chrome path rule is present" \
         test -f /usr/lib/tmpfiles.d/topaz-chrome-path.conf
     chk "supergfxd is enabled" \
@@ -146,6 +149,16 @@ cmd_check() {
                       tr -s " ")" = " 1 1" ]'
     chk "no build-time authselect backup is baked into the image" \
         bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
+    chk "XML catalogs are intact (well-formed XML)" \
+        bash -c 'xmllint --noout /etc/xml/catalog &&
+                 xmllint --noout /etc/sgml/docbook/xmlcatalog'
+    chk "SELinux module store is committed cleanly" \
+        bash -c '! test -e /etc/selinux/targeted/previous &&
+                 ! test -e /etc/selinux/targeted/tmp &&
+                 ! test -e /etc/selinux/final/targeted &&
+                 test -d /etc/selinux/targeted/active/modules/200/greetd'
+    chk "no leftover build-mount debris in the image root" \
+        bash -c '! test -e /ctx'
     chk "sgml catalogs are in canonical order" \
         bash -c 'for f in /etc/sgml/catalog /etc/sgml/*.cat; do
                      [ -L "$f" ] && continue

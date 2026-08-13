@@ -95,7 +95,13 @@ RUN --mount=type=bind,from=ctx-files,source=/configure.sh,target=/ctx/configure.
 # The sidecar assertion holds because the databases are in DELETE journal
 # mode (ledger 0020) — the check's own rpm queries no longer create them.
 # One RUN: anything a gate command created would die in this same layer.
-RUN /usr/bin/topaz check && \
+# The rmdir first: buildah sometimes commits the /ctx bind-mount target
+# directory left over from the earlier steps (empty, harmless, but it
+# flips layer digests build-to-build); this step has no ctx mount, so the
+# leak can be cleaned here. rmdir only — if /ctx somehow has content,
+# something wrote through a mount and the check below fails the build.
+RUN { rmdir /ctx 2>/dev/null || true; } && \
+    /usr/bin/topaz check && \
     bootc container lint --fatal-warnings && \
     bash -c 'shopt -s nullglob; \
              sidecars=(/usr/share/rpm/*.sqlite-{wal,shm} \

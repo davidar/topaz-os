@@ -56,13 +56,30 @@ Four sources of byte-churn, all eliminated:
   unpackaged chunks of two same-content builds). Fixed as part of the
   general rule that the image ships an empty `/var` (ledger 0024).
 
+Beyond byte-churn, the CI build environment has silently corrupted
+files outright (2026-08-13, found by diffing two published images whose
+sources differed by one documentation file): files rewritten in place
+through an overlayfs copy-up were committed with their new size but old
+or missing data blocks (`authselect.conf` and both XML catalogs, NUL
+tails), and a SELinux module store was abandoned mid-transaction after
+`rename()` of a lower-layer directory returned `EXDEV` and
+libsemanage's non-atomic fallback collided with its own debris — the
+`greetd` policy module was silently missing from a published image. The
+scriptlets involved swallow these failures, so both the package layers
+and `topaz check` verify the state the tools should have left
+(well-formed XML catalogs — NUL padding never parses — a debris-free
+module store with greetd's module present, the exact authselect state
+file) rather than trusting exit codes. The empty `/ctx` bind-mount target that buildah sometimes
+commits is removed at the gate; a non-empty one fails the build.
+
 Verification: `topaz check` asserts the topaz-installed packages'
 install times sit within the ordinal window of the recorded epoch (an
 unclamped transaction overshoots it by weeks), that the shipped rpmdb
 is in DELETE journal mode, that no authselect backup directory is
-present, that the sgml catalogs are sorted, and (in the build container)
-that `/var` ships empty (ledger 0024); the Containerfile gate additionally
-asserts the artifact ships no sidecar files.
+present, that the sgml catalogs are sorted, the torn-state assertions
+above, and (in the build container) that `/var` ships empty (ledger
+0024); the Containerfile gate additionally asserts the artifact ships
+no sidecar files.
 
 The cosmic-comp fork binary (ledger 0015) is outside this entry's
 scope: it is recompiled per build and its reproducibility is not

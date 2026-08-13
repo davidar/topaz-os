@@ -177,6 +177,33 @@ if verdict != "ok":
         done
     fi
 
+    # The build has committed silently torn files rewritten through an
+    # overlayfs copy-up (2026-08-13: authselect.conf and both XML catalogs
+    # with NUL-padded tails — new file size, old or missing data blocks —
+    # and a SELinux module store abandoned mid-transaction after rename()
+    # of a lower-layer directory returned EXDEV and libsemanage's
+    # non-atomic fallback collided with the debris; greetd's module was
+    # silently missing from the published image). The scriptlets swallow
+    # these failures and the build stays green, so verify the state they
+    # should have left and fail the layer before a torn result can be
+    # committed or cached. Same principle as the rpm database integrity
+    # check above: the tools' exit codes cannot be trusted through an
+    # overlay, the resulting files can.
+    # (xmllint suffices as the tear detector: the observed tears pad with
+    # NUL bytes, which are never well-formed XML. No tail-shape check — a
+    # legitimately empty catalog self-closes its root element.)
+    local cat
+    for cat in /etc/xml/catalog /etc/sgml/docbook/xmlcatalog; do
+        [ -e "$cat" ] || continue
+        xmllint --noout "$cat"
+    done
+    [ ! -e /etc/selinux/targeted/previous ]
+    [ ! -e /etc/selinux/targeted/tmp ]
+    [ ! -e /etc/selinux/final/targeted ]
+    if rpm -q greetd-selinux > /dev/null 2>&1; then
+        [ -d /etc/selinux/targeted/active/modules/200/greetd ]
+    fi
+
     ### Empty /var (ledger 0024)
     # /var is machine state: the image ships none (only an empty /var/tmp,
     # matching the base), and everything a dnf run leaves there is a
