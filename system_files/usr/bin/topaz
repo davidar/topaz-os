@@ -122,14 +122,11 @@ cmd_check() {
                  grep -q "^topaz-home" \
                      /usr/share/ublue-os/just/60-custom.just'
     # the zone dir is root-only readable, so unprivileged runs (nightshift)
-    # verify the packages and skip the zone-file grep; the build gate runs
-    # as root and asserts all of it
-    chk "KDE Connect is installed with SMS app and firewall service" \
-        bash -c 'rpm -q kde-connect >/dev/null &&
-                 test -x /usr/bin/kdeconnect-sms &&
-                 { [ ! -r /etc/firewalld/zones/FedoraWorkstation.xml ] ||
-                   grep -q "service name=\"kdeconnect\"" \
-                       /etc/firewalld/zones/FedoraWorkstation.xml; }'
+    # skip the grep; the build gate runs as root and asserts it
+    chk "KDE Connect firewall ports are open (ledger 0030)" \
+        bash -c '[ ! -r /etc/firewalld/zones/FedoraWorkstation.xml ] ||
+                 grep -q "service name=\"kdeconnect\"" \
+                     /etc/firewalld/zones/FedoraWorkstation.xml'
     chk "ledger entries are well-formed" \
         bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
                      grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
@@ -140,7 +137,7 @@ cmd_check() {
         bash -c 'command -v podman && command -v jq'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
-                 for p in cosmic-session nethogs kde-connect; do
+                 for p in cosmic-session nethogs; do
                      t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
                      [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
                  done'
@@ -159,20 +156,21 @@ cmd_check() {
                  test -d /etc/selinux/targeted/active/modules/200/greetd'
     chk "no leftover build-mount debris in the image root" \
         bash -c '! test -e /ctx'
+    # the files exist only while some dependency pulls docbook-dtds
+    # (none does since the kde-connect subtree left); absent is canonical
     chk "sgml catalogs are in canonical order" \
         bash -c 'for f in /etc/sgml/catalog /etc/sgml/*.cat; do
+                     [ -e "$f" ] || continue
                      [ -L "$f" ] && continue
                      LC_ALL=C sort -C "$f" || exit 1
                  done'
-    chk "installed package set matches the shipped lockfiles" \
-        bash -c 'for lock in /usr/share/topaz-os/packages.lock \
-                             /usr/share/topaz-os/packages-kde.lock; do
-                     rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
-                         > /dev/null || exit 1
-                     sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
-                         | xargs -r -n1 rpm -q 2>/dev/null \
-                         | grep -qv "is not installed" && exit 1
-                 done; true'
+    chk "installed package set matches the shipped lockfile" \
+        bash -c 'lock=/usr/share/topaz-os/packages.lock
+                 rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
+                     > /dev/null || exit 1
+                 sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
+                     | xargs -r -n1 rpm -q 2>/dev/null \
+                     | grep -qv "is not installed" && exit 1; true'
     chk "trimmed app-suite packages are absent (ledger 0025)" \
         bash -c '! rpm -q cosmic-initial-setup > /dev/null 2>&1 &&
                  ! rpm -q cosmic-wallpapers > /dev/null 2>&1'

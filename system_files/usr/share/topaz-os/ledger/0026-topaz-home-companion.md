@@ -27,3 +27,13 @@ never applies anything — the image still runs nothing from it
 automatically. The `topaz` CLI keeps only its image-coupled verbs (`why`,
 `ledger`, `check`, `dev`); night-shift management and report reading are
 companion verbs.
+
+Since 2026-08-14 KDE Connect (formerly entry 0019) also lives on the
+companion side, as a distrobox recipe: it was image-hosted purely because
+no Flatpak channel exists, and its 101-package Qt/KF6 subtree was the
+largest single deviation. Its one genuinely system-side need — the open
+firewall ports — stays in the image as its own deviation (entry 0030).
+The eviction was triggered by its device-browse feature dying image-side
+— sshfs 3.7.6, unmaintained upstream since 2022, can no longer mount at
+all against fuse3 3.18 on this kernel, while the same mount works from
+the container's user-namespace FUSE path.

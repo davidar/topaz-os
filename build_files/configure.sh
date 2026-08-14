@@ -72,12 +72,12 @@ authselect select custom/local-custom \
 # guarantee does not depend on first-boot preset application.
 systemctl enable supergfxd.service
 
-### KDE Connect (installed via the lockfile; phone integration + SMS)
-# Chosen over Valent/Flathub alternatives: Fedora's package ships the full
-# app set (kdeconnect-sms was the deciding feature), and Flathub carries
-# neither KDE Connect nor Valent. The firewall service (ports 1714-1764)
-# ships with firewalld; open it in the default zone so pairing works out of
-# the box.
+### KDE Connect firewall ports (ledger 0030)
+# KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
+# recipe; ledger 0026 records the eviction), but the container shares the
+# host network namespace, so the host firewall must still pass its
+# discovery and transfer ports. The service definition (TCP/UDP
+# 1714-1764) ships with firewalld; open it in the default zone.
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
 ### Empty /var (ledger 0024)

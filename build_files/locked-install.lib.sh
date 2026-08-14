@@ -161,8 +161,9 @@ if verdict != "ok":
     done
 
     # libxml2's xmlcatalog assembles SGML catalogs in a hash table seeded
-    # per process, so the docbook-dtds %post (reached through kde-connect's
-    # kf6-kdoctools dependency) writes the /etc/sgml catalogs in a fresh
+    # per process, so the docbook-dtds %post (historically reached through
+    # kde-connect's kf6-kdoctools dependency; kept in case a future
+    # dependency reinstalls it) writes the /etc/sgml catalogs in a fresh
     # line order on every install. The lines only delegate to disjoint
     # per-DTD catalogs, so order carries no meaning — sort each file into a
     # canonical order. Conditional because only the layer that pulls

@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Main package layer: the locked package set minus the kde-connect subtree
-# (which ships as its own layer — see install-kde.sh), plus everything
-# derived purely from the installed set: nethogs capabilities,
-# reproducibility fixups, /var scrub. Keyed on packages.lock (plus this
+# Package layer: the locked package set, plus everything derived purely
+# from the installed set: nethogs capabilities, reproducibility fixups,
+# /var scrub. Keyed on packages.lock (plus this
 # script and the shared lib), so it is invalidated only when one of those
 # changes — edits to system files or configuration rebuild only the later,
 # kilobyte-sized layers.

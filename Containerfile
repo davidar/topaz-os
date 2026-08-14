@@ -6,9 +6,6 @@
 FROM scratch AS ctx-packages
 COPY build_files/install-packages.sh build_files/locked-install.lib.sh build_files/packages.lock /
 
-FROM scratch AS ctx-kde
-COPY build_files/install-kde.sh build_files/locked-install.lib.sh build_files/packages-kde.lock /
-
 FROM scratch AS ctx-comp
 COPY build_files/install-comp.sh /
 
@@ -57,25 +54,13 @@ FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:effbd5225119adb6d9520
 # never churn a digest — the same canonicalization ostree applies on
 # deployment anyway.
 
-# Main locked package set (ledger 0022), plus everything derived purely
+# Locked package set (ledger 0022), plus everything derived purely
 # from it: nethogs capabilities, reproducibility fixups, /var scrub.
 RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/install-packages.sh \
     --mount=type=bind,from=ctx-packages,source=/locked-install.lib.sh,target=/ctx/locked-install.lib.sh \
     --mount=type=bind,from=ctx-packages,source=/packages.lock,target=/ctx/packages.lock \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/install-packages.sh
-
-# kde-connect subtree as its own content-keyed layer (ledgers 0019, 0022):
-# its Qt/KF6 dependency graph is disjoint from the COSMIC set and rebuilds
-# on a faster cadence, so a kde-only lock bump re-ships this layer instead
-# of the one above. Last of the package layers because each one's diff
-# carries the rpm database as mutated so far — the frequent churner must
-# sit below the others for their blobs to stay byte-identical.
-RUN --mount=type=bind,from=ctx-kde,source=/install-kde.sh,target=/ctx/install-kde.sh \
-    --mount=type=bind,from=ctx-kde,source=/locked-install.lib.sh,target=/ctx/locked-install.lib.sh \
-    --mount=type=bind,from=ctx-kde,source=/packages-kde.lock,target=/ctx/packages-kde.lock \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/install-kde.sh
 
 # Forked cosmic-comp from the comp-build stage (ledger 0015)
 RUN --mount=type=bind,from=ctx-comp,source=/install-comp.sh,target=/ctx/install-comp.sh \

@@ -10,10 +10,10 @@ paths:
 # Updates ship as content-based layers
 
 The Containerfile builds a few coarse content-keyed layers (packages,
-kde-connect, compositor, config) — the right shape for build caching,
-the wrong shape for updates: dropping a single package re-shipped the
-whole ~900 MiB locked install, plus the kde layer stacked on its rpm
-database, with each package layer dragging a ~139 MiB rpmdb copy along.
+compositor, config) — the right shape for build caching, the wrong
+shape for updates: dropping a single package re-shipped the whole
+locked install as one layer, rpm database copy and all (~139 MiB of
+that alone).
 
 After the build gate passes, CI rewrites the image into ~400
 content-based layers with [chunkah](https://github.com/coreos/chunkah)

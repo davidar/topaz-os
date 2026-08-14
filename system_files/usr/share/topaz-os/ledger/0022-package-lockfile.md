@@ -4,7 +4,6 @@ date: 2026-08-03
 status: active
 paths:
   - /usr/share/topaz-os/packages.lock
-  - /usr/share/topaz-os/packages-kde.lock
 ---
 # Locked package set (packages.lock)
 
@@ -30,32 +29,23 @@ Together with the base image digest pin and the compositor fork's commit
 pin, every package input to the image is now named exactly by the git
 tree that builds it.
 
-Since 2026-08-10 the closure ships as two content-keyed layers with one
-lockfile each: `packages.lock` (the COSMIC desktop and system packages)
-and `packages-kde.lock` (the kde-connect subtree, whose Qt/KF6 dependency
-graph is disjoint from the COSMIC set and rebuilds on a faster cadence in
-Fedora). The lockfile generator censuses at the same boundary the
-Containerfile builds at, so each lock keys exactly one layer and a
-kde-only update re-ships ~420 MiB instead of the whole ~1 GiB package
-layer. The kde layer sits last of the package layers because every
-package transaction rewrites the rpm database, and each layer's diff
-carries the database as mutated so far — only layers above the change
-stay byte-identical.
-
 Since 2026-08-10 every transaction — lock generation and locked install
 alike — runs with `install_weak_deps=False`. An audit found ~40 packages
 (~119 MiB, most of a legacy kf5 stack among them) present only through
 Recommends and Supplements edges; the closure is now exactly the named
 intent plus hard requires, and repository-side weak dependencies can no
 longer grow the image unreviewed. Weak dependencies the image genuinely
-relies on are promoted to explicit intent in gen-lockfile.sh
-(cutecosmic-qt6 and qt6ct for Qt theming, playerctl for media keys,
-kf6-sonnet-hunspell for Qt spell checking). kio-extras is absent from the
-closure: device browse in kde-connect mounts over fuse-sshfs, a hard
-dependency that remains, and no application on the image resolves KIO
-protocol URLs.
+relies on are promoted to explicit intent in gen-lockfile.sh (playerctl
+for media keys).
 
-The lockfiles ship at `/usr/share/topaz-os/packages.lock` and
-`/usr/share/topaz-os/packages-kde.lock`; `topaz check` verifies every
-added NEVRA is installed and every removed one is absent, on the build
-gate and on a booted system alike.
+From 2026-08-10 to 2026-08-14 the closure shipped as two content-keyed
+layers with one lockfile each, the second carrying the kde-connect
+subtree (its disjoint Qt/KF6 graph churned on Fedora's faster KDE
+cadence). That subtree — and with it the Qt theming and spell-checking
+intent packages whose only consumers were its apps — moved to the
+topaz-home companion's distrobox recipe (entry 0026), returning the
+closure to a single layer and lockfile.
+
+The lockfile ships at `/usr/share/topaz-os/packages.lock`; `topaz
+check` verifies every added NEVRA is installed and every removed one is
+absent, on the build gate and on a booted system alike.

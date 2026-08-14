@@ -1,5 +1,4 @@
 +acpid-0:2.0.34-16.fc44.x86_64 acpid-2.0.34-16.fc44.src.rpm
-+breeze-icon-theme-0:6.28.0-1.fc44.noarch kf6-breeze-icons-6.28.0-1.fc44.src.rpm
 +cosmic-app-library-0:1.5.0-1.fc44.x86_64 cosmic-app-library-1.5.0-1.fc44.src.rpm
 +cosmic-applets-0:1.5.0-1.fc44.x86_64 cosmic-applets-1.5.0-1.fc44.src.rpm
 +cosmic-bg-0:1.5.0-1.fc44.x86_64 cosmic-bg-1.5.0-1.fc44.src.rpm
@@ -22,7 +21,6 @@
 +cosmic-store-0:1.5.0-1.fc44.x86_64 cosmic-store-1.5.0-1.fc44.src.rpm
 +cosmic-term-0:1.5.0-1.fc44.x86_64 cosmic-term-1.5.0-1.fc44.src.rpm
 +cosmic-workspaces-0:1.5.0-1.fc44.x86_64 cosmic-workspaces-1.5.0-1.fc44.src.rpm
-+cutecosmic-qt6-0:0.1^git20260121.8e58441-3.fc44.x86_64 cutecosmic-0.1^git20260121.8e58441-3.fc44.src.rpm
 +desktop-backgrounds-compat-0:44.0.0-2.fc44.noarch desktop-backgrounds-44.0.0-2.fc44.src.rpm
 +fd-find-0:10.4.2-4.fc44.x86_64 rust-fd-find-10.4.2-4.fc44.src.rpm
 +gnome-icon-theme-0:3.12.0-27.fc44.noarch gnome-icon-theme-3.12.0-27.fc44.src.rpm
@@ -30,17 +28,6 @@
 +greetd-selinux-0:0.10.3-6.fc44.noarch greetd-0.10.3-6.fc44.src.rpm
 +ibus-panel-0:1.5.34-4.fc44.x86_64 ibus-1.5.34-4.fc44.src.rpm
 +jemalloc-0:5.3.0-14.fc44.x86_64 jemalloc-5.3.0-14.fc44.src.rpm
-+kf6-breeze-icons-0:6.28.0-1.fc44.x86_64 kf6-breeze-icons-6.28.0-1.fc44.src.rpm
-+kf6-kcolorscheme-0:6.28.0-1.fc44.x86_64 kf6-kcolorscheme-6.28.0-1.fc44.src.rpm
-+kf6-kconfig-0:6.28.0-1.fc44.x86_64 kf6-kconfig-6.28.0-1.fc44.src.rpm
-+kf6-kguiaddons-0:6.28.0-1.fc44.x86_64 kf6-kguiaddons-6.28.0-1.fc44.src.rpm
-+kf6-ki18n-0:6.28.0-1.fc44.x86_64 kf6-ki18n-6.28.0-1.fc44.src.rpm
-+kf6-kiconthemes-0:6.28.0-1.fc44.x86_64 kf6-kiconthemes-6.28.0-1.fc44.src.rpm
-+kf6-kirigami-0:6.28.0-1.fc44.x86_64 kf6-kirigami-6.28.0-1.fc44.src.rpm
-+kf6-kwidgetsaddons-0:6.28.0-1.fc44.x86_64 kf6-kwidgetsaddons-6.28.0-1.fc44.src.rpm
-+kf6-qqc2-desktop-style-0:6.28.0-1.fc44.x86_64 kf6-qqc2-desktop-style-6.28.0-1.fc44.src.rpm
-+kf6-sonnet-0:6.28.0-1.fc44.x86_64 kf6-sonnet-6.28.0-1.fc44.src.rpm
-+kf6-sonnet-hunspell-0:6.28.0-1.fc44.x86_64 kf6-sonnet-6.28.0-1.fc44.src.rpm
 +libfprint-tod-0:1.94.5-2.fc44.x86_64 libfprint-tod-1.94.5-2.fc44.src.rpm
 +libfprint-tod-goodix-0:0.0.9-1.fc44.x86_64 libfprint-tod-goodix-0.0.9-1.fc44.src.rpm
 +libqalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
@@ -51,6 +38,5 @@
 +pop-icon-theme-0:3.5.0-5.fc44.noarch pop-icon-theme-3.5.0-5.fc44.src.rpm
 +pop-launcher-1:1.5.0-1.fc44.x86_64 pop-launcher-1.5.0-1.fc44.src.rpm
 +qalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
-+qt6ct-0:0.11-15.20250907git23a985f.fc44.x86_64 qt6ct-0.11-15.20250907git23a985f.fc44.src.rpm
 +xdg-desktop-portal-cosmic-0:1.5.0-1.fc44.x86_64 xdg-desktop-portal-cosmic-1.5.0-1.fc44.src.rpm
 -libfprint-0:1.94.10-5.fc44.x86_64 libfprint-1.94.10-5.fc44.src.rpm
