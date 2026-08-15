@@ -48,3 +48,8 @@ Plain consumers are unaffected: ostree/bootc's native fetcher ingests a
 zstd:chunked-only image completely (verified against this image), it
 just doesn't benefit until it grows partial-pull support
 ([bootc#20](https://github.com/bootc-dev/bootc/issues/20)).
+
+Partial pulls also demand something of the registry: blob segments are
+fetched with multi-range HTTP requests, which not every registry
+serves. That requirement is why the canonical image moved to quay.io
+(ledger 0033).

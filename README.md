@@ -44,7 +44,7 @@ In broad strokes:
 ## Usage
 
 ```bash
-sudo bootc switch ghcr.io/davidar/topaz-os:latest
+sudo bootc switch quay.io/davidar/topaz-os:latest
 systemctl reboot
 ```
 
