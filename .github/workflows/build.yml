@@ -172,11 +172,34 @@ jobs:
             exit 1
           fi
 
+      # Recompress the chunked image as zstd:chunked (ledger 0031): same
+      # layers (diff_ids unchanged — the reproducibility comparison above
+      # is deliberately compression-independent), but each blob gains a
+      # table of contents that lets podman fetch only the files it does
+      # not already have. Convert once, then push every alias tag from the
+      # converted directory so all tags share blobs. Runs only when a push
+      # follows: the gate and the reproducibility check both operate on
+      # the pre-conversion output.
+      - name: Convert to zstd chunked
+        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          set -euox pipefail
+          # Same released-skopeo pin as the push step (Renovate updates both)
+          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
+          mkdir -p /tmp/zstd-oci
+          sudo podman run --rm \
+            -v /tmp/chunked-oci:/in:ro \
+            -v /tmp/zstd-oci:/out \
+            "${skopeo_image}" \
+            copy --image-parallel-copies 16 \
+            --dest-compress-format zstd:chunked oci:/in oci:/out
+
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
-      # The chunked OCI directory is what ships; skopeo preserves its
+      # The converted OCI directory is what ships; skopeo preserves its
       # manifest (layer set, annotations) byte-for-byte, where podman push
-      # would re-encode it.
+      # would re-encode it. Signing happens after this, against the pushed
+      # digest — sign what you publish.
       - name: Push To GHCR
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
@@ -196,7 +219,7 @@ jobs:
           mkdir -p /tmp/push-out
           for tag in ${ALIAS_TAGS}; do
             sudo podman run --rm \
-              -v /tmp/chunked-oci:/oci:ro \
+              -v /tmp/zstd-oci:/oci:ro \
               -v /tmp/push-out:/out \
               -v "${HOME}/.docker/config.json:/auth.json:ro" \
               -e REGISTRY_AUTH_FILE=/auth.json \
