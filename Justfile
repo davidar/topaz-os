@@ -181,18 +181,19 @@ generate-build-tags $target_image=image_name $tag=default_tag:
     #!/usr/bin/bash
     set -eoux pipefail
 
-    DATE=$(date +%Y%m%d)
+    # Two tags only: one unique identity (the version label with dashes
+    # for dots, timestamped from the commit like the label) that
+    # receives the real push, and the moving tag aliased onto it — the
+    # template's six redundant spellings of the same manifest are gone.
+    # Order matters: the push step copies to the first tag and aliases
+    # the rest.
     BUILD_TAGS=()
     if [[ -z "$(git status -s)" ]]; then
         GIT_SHA=$(git rev-parse --short HEAD)
-        BUILD_TAGS+=("${tag}-${GIT_SHA}")
+        DATE=$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y%m%d)
         BUILD_TAGS+=("${tag}-${DATE}-${GIT_SHA}")
-        BUILD_TAGS+=("${DATE}-${GIT_SHA}")
     fi
-
-    BUILD_TAGS+=("${DATE}")
     BUILD_TAGS+=("${tag}")
-    BUILD_TAGS+=("${tag}-${DATE}")
 
     echo "${BUILD_TAGS[@]}"
 
