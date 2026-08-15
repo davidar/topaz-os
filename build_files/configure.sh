@@ -80,6 +80,17 @@ systemctl enable supergfxd.service
 # 1714-1764) ships with firewalld; open it in the default zone.
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
+### Partial image pulls (ledger 0031)
+# CI publishes the image as zstd:chunked (see build.yml); flip the
+# containers-storage default so podman pulls fetch only the files not
+# already present in local storage. `topaz pull` stages updates through
+# podman, so this is the client half of delta updates. Patch the shipped
+# default rather than adding an /etc/containers/storage.conf override —
+# an override copy would shadow every future base change to the file.
+grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
+sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
+    /usr/share/containers/storage.conf
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

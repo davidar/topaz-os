@@ -4,6 +4,7 @@ date: 2026-08-15
 status: active
 paths:
   - .github/workflows/build.yml
+  - /usr/share/containers/storage.conf
 ---
 # Updates publish as zstd:chunked for partial pulls
 
@@ -21,6 +22,12 @@ only the rest via HTTP range requests. With partial pulls enabled in
 containers-storage, the same update measured 35.8 MiB — dedup at file
 granularity absorbs both repacking collateral and unchanged files
 inside genuinely-changed layers.
+
+The client half is baked: the image flips `enable_partial_images` to
+`"true"` in the shipped containers-storage default
+(`/usr/share/containers/storage.conf`, patched in place so future base
+changes to the file still flow through), and `topaz pull` (ledger 0029)
+stages updates through podman, which honors it.
 
 The conversion is a single `skopeo copy` into an OCI directory from
 which every alias tag is pushed, so tags share blobs and the cosign

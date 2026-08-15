@@ -135,6 +135,8 @@ cmd_check() {
         command -v bootc
     chk "podman and jq are present for parallel pulls (topaz pull)" \
         bash -c 'command -v podman && command -v jq'
+    chk "partial image pulls are enabled in containers-storage (ledger 0031)" \
+        grep -qx 'enable_partial_images = "true"' /usr/share/containers/storage.conf
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
                  for p in cosmic-session nethogs; do
