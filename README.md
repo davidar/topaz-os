@@ -35,8 +35,8 @@ In broad strokes:
   `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
   byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).
 - **Opt-in extras** — the `topaz dev` transient-overlay workflow for daily-driving
-  locally built binaries, `topaz pull` to fetch big updates at full link speed
-  (bootc pulls serially until bootc#20), and `ujust topaz-home` to fetch
+  locally built binaries, `topaz pull` for parallel partial-pull updates staged
+  nightly ahead of uupd (bootc pulls serially until bootc#20), and `ujust topaz-home` to fetch
   [topaz-home](https://github.com/davidar/topaz-home), the userland companion repo
   (night-shift triage, desktop services and fixes) that updates at git speed instead
   of being baked into the image.
@@ -50,8 +50,9 @@ systemctl reboot
 
 Images are built in CI on every push and signed with cosign (the public key is in this
 repository, `cosign.pub`). The published image is split into content-based layers with
-[chunkah](https://github.com/coreos/chunkah) — roughly one per package — so updates
-only download the packages that actually changed. Builds are byte-reproducible; a
+[chunkah](https://github.com/coreos/chunkah) — roughly one per package — and
+compressed zstd:chunked, so updates download only the files that actually changed
+(a real update measured 36 MiB where serial bootc re-fetched 2.5 GiB). Builds are byte-reproducible; a
 weekly scheduled job rebuilds the unchanged tree and fails if the result diverges from
 the published image by even one layer.
 
