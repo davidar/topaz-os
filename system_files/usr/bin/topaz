@@ -137,6 +137,8 @@ cmd_check() {
         bash -c 'command -v podman && command -v jq && command -v skopeo'
     chk "partial image pulls are enabled in containers-storage (ledger 0031)" \
         grep -qx 'enable_partial_images = "true"' /usr/share/containers/storage.conf
+    chk "topaz-pull.timer stages updates ahead of uupd (ledger 0032)" \
+        bash -c 'ls /etc/systemd/system/timers.target.wants/topaz-pull.timer >/dev/null 2>&1'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
                  for p in cosmic-session nethogs; do

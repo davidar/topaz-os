@@ -72,6 +72,11 @@ authselect select custom/local-custom \
 # guarantee does not depend on first-boot preset application.
 systemctl enable supergfxd.service
 
+### topaz-pull timer (ledger 0032)
+# Same preset-plus-enable pattern: stage updates via topaz pull daily,
+# half an hour before uupd's bootc step (which then no-ops).
+systemctl enable topaz-pull.timer
+
 ### KDE Connect firewall ports (ledger 0030)
 # KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
 # recipe; ledger 0026 records the eviction), but the container shares the

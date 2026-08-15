@@ -1,2 +1,6 @@
 # topaz-os: GPU mode switching daemon on by default (hybrid laptops)
 enable supergfxd.service
+
+# topaz-os: stage updates via parallel partial pulls ahead of uupd
+# (ledger 0032)
+enable topaz-pull.timer

@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily topaz pull ahead of uupd
+
+[Timer]
+# Half an hour before uupd (04:00 plus up to 15 minutes of jitter):
+# topaz pull stages the update with parallel partial pulls, so uupd's
+# serial bootc step finds it already staged and no-ops. uupd keeps its
+# other duties (flatpak, brew, distrobox).
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

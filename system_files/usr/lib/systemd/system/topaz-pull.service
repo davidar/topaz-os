@@ -1,0 +1,12 @@
+[Unit]
+Description=Stage OS updates with parallel partial pulls (topaz pull)
+Documentation=file:///usr/share/topaz-os/ledger/0032-topaz-pull-timer.md
+Wants=network-online.target
+After=network-online.target
+# If a boot catch-up queues this together with uupd (both timers are
+# Persistent), stage the update first so uupd's bootc step no-ops.
+Before=uupd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/topaz pull
