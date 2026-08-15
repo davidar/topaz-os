@@ -186,12 +186,16 @@ jobs:
           set -euox pipefail
           # Same released-skopeo pin as the push step (Renovate updates both)
           skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
+          # 4-way, not 16: the first run OOM-killed (exit 137) on the
+          # 16 GB runner once 16 concurrent compressions reached the
+          # multi-hundred-MiB base layers. Conversion output is
+          # parallelism-independent (verified), so this only costs time.
           mkdir -p /tmp/zstd-oci
           sudo podman run --rm \
             -v /tmp/chunked-oci:/in:ro \
             -v /tmp/zstd-oci:/out \
             "${skopeo_image}" \
-            copy --image-parallel-copies 16 \
+            copy --image-parallel-copies 4 \
             --dest-compress-format zstd:chunked oci:/in oci:/out
 
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
