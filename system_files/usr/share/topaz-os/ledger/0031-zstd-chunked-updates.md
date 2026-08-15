@@ -29,12 +29,20 @@ The client half is baked: the image flips `enable_partial_images` to
 changes to the file still flow through), and `topaz pull` (ledger 0029)
 stages updates through podman, which honors it.
 
-The conversion is a single `skopeo copy` into an OCI directory from
-which every alias tag is pushed, so tags share blobs and the cosign
-signature (applied after the push) covers exactly what was published.
-Conversion output is deterministic for the pinned skopeo (verified
-serial vs 16-way parallel); the pin is Renovate-managed, and any drift
-a bump introduces surfaces in the weekly check's layer comparison.
+The conversion happens during the push itself: `skopeo copy
+--dest-compress-format zstd:chunked` runs against a blob cache seeded
+from the published image (`build_files/seed-blob-cache.sh`), so
+unchanged layers substitute the registry's existing blobs —
+HEAD-verified before use, and byte-identical in the resulting manifest
+to a fresh recompression — and only the real delta is compressed and
+uploaded. Without the seeding, a stateless CI runner would spend
+~20 minutes recompressing all ~400 layers on every push just to
+rediscover blobs the registry already holds. Every alias tag pushes
+the same content, and the cosign signature (applied after the push)
+covers exactly what was published. Conversion output is deterministic
+for the pinned skopeo (verified serial vs 16-way parallel); the pin is
+Renovate-managed, and any drift a bump introduces surfaces in the
+weekly check's layer comparison.
 
 Plain consumers are unaffected: ostree/bootc's native fetcher ingests a
 zstd:chunked-only image completely (verified against this image), it

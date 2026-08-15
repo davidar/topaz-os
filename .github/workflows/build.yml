@@ -177,34 +177,22 @@ jobs:
             exit 1
           fi
 
-      # Recompress the chunked image as zstd:chunked (ledger 0031): same
-      # layers (diff_ids unchanged — the reproducibility comparison above
-      # is deliberately compression-independent), but each blob gains a
-      # table of contents that lets podman fetch only the files it does
-      # not already have. Convert once, then push every alias tag from the
-      # converted directory so all tags share blobs. Runs only when a push
-      # follows: the gate and the reproducibility check both operate on
-      # the pre-conversion output.
-      - name: Convert to zstd chunked
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        run: |
-          set -euox pipefail
-          # Same released-skopeo pin as the push step (Renovate updates both)
-          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
-          mkdir -p ${RUNNER_TEMP}/zstd-oci
-          sudo podman run --rm \
-            -v ${RUNNER_TEMP}/chunked-oci:/in:ro \
-            -v ${RUNNER_TEMP}/zstd-oci:/out \
-            "${skopeo_image}" \
-            copy --image-parallel-copies 16 \
-            --dest-compress-format zstd:chunked oci:/in oci:/out
-
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
-      # The converted OCI directory is what ships; skopeo preserves its
-      # manifest (layer set, annotations) byte-for-byte, where podman push
-      # would re-encode it. Signing happens after this, against the pushed
-      # digest — sign what you publish.
+      #
+      # The push recompresses the chunked image as zstd:chunked (ledger
+      # 0031): identical layers (diff_ids unchanged — the reproducibility
+      # comparison above is deliberately compression-independent), but
+      # each blob gains a table of contents that lets podman fetch only
+      # the files it does not already have. Recompressing all ~400 layers
+      # takes ~20 min of runner CPU, so the copy runs against a blob
+      # cache seeded from the published image (see seed-blob-cache.sh):
+      # unchanged layers substitute the registry's existing blobs —
+      # HEAD-verified, and yielding a manifest byte-identical to a full
+      # recompression — and only the real update delta is compressed and
+      # uploaded. Re-seeding from the first pushed tag lets the remaining
+      # alias tags reuse even the fresh layers. Signing happens after,
+      # against the pushed digest — sign what you publish.
       - name: Push To GHCR
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
@@ -222,14 +210,31 @@ jobs:
           # into the container, below, is what actually fixed it.)
           skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
           mkdir -p /tmp/push-out
+          cache_dir=${RUNNER_TEMP}/blob-cache
+          # sudo throughout: the containerized skopeo runs as root and
+          # owns the cache files it writes. A failed seeding only costs
+          # CPU (full recompression), never correctness — warn and push.
+          sudo bash build_files/seed-blob-cache.sh \
+            ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:latest ${cache_dir} \
+            || echo "::warning::blob-cache seeding failed; this push recompresses every layer"
+          seeded_from_pushed=""
           for tag in ${ALIAS_TAGS}; do
             sudo podman run --rm \
-              -v ${RUNNER_TEMP}/zstd-oci:/oci:ro \
+              -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
               -v /tmp/push-out:/out \
+              -v ${cache_dir}:/var/lib/containers/cache \
               -v "${HOME}/.docker/config.json:/auth.json:ro" \
               -e REGISTRY_AUTH_FILE=/auth.json \
               "${skopeo_image}" \
-              copy --digestfile=/out/digestfile oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
+              copy --digestfile=/out/digestfile --image-parallel-copies 16 \
+              --dest-compress-format zstd:chunked \
+              oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
+            if [ -z "${seeded_from_pushed}" ]; then
+              sudo bash build_files/seed-blob-cache.sh \
+                ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag} ${cache_dir} \
+                || echo "::warning::re-seeding failed; remaining tags recompress the delta"
+              seeded_from_pushed=1
+            fi
           done
 
           digest=$(< /tmp/push-out/digestfile)
