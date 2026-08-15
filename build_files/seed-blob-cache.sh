@@ -39,15 +39,21 @@ local_manifest="$oci_dir/blobs/sha256/$manifest_digest"
 config_digest=$(jq -r '.config.digest' "$local_manifest" | cut -d: -f2)
 local_config="$oci_dir/blobs/sha256/$config_digest"
 
-if ! pub_manifest=$(skopeo inspect --no-tags --raw "docker://$ref" 2>/dev/null); then
+# The published manifest runs to hundreds of kilobytes (~400 layers with
+# TOC annotations) — far past the kernel's single-argument limit, so it
+# travels by file (--slurpfile), never by --argjson.
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+if ! skopeo inspect --no-tags --raw "docker://$ref" > "$workdir/pub-manifest.json" 2>/dev/null; then
     echo "no published image at $ref — skipping blob-cache seeding"
     exit 0
 fi
-if ! jq -e '.layers[0].mediaType | endswith("tar+zstd")' <<<"$pub_manifest" > /dev/null; then
+if ! jq -e '.layers[0].mediaType | endswith("tar+zstd")' \
+        "$workdir/pub-manifest.json" > /dev/null; then
     echo "published image is not zstd — skipping blob-cache seeding"
     exit 0
 fi
-pub_config=$(skopeo inspect --no-tags --raw --config "docker://$ref")
+skopeo inspect --no-tags --raw --config "docker://$ref" > "$workdir/pub-config.json"
 
 # Pair layers with diff_ids by position in each image, join on diff_id.
 # Output: diff_id, gzip digest, zstd digest, TOC annotations (compact
@@ -56,10 +62,11 @@ pub_config=$(skopeo inspect --no-tags --raw --config "docker://$ref")
 # partially pull.
 rows=$(jq -rn \
     --slurpfile lm "$local_manifest" --slurpfile lc "$local_config" \
-    --argjson pm "$pub_manifest" --argjson pc "$pub_config" '
+    --slurpfile pm "$workdir/pub-manifest.json" \
+    --slurpfile pc "$workdir/pub-config.json" '
     def pairs($m; $c): [$m.layers, $c.rootfs.diff_ids] | transpose
         | map({diff: .[1], layer: .[0]});
-    (pairs($pm; $pc)
+    (pairs($pm[0]; $pc[0])
         | map(select(.layer.annotations
               | has("io.github.containers.zstd-chunked.manifest-checksum")))
         | INDEX(.diff)) as $pub
