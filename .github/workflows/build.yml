@@ -278,7 +278,11 @@ jobs:
               -H "Accept: application/vnd.oci.image.manifest.v1+json" \
               -o /tmp/push-out/manifest.json \
               "https://ghcr.io/v2/${repo}/manifests/${digest}"
-            media_type=$(jq -r .mediaType /tmp/push-out/manifest.json)
+            # chunkah-derived manifests omit the optional top-level
+            # mediaType; GHCR rejects a PUT whose Content-Type is the
+            # literal string "null"
+            media_type=$(jq -r '.mediaType // "application/vnd.oci.image.manifest.v1+json"' \
+              /tmp/push-out/manifest.json)
             for tag in "$@"; do
               echo "aliasing :${tag} -> ${digest}"
               curl -fsS -X PUT --config /tmp/push-out/curl-auth \
