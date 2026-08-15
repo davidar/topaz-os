@@ -31,7 +31,7 @@ stages updates through podman, which honors it.
 
 The conversion happens during the push itself: `skopeo copy
 --dest-compress-format zstd:chunked` runs against a blob cache seeded
-from the published image (`build_files/seed-blob-cache.sh`), so
+from recently published images (`build_files/seed-blob-cache.sh`), so
 unchanged layers substitute the registry's existing blobs —
 HEAD-verified before use, and byte-identical in the resulting manifest
 to a fresh recompression — and only the real delta is compressed and
