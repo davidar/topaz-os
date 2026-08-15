@@ -307,14 +307,19 @@ cmd_pull() {
         image=$(jq -r '.spec.image.image' <<<"$spec")
     fi
     # No-op when the registry holds nothing new: safe to run from a timer,
-    # and skips a redundant restage on manual re-runs.
+    # and skips a redundant restage on manual re-runs. Only when pulling
+    # the current origin — an explicit different reference is a deliberate
+    # switch and must always reach bootc, even if the content is already
+    # present (e.g. repointing the origin back at the registry).
     local remote
-    remote="sha256:$(skopeo inspect --no-tags --raw "docker://$image" \
-        | sha256sum | cut -d' ' -f1)"
-    if [ "$remote" = "$(jq -r '.status.staged.image.imageDigest // empty' <<<"$spec")" ] \
-        || [ "$remote" = "$(jq -r '.status.booted.image.imageDigest // empty' <<<"$spec")" ]; then
-        echo "Already up to date ($remote staged or booted)."
-        exit 0
+    if [ "$image" = "$(jq -r '.spec.image.image // empty' <<<"$spec")" ]; then
+        remote="sha256:$(skopeo inspect --no-tags --raw "docker://$image" \
+            | sha256sum | cut -d' ' -f1)"
+        if [ "$remote" = "$(jq -r '.status.staged.image.imageDigest // empty' <<<"$spec")" ] \
+            || [ "$remote" = "$(jq -r '.status.booted.image.imageDigest // empty' <<<"$spec")" ]; then
+            echo "Already up to date ($remote staged or booted)."
+            exit 0
+        fi
     fi
     echo "Fetching $image with parallel layer downloads…"
     local old_id new_id
