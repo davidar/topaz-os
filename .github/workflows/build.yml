@@ -211,8 +211,8 @@ jobs:
       # uploaded. --dest-force-compress-format is load-bearing: without
       # it skopeo happily reuses the registry's same-digest gzip blobs
       # instead of converting (the first zstd push shipped 395 of 400
-      # layers still gzip that way). Re-seeding from the first pushed
-      # tag lets the remaining alias tags reuse even the fresh layers.
+      # layers still gzip that way). Only the first tag is a real copy;
+      # the other alias tags are manifest PUTs of the same bytes.
       # Signing happens after, against the pushed digest — sign what you
       # publish.
       - name: Push To GHCR
@@ -220,6 +220,7 @@ jobs:
         id: push-image
         env:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euox pipefail
           # Released skopeo from its official image, pinned by digest
@@ -239,27 +240,53 @@ jobs:
           sudo bash build_files/seed-blob-cache.sh \
             ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:latest ${cache_dir} \
             || echo "::warning::blob-cache seeding failed; this push recompresses every layer"
-          seeded_from_pushed=""
-          for tag in ${ALIAS_TAGS}; do
-            sudo podman run --rm \
-              -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
-              -v /tmp/push-out:/out \
-              -v ${cache_dir}:/var/lib/containers/cache \
-              -v "${HOME}/.docker/config.json:/auth.json:ro" \
-              -e REGISTRY_AUTH_FILE=/auth.json \
-              "${skopeo_image}" \
-              copy --digestfile=/out/digestfile --image-parallel-copies 16 \
-              --dest-compress-format zstd:chunked --dest-force-compress-format \
-              oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}
-            if [ -z "${seeded_from_pushed}" ]; then
-              sudo bash build_files/seed-blob-cache.sh \
-                ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag} ${cache_dir} \
-                || echo "::warning::re-seeding failed; remaining tags recompress the delta"
-              seeded_from_pushed=1
-            fi
-          done
+
+          # One real copy, to the first tag: conversion, blob uploads,
+          # digestfile.
+          set -- ${ALIAS_TAGS}
+          first_tag=$1
+          shift
+          sudo podman run --rm \
+            -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
+            -v /tmp/push-out:/out \
+            -v ${cache_dir}:/var/lib/containers/cache \
+            -v "${HOME}/.docker/config.json:/auth.json:ro" \
+            -e REGISTRY_AUTH_FILE=/auth.json \
+            "${skopeo_image}" \
+            copy --digestfile=/out/digestfile --image-parallel-copies 16 \
+            --dest-compress-format zstd:chunked --dest-force-compress-format \
+            oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${first_tag}
 
           digest=$(< /tmp/push-out/digestfile)
+
+          # A registry tag is only a name for a manifest. The remaining
+          # tags PUT the just-pushed manifest bytes — fetched back by
+          # digest, so they are exactly what was published — under each
+          # name, instead of running five more full copies whose blobs
+          # all already exist. The subshell drops xtrace: the registry
+          # bearer token is not a masked secret, and set -x would print
+          # it into the public log.
+          repo="${IMAGE_REGISTRY#ghcr.io/}/${IMAGE_NAME}"
+          ( set +x
+            umask 077
+            token=$(curl -fsS -u "${GITHUB_ACTOR}:${GITHUB_TOKEN}" \
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull,push" \
+              | jq -r .token)
+            printf 'header = "Authorization: Bearer %s"\n' "$token" \
+              > /tmp/push-out/curl-auth
+            curl -fsS --config /tmp/push-out/curl-auth \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+              -o /tmp/push-out/manifest.json \
+              "https://ghcr.io/v2/${repo}/manifests/${digest}"
+            media_type=$(jq -r .mediaType /tmp/push-out/manifest.json)
+            for tag in "$@"; do
+              echo "aliasing :${tag} -> ${digest}"
+              curl -fsS -X PUT --config /tmp/push-out/curl-auth \
+                -H "Content-Type: ${media_type}" \
+                --data-binary @/tmp/push-out/manifest.json \
+                "https://ghcr.io/v2/${repo}/manifests/${tag}"
+            done
+            rm /tmp/push-out/curl-auth )
 
           echo "digest=${digest}" >> $GITHUB_OUTPUT
 
