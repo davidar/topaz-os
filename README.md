@@ -25,7 +25,9 @@ In broad strokes:
 - **COSMIC desktop** (Fedora packages) alongside the base image's GNOME — pick your
   session at the GDM login screen. cosmic-comp comes from the
   [topaz fork](https://github.com/davidar/cosmic-comp): hot-reloadable workspace-gesture
-  and physics config, pending upstream.
+  and physics config, pending upstream. cosmic-greeter comes from
+  [its fork](https://github.com/davidar/cosmic-greeter): JXL wallpapers on the lock
+  screen and fingerprint re-arm after suspend, pending upstream.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

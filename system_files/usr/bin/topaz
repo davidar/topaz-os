@@ -93,6 +93,14 @@ cmd_check() {
                    "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-comp-fork)" ]'
     chk "fork cosmic-comp is loadable (builder glibc matches the image)" \
         bash -c '! ldd /usr/bin/cosmic-comp | grep -q "not found"'
+    chk "cosmic-greeter is the topaz fork build" \
+        bash -c 'test -f /usr/share/topaz-os/cosmic-greeter-fork &&
+                 rpm -Vf /usr/bin/cosmic-greeter | grep cosmic-greeter | grep -q 5'
+    chk "packaged cosmic-greeter still matches the fork base version" \
+        bash -c '[ "$(rpm -q --qf %{VERSION} cosmic-greeter)" = \
+                   "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-greeter-fork)" ]'
+    chk "fork cosmic-greeter is loadable (builder glibc matches the image)" \
+        bash -c '! ldd /usr/bin/cosmic-greeter | grep -q "not found"'
     chk "GDM remains the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \

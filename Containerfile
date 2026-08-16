@@ -9,6 +9,9 @@ COPY build_files/install-packages.sh build_files/locked-install.lib.sh build_fil
 FROM scratch AS ctx-comp
 COPY build_files/install-comp.sh /
 
+FROM scratch AS ctx-greeter
+COPY build_files/install-greeter.sh /
+
 FROM scratch AS ctx-files
 COPY build_files/configure.sh /
 COPY system_files /system_files
@@ -41,6 +44,31 @@ RUN git init -q /src && \
     printf 'repo=%s\nref=%s\n' "$COSMIC_COMP_REPO" "$COSMIC_COMP_REF" \
         > /out/fork-info
 
+# Greeter fork: cosmic-greeter with JXL wallpaper decoding and fingerprint
+# re-arm on wake, built at a pinned commit of
+# github.com/davidar/cosmic-greeter (ledger 0034). Same Fedora-release rule
+# as comp-build above: the builder must track the base image's release or
+# the binary links a glibc the image does not ship.
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS greeter-build
+ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
+ARG COSMIC_GREETER_REF=9918b062a8c90a269a42d1dda056a48cf140d7c8
+RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
+    pam-devel clang clang-devel systemd-devel mesa-libgbm-devel \
+    libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
+    fontconfig-devel clang-libs && dnf clean all
+RUN git init -q /src && \
+    git -C /src fetch --depth=1 "$COSMIC_GREETER_REPO" "$COSMIC_GREETER_REF" && \
+    git -C /src checkout -q FETCH_HEAD && \
+    # SOURCE_DATE_EPOCH = commit time: cosmic-greeter embeds its i18n files
+    # with rust-embed just like cosmic-comp (see comp-build above), so
+    # checkout-time stamps would make every build unique.
+    SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
+        cargo build --release --manifest-path=/src/Cargo.toml \
+        --bin cosmic-greeter && \
+    install -Dm0755 /src/target/release/cosmic-greeter /out/cosmic-greeter && \
+    printf 'repo=%s\nref=%s\n' "$COSMIC_GREETER_REPO" "$COSMIC_GREETER_REF" \
+        > /out/fork-info
+
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:effbd5225119adb6d95202eb45b980b5fba6f57170d2158f6b8e3d17559f0489
 
@@ -66,6 +94,11 @@ RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/
 RUN --mount=type=bind,from=ctx-comp,source=/install-comp.sh,target=/ctx/install-comp.sh \
     --mount=type=bind,from=comp-build,source=/out,target=/comp \
     /ctx/install-comp.sh
+
+# Forked cosmic-greeter from the greeter-build stage (ledger 0034)
+RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/install-greeter.sh \
+    --mount=type=bind,from=greeter-build,source=/out,target=/greeter \
+    /ctx/install-greeter.sh
 
 # topaz system files and configuration on top of the installed set
 RUN --mount=type=bind,from=ctx-files,source=/configure.sh,target=/ctx/configure.sh \
