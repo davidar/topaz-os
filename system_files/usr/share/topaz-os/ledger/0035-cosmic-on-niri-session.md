@@ -1,0 +1,65 @@
+---
+title: COSMIC on niri session
+date: 2026-08-21
+status: active
+paths:
+  - /usr/share/wayland-sessions/cosmic-niri.desktop
+  - /usr/bin/start-cosmic-niri
+  - /usr/bin/cosmic-ext-alternative-startup
+  - /usr/bin/cosmic-idle
+  - /etc/niri/config.kdl
+  - /usr/share/topaz-os/niri-session-build
+---
+# COSMIC on niri session
+
+The login screen offers a second COSMIC session, "COSMIC on niri", which
+runs the stock COSMIC shell — panel, launcher, notifications, workspaces,
+settings — on [niri](https://github.com/YaLTeR/niri), a scrollable-tiling
+compositor, instead of cosmic-comp. The stock COSMIC session is untouched
+and remains the fallback — nothing here changes what it does. The niri
+package contributes a plain-niri session entry of its own, so the greeter
+lists three sessions.
+
+This works because cosmic-session already supports alternative
+compositors: it takes the compositor to launch as its argument and expects
+that compositor to report the resulting Wayland, X11 and IPC socket
+addresses back over the `COSMIC_SESSION_SOCK` file descriptor. niri does
+not know about that handshake, so the baked niri config spawns
+`cosmic-ext-alternative-startup`
+(<https://github.com/Drakulix/cosmic-ext-alternative-startup>), a shim that
+performs it. There are no protocol shims involved — the COSMIC shell
+components talk to niri over the standard `ext-*` protocols.
+
+Three pieces make it an image feature rather than a hand-assembled trial:
+
+- **niri and xwayland-satellite** come from the locked Fedora package set
+  (ledger 0022). niri has no built-in XWayland; xwayland-satellite provides
+  it for X11 clients.
+- **cosmic-ext-alternative-startup** has no package anywhere, so the image
+  builds it (Containerfile `niri-session-build` stage) from a pinned
+  upstream commit.
+- **cosmic-idle** is rebuilt from the same upstream commit Fedora packages,
+  with one patch: upstream binds `zwlr_output_power_manager_v1`
+  unconditionally and aborts when the compositor does not offer it. niri
+  does not implement that protocol, so the packaged binary dies at session
+  start, taking idle locking and idle suspend with it. Patched, the bind is
+  optional and only screen power-off is lost (the fade-to-black surface
+  still covers the screens). The patched binary replaces the packaged one
+  image-wide; it is a superset of upstream's behavior, so the COSMIC
+  session is unaffected.
+
+`/usr/bin/start-cosmic-niri` is derived at build time from the packaged
+`start-cosmic` by substituting the compositor argument, so both sessions
+share one startup environment and upstream changes to it reach both.
+`/etc/niri/config.kdl` — niri's system-wide fallback, used by any account
+without `~/.config/niri/config.kdl` — is niri's default config with the
+bar replaced by the shim, the terminal/launcher/lock binds pointed at
+COSMIC's, and one compatibility window rule: libcosmic's frosted-glass
+windows publish a rectangular blur region via `ext-background-effect` and
+round their corners through a zcosmic protocol only cosmic-comp
+implements, so on niri the rounding and blur are driven by rule instead.
+
+`/usr/share/topaz-os/niri-session-build` records both pinned commits.
+Standing obligation, enforced by the build: when Fedora bumps cosmic-idle
+past the version the patch is based on, the build fails loudly — re-verify
+the patch against the new source and move the pin.

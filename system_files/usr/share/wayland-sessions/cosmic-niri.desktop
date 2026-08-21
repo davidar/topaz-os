@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=COSMIC on niri
+Comment=This session logs you into the COSMIC desktop hosted by the niri compositor
+Exec=/usr/bin/start-cosmic-niri
+Type=Application
+DesktopNames=niri

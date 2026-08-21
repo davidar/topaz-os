@@ -68,6 +68,12 @@ podman run --rm "$base" bash -euo pipefail -c '
         # topaz-home kdeconnect recipe installs them in its container.)
         dnf5 -y install --setopt=install_weak_deps=False \
             playerctl
+        # The alternative "COSMIC on niri" session (ledger 0035): niri
+        # hosts the COSMIC shell, xwayland-satellite gives it X11 clients
+        # (niri has no built-in XWayland).
+        dnf5 -y install --setopt=install_weak_deps=False \
+            niri \
+            xwayland-satellite
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9

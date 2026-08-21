@@ -96,6 +96,21 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
+### COSMIC on niri session launcher (ledger 0035)
+# The alternative session wants everything the COSMIC session's startup
+# script does — the failed-unit reset, the login-shell environment, the
+# Qt theme and keyring plumbing — and differs only in which compositor
+# cosmic-session is told to launch (it takes that from its argument
+# alone; there is no environment variable for it). Derive the launcher
+# from the packaged script instead of shipping a second copy, so upstream
+# changes to the session environment reach both sessions. The session
+# file sets XDG_CURRENT_DESKTOP=niri, which the script only defaults.
+# Guard: fail the build if either exec line moves or changes shape.
+[ "$(grep -c '/usr/bin/cosmic-session$' /usr/bin/start-cosmic)" = 2 ]
+sed 's|/usr/bin/cosmic-session$|/usr/bin/cosmic-session niri|' \
+    /usr/bin/start-cosmic > /usr/bin/start-cosmic-niri
+chmod 0755 /usr/bin/start-cosmic-niri
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

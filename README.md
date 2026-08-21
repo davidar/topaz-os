@@ -28,6 +28,9 @@ In broad strokes:
   and physics config, pending upstream. cosmic-greeter comes from
   [its fork](https://github.com/davidar/cosmic-greeter): JXL wallpapers on the lock
   screen and fingerprint re-arm after suspend, pending upstream.
+- **COSMIC on niri** — a second session running the stock COSMIC shell on the
+  [niri](https://github.com/YaLTeR/niri) scrollable-tiling compositor, with the normal
+  COSMIC session still there as the fallback.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

@@ -12,6 +12,9 @@ COPY build_files/install-comp.sh /
 FROM scratch AS ctx-greeter
 COPY build_files/install-greeter.sh /
 
+FROM scratch AS ctx-niri-session
+COPY build_files/install-niri-session.sh /
+
 FROM scratch AS ctx-files
 COPY build_files/configure.sh /
 COPY system_files /system_files
@@ -69,6 +72,46 @@ RUN git init -q /src && \
     printf 'repo=%s\nref=%s\n' "$COSMIC_GREETER_REPO" "$COSMIC_GREETER_REF" \
         > /out/fork-info
 
+# niri session: the two small binaries the alternative "COSMIC on niri"
+# session needs beyond its packaged parts (ledger 0035) —
+# cosmic-ext-alternative-startup, the shim that hands niri's sockets back
+# to cosmic-session, and cosmic-idle rebuilt with a patch making
+# wlr-output-power-management optional (niri does not implement that
+# protocol and the packaged binary aborts at startup without it, leaving
+# the session with no idle lock or suspend). Same Fedora-release rule as
+# the stages above: the builder must track the base image's release.
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-session-build
+ARG COSMIC_ALT_STARTUP_REPO=https://github.com/Drakulix/cosmic-ext-alternative-startup.git
+ARG COSMIC_ALT_STARTUP_REF=8ceda00197c7ec0905cf1dccdc2d67d738e45417
+ARG COSMIC_IDLE_REPO=https://github.com/pop-os/cosmic-idle.git
+ARG COSMIC_IDLE_REF=c95d066b5b640509a6369634b669ca60dc50e168
+RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
+    clang clang-devel systemd-devel mesa-libgbm-devel \
+    libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
+    fontconfig-devel clang-libs && dnf clean all
+# SOURCE_DATE_EPOCH = commit time on both builds, for the same reason as
+# the stages above: nothing here may bake a checkout-time stamp into a
+# binary and churn the layer on an otherwise no-op rebuild.
+RUN git init -q /src-startup && \
+    git -C /src-startup fetch --depth=1 "$COSMIC_ALT_STARTUP_REPO" "$COSMIC_ALT_STARTUP_REF" && \
+    git -C /src-startup checkout -q FETCH_HEAD && \
+    SOURCE_DATE_EPOCH="$(git -C /src-startup log -1 --format=%ct)" \
+        cargo build --release --manifest-path=/src-startup/Cargo.toml && \
+    install -Dm0755 /src-startup/target/release/cosmic-ext-alternative-startup \
+        /out/cosmic-ext-alternative-startup
+COPY build_files/cosmic-idle-optional-output-power.patch /patches/
+RUN git init -q /src-idle && \
+    git -C /src-idle fetch --depth=1 "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" && \
+    git -C /src-idle checkout -q FETCH_HEAD && \
+    git -C /src-idle apply /patches/cosmic-idle-optional-output-power.patch && \
+    SOURCE_DATE_EPOCH="$(git -C /src-idle log -1 --format=%ct)" \
+        cargo build --release --manifest-path=/src-idle/Cargo.toml && \
+    install -Dm0755 /src-idle/target/release/cosmic-idle /out/cosmic-idle && \
+    printf 'startup_repo=%s\nstartup_ref=%s\nidle_repo=%s\nidle_ref=%s\n' \
+        "$COSMIC_ALT_STARTUP_REPO" "$COSMIC_ALT_STARTUP_REF" \
+        "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" \
+        > /out/build-info
+
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:6a1b8c50515e2dbebe2eb09e7807bb859a06137910ef9f92aaf97b0feaec3940
 
@@ -99,6 +142,11 @@ RUN --mount=type=bind,from=ctx-comp,source=/install-comp.sh,target=/ctx/install-
 RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/install-greeter.sh \
     --mount=type=bind,from=greeter-build,source=/out,target=/greeter \
     /ctx/install-greeter.sh
+
+# niri-session binaries from the niri-session-build stage (ledger 0035)
+RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
+    --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
+    /ctx/install-niri-session.sh
 
 # topaz system files and configuration on top of the installed set
 RUN --mount=type=bind,from=ctx-files,source=/configure.sh,target=/ctx/configure.sh \

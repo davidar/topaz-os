@@ -33,10 +33,12 @@
 +libqalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
 +libseat-0:0.9.3-1.fc44.x86_64 seatd-0.9.3-1.fc44.src.rpm
 +nethogs-0:0.8.8-4.fc44.x86_64 nethogs-0.8.8-4.fc44.src.rpm
++niri-0:26.04-1.fc44.x86_64 niri-26.04-1.fc44.src.rpm
 +playerctl-0:2.4.1-12.fc44.x86_64 playerctl-2.4.1-12.fc44.src.rpm
 +playerctl-libs-0:2.4.1-12.fc44.x86_64 playerctl-2.4.1-12.fc44.src.rpm
 +pop-icon-theme-0:3.5.0-5.fc44.noarch pop-icon-theme-3.5.0-5.fc44.src.rpm
 +pop-launcher-1:1.5.0-1.fc44.x86_64 pop-launcher-1.5.0-1.fc44.src.rpm
 +qalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
 +xdg-desktop-portal-cosmic-0:1.5.0-1.fc44.x86_64 xdg-desktop-portal-cosmic-1.5.0-1.fc44.src.rpm
++xwayland-satellite-0:0.8.2-1.fc44.x86_64 xwayland-satellite-0.8.2-1.fc44.src.rpm
 -libfprint-0:1.94.10-5.fc44.x86_64 libfprint-1.94.10-5.fc44.src.rpm
