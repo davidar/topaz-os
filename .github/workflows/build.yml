@@ -250,7 +250,7 @@ jobs:
           # `sudo -E skopeo` pushed anonymously, and GHCR refuses to issue
           # anonymous push-scope bearer tokens. Mounting the credentials
           # into the container, below, is what actually fixed it.)
-          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
+          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:64ac45c5a1c01230896fbae960b2213e32a5040e4009b83b5f5cbf31a35f61c3"
           mkdir -p /tmp/push-out
           cache_dir=${RUNNER_TEMP}/blob-cache
           # sudo throughout: the containerized skopeo runs as root and
@@ -336,7 +336,7 @@ jobs:
           DIGEST: ${{ steps.push-image.outputs.digest }}
         run: |
           set -euox pipefail
-          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615"
+          skopeo_image="quay.io/skopeo/stable:v1.22.2@sha256:64ac45c5a1c01230896fbae960b2213e32a5040e4009b83b5f5cbf31a35f61c3"
           cache_dir=${RUNNER_TEMP}/blob-cache
           set -- ${ALIAS_TAGS}
           first_tag=$1
