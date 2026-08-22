@@ -17,10 +17,11 @@ first — window thumbnails unwrap an image-copy-capture session that niri
 does not offer — and would have killed the dock on the first hover.
 
 The image builds cosmic-applets (Containerfile `cosmic-applets-build`
-stage) from the upstream commit Fedora's package is built from, with
-`build_files/cosmic-applets-niri-dock.patch` applied, and installs the
-one multicall binary over `/usr/bin/cosmic-applets`; the packaged applet
-names are symlinks into it and stay. The patch binds the zcosmic manager
+stage) from the topaz fork, <https://github.com/davidar/cosmic-applets>,
+at a pinned commit on top of the upstream commit Fedora's package is
+built from, and installs the one multicall binary over
+`/usr/bin/cosmic-applets`; the packaged applet names are symlinks into it
+and stay. The fork binds the zcosmic manager
 optionally and keeps that path verbatim when it exists, so the stock
 COSMIC session is unaffected. Without it, windows are listed through
 `ext-foreign-toplevel-list` and activated/minimized/closed through
@@ -40,8 +41,8 @@ panel's sandbox engine by name (ledger 0037), configured in the baked
 
 `/usr/share/topaz-os/niri-session-build` records the pinned commit.
 Standing obligation, enforced by the build: when Fedora bumps
-cosmic-applets past the version the patch is based on, the build fails
-loudly — re-verify the patch and move `COSMIC_APPLETS_REF`. `topaz check`
+cosmic-applets past the version the fork is based on, the build fails
+loudly — rebase the fork and move `COSMIC_APPLETS_REF`. `topaz check`
 asserts the installed binary differs from the package's, the version
-still matches the patch base, the wlr fallback is present, the applet
+still matches the fork base, the wlr fallback is present, the applet
 symlinks resolve into it, and its libraries resolve.

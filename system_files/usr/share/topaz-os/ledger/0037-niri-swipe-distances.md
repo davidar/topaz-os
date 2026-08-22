@@ -57,9 +57,9 @@ other niri option:
   previews shows at the screen edges in the window switcher.
 - `timeouts { xdg-activation-token-ms lock-surface-ms }`.
 
-The image builds niri (Containerfile `niri-build` stage) from the
-upstream commit Fedora's package is built from, with
-`build_files/niri-topaz.patch` applied, and the built binary
+The image builds niri (Containerfile `niri-build` stage) from the topaz
+fork, <https://github.com/davidar/niri>, at a pinned commit on top of the
+upstream release Fedora's package is built from, and the built binary
 replaces `/usr/bin/niri`; everything else from the niri package — session
 files, units, default config, docs — is unchanged. `/etc/niri/config.kdl`
 (the baked fallback, ledger 0035) carries every key at its upstream
@@ -67,7 +67,7 @@ default so the knobs are documented where they are set, and the build's
 `niri validate` proves the baked binary accepts them. Per-user configs
 override it entirely, as before.
 
-The same patch carries two further changes, both configurable and both
+The fork carries two further changes, both configurable and both
 defaulting to upstream behaviour where a default exists:
 
 - **Background effects masked by surface alpha.** niri draws blur (and
@@ -93,13 +93,13 @@ defaulting to upstream behaviour where a default exists:
   contexts, so a sandboxed client cannot label itself. Default: no
   engines trusted, i.e. upstream behaviour.
 
-The patch is a patch file, not a fork repository: it tracks the upstream
-tag, and the upstream project's contribution stance means it stays local.
+The fork tracks the upstream release tag; the upstream project's
+contribution stance means the changes stay there rather than going up.
 `/usr/share/topaz-os/niri-session-build` records the pinned commit.
 Standing obligation, enforced by the build: when Fedora bumps niri past
-the release the patch is based on, the build fails loudly — re-verify the
-patch against the new source and move `NIRI_REF`. `topaz check` asserts
+the release the fork is based on, the build fails loudly — rebase the
+fork onto the new release and move `NIRI_REF`. `topaz check` asserts
 the installed binary differs from the package's, that the package version
-still matches the patch base, and that its libraries resolve (the
+still matches the fork base, and that its libraries resolve (the
 builder's Fedora release must track the image's, as for the other built
 stages).

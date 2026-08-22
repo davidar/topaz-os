@@ -75,16 +75,17 @@ RUN git init -q /src && \
 # niri session: the two small binaries the alternative "COSMIC on niri"
 # session needs beyond its packaged parts (ledger 0035) —
 # cosmic-ext-alternative-startup, the shim that hands niri's sockets back
-# to cosmic-session, and cosmic-idle rebuilt with a patch making
-# wlr-output-power-management optional (niri does not implement that
-# protocol and the packaged binary aborts at startup without it, leaving
-# the session with no idle lock or suspend). Same Fedora-release rule as
-# the stages above: the builder must track the base image's release.
+# to cosmic-session, and cosmic-idle built from the topaz fork, which
+# makes wlr-output-power-management and single-pixel-buffer optional
+# (niri implements neither and the packaged binary aborts at startup
+# without them, leaving the session with no idle lock or suspend). Same
+# Fedora-release rule as the stages above: the builder must track the
+# base image's release.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-session-build
 ARG COSMIC_ALT_STARTUP_REPO=https://github.com/Drakulix/cosmic-ext-alternative-startup.git
 ARG COSMIC_ALT_STARTUP_REF=8ceda00197c7ec0905cf1dccdc2d67d738e45417
-ARG COSMIC_IDLE_REPO=https://github.com/pop-os/cosmic-idle.git
-ARG COSMIC_IDLE_REF=c95d066b5b640509a6369634b669ca60dc50e168
+ARG COSMIC_IDLE_REPO=https://github.com/davidar/cosmic-idle.git
+ARG COSMIC_IDLE_REF=6e0e1c50fb3bc4e45fc8c998dc9c00772fed8435
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
@@ -99,11 +100,9 @@ RUN git init -q /src-startup && \
         cargo build --release --manifest-path=/src-startup/Cargo.toml && \
     install -Dm0755 /src-startup/target/release/cosmic-ext-alternative-startup \
         /out/cosmic-ext-alternative-startup
-COPY build_files/cosmic-idle-niri-compat.patch /patches/
 RUN git init -q /src-idle && \
     git -C /src-idle fetch --depth=1 "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" && \
     git -C /src-idle checkout -q FETCH_HEAD && \
-    git -C /src-idle apply /patches/cosmic-idle-niri-compat.patch && \
     SOURCE_DATE_EPOCH="$(git -C /src-idle log -1 --format=%ct)" \
         cargo build --release --manifest-path=/src-idle/Cargo.toml && \
     install -Dm0755 /src-idle/target/release/cosmic-idle /out/cosmic-idle && \
@@ -112,23 +111,23 @@ RUN git init -q /src-idle && \
         "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" \
         > /out/build-info
 
-# niri itself, rebuilt from the upstream release Fedora packages plus one
-# patch (ledger 0037): the touchpad swipe distances are compile-time
-# constants upstream; the patch makes them config keys that hot-reload
-# like the rest of niri's config. Same Fedora-release rule as above.
+# niri itself, built from the topaz fork at a pinned commit on top of the
+# upstream release Fedora packages (ledger 0037): hardcoded gesture,
+# input, layout and animation constants promoted to config keys that
+# hot-reload like the rest of niri's config, background effects masked by
+# each surface's own alpha, and a trust list for sandbox engines so the
+# panel's applets see the window list. Same Fedora-release rule as above.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
-ARG NIRI_REPO=https://github.com/niri-wm/niri.git
-ARG NIRI_REF=b0eb8ad8c80094de34abd88c109aea421461622b
+ARG NIRI_REPO=https://github.com/davidar/niri.git
+ARG NIRI_REF=21f6928f306c9e2319b0818b46409622f7f90b80
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \
     libinput-devel pipewire-devel libseat-devel systemd-devel pango-devel \
     wayland-devel libxkbcommon-devel && dnf clean all
-COPY build_files/niri-topaz.patch /patches/
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$NIRI_REPO" "$NIRI_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
-    git -C /src apply /patches/niri-topaz.patch && \
     # Upstream's release profile keeps line-table debuginfo (a 160 MiB
     # binary); strip at link time like the Fedora package does.
     SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
@@ -137,25 +136,24 @@ RUN git init -q /src && \
     install -Dm0755 /src/target/release/niri /out/niri && \
     printf 'niri_repo=%s\nniri_ref=%s\n' "$NIRI_REPO" "$NIRI_REF" > /out/build-info
 
-# cosmic-applets rebuilt from the upstream commit Fedora packages plus one
-# patch (ledger 0038): the dock (cosmic-app-list) and the minimize applet
-# abort at startup without cosmic-comp's zcosmic toplevel manager. Patched,
-# they list windows through ext-foreign-toplevel-list and act on them
-# through wlr-foreign-toplevel-management when the zcosmic manager is
-# absent; under cosmic-comp the original path runs unchanged.
+# cosmic-applets built from the topaz fork at a pinned commit on top of
+# the upstream commit Fedora packages (ledger 0038): the dock
+# (cosmic-app-list) and the minimize applet abort at startup without
+# cosmic-comp's zcosmic toplevel manager. The fork lists windows through
+# ext-foreign-toplevel-list and acts on them through
+# wlr-foreign-toplevel-management when the zcosmic manager is absent;
+# under cosmic-comp the original path runs unchanged.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS cosmic-applets-build
-ARG COSMIC_APPLETS_REPO=https://github.com/pop-os/cosmic-applets.git
-ARG COSMIC_APPLETS_REF=ec8ffdc85d1f316b387cf89672609933064e6e88
+ARG COSMIC_APPLETS_REPO=https://github.com/davidar/cosmic-applets.git
+ARG COSMIC_APPLETS_REF=05afaaa7493f47d4c1de4afc3da3142353675d7c
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core just libxkbcommon-devel wayland-devel mesa-libEGL-devel \
     mesa-libGL-devel fontconfig-devel freetype-devel dbus-devel \
     pulseaudio-libs-devel pipewire-devel libinput-devel systemd-devel \
     expat-devel openssl-devel lld && dnf clean all
-COPY build_files/cosmic-applets-niri-dock.patch /patches/
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$COSMIC_APPLETS_REPO" "$COSMIC_APPLETS_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
-    git -C /src apply /patches/cosmic-applets-niri-dock.patch && \
     SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
     CARGO_PROFILE_RELEASE_STRIP=true \
         cargo build --release --manifest-path=/src/Cargo.toml -p cosmic-applets && \
@@ -194,8 +192,8 @@ RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/in
     /ctx/install-greeter.sh
 
 # niri-session binaries from the niri-session-build stage (ledger 0035),
-# the patched niri from the niri-build stage (ledger 0037) and the
-# patched applets from the cosmic-applets-build stage (ledger 0038)
+# the fork-built niri from the niri-build stage (ledger 0037) and the
+# fork-built applets from the cosmic-applets-build stage (ledger 0038)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \

@@ -34,13 +34,14 @@ Three pieces make it an image feature rather than a hand-assembled trial:
 
 - **niri and xwayland-satellite** come from the locked Fedora package set
   (ledger 0022); the niri binary itself is then replaced by the image's own
-  build of the same release with one patch (ledger 0037). niri has no
+  topaz fork of the same release (ledger 0037). niri has no
   built-in XWayland; xwayland-satellite provides it for X11 clients.
 - **cosmic-ext-alternative-startup** has no package anywhere, so the image
   builds it (Containerfile `niri-session-build` stage) from a pinned
   upstream commit.
-- **cosmic-idle** is rebuilt from the same upstream commit Fedora packages,
-  with one patch (`cosmic-idle-niri-compat.patch`): upstream binds
+- **cosmic-idle** is built from the topaz fork
+  (<https://github.com/davidar/cosmic-idle>, pinned commit on the same
+  upstream commit Fedora packages): upstream binds
   `zwlr_output_power_manager_v1` and `wp_single_pixel_buffer_manager_v1`
   unconditionally and aborts when the compositor does not offer them. niri
   implements neither, so the packaged binary dies at session start, taking
@@ -49,9 +50,9 @@ Three pieces make it an image feature rather than a hand-assembled trial:
   `wl_shm` buffer instead, and without output-power-management screen
   power goes through the compositor's own IPC where there is one
   (`niri msg action power-off-monitors` / `power-on-monitors`, used only
-  when `NIRI_SOCKET` is set). The patched binary replaces the packaged one
+  when `NIRI_SOCKET` is set). The fork binary replaces the packaged one
   image-wide; it is a superset of upstream's behavior, so the COSMIC
-  session is unaffected. The first version of this patch covered only the
+  session is unaffected. The first version of this fix covered only the
   output-power bind and had been exercised only under cosmic-comp, where
   the other protocol exists — on niri it still crashed. The check now
   asserts both fallbacks are compiled in, and the fix was run under niri
@@ -70,7 +71,7 @@ on niri blur is enabled by rule with xray off (the topaz niri build masks
 it by the surface's own shape, ledger 0037); and the panel's sandbox
 engine is trusted so its applets see the window list (ledger 0038).
 
-`/usr/share/topaz-os/niri-session-build` records both pinned commits.
+`/usr/share/topaz-os/niri-session-build` records the pinned commits.
 Standing obligation, enforced by the build: when Fedora bumps cosmic-idle
-past the version the patch is based on, the build fails loudly — re-verify
-the patch against the new source and move the pin.
+past the version the fork is based on, the build fails loudly — rebase the
+fork onto the new source and move the pin.
