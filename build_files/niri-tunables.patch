@@ -1,0 +1,1657 @@
+diff --git a/niri-config/src/animations.rs b/niri-config/src/animations.rs
+index 346b625..4709b75 100644
+--- a/niri-config/src/animations.rs
++++ b/niri-config/src/animations.rs
+@@ -155,6 +155,8 @@ impl Default for WorkspaceSwitchAnim {
+ pub struct WindowOpenAnim {
+     pub anim: Animation,
+     pub custom_shader: Option<String>,
++    /// Scale the window starts opening from (1 = no scaling).
++    pub scale_from: f64,
+ }
+ 
+ impl Default for WindowOpenAnim {
+@@ -168,6 +170,7 @@ impl Default for WindowOpenAnim {
+                 }),
+             },
+             custom_shader: None,
++            scale_from: 0.5,
+         }
+     }
+ }
+@@ -176,6 +179,8 @@ impl Default for WindowOpenAnim {
+ pub struct WindowCloseAnim {
+     pub anim: Animation,
+     pub custom_shader: Option<String>,
++    /// Scale the window shrinks to while closing (1 = no scaling).
++    pub scale_to: f64,
+ }
+ 
+ impl Default for WindowCloseAnim {
+@@ -189,6 +194,7 @@ impl Default for WindowCloseAnim {
+                 }),
+             },
+             custom_shader: None,
++            scale_to: 0.8,
+         }
+     }
+ }
+@@ -381,10 +387,14 @@ where
+     ) -> Result<Self, DecodeError<S>> {
+         let default = Self::default().anim;
+         let mut custom_shader = None;
++        let mut scale_from = Self::default().scale_from;
+         let anim = Animation::decode_node(node, ctx, default, |child, ctx| {
+             if &**child.node_name == "custom-shader" {
+                 custom_shader = parse_arg_node("custom-shader", child, ctx)?;
+                 Ok(true)
++            } else if &**child.node_name == "scale-from" {
++                scale_from = parse_arg_node::<_, FloatOrInt<0, 100>>("scale-from", child, ctx)?.0;
++                Ok(true)
+             } else {
+                 Ok(false)
+             }
+@@ -393,6 +403,7 @@ where
+         Ok(Self {
+             anim,
+             custom_shader,
++            scale_from,
+         })
+     }
+ }
+@@ -407,10 +418,14 @@ where
+     ) -> Result<Self, DecodeError<S>> {
+         let default = Self::default().anim;
+         let mut custom_shader = None;
++        let mut scale_to = Self::default().scale_to;
+         let anim = Animation::decode_node(node, ctx, default, |child, ctx| {
+             if &**child.node_name == "custom-shader" {
+                 custom_shader = parse_arg_node("custom-shader", child, ctx)?;
+                 Ok(true)
++            } else if &**child.node_name == "scale-to" {
++                scale_to = parse_arg_node::<_, FloatOrInt<0, 100>>("scale-to", child, ctx)?.0;
++                Ok(true)
+             } else {
+                 Ok(false)
+             }
+@@ -419,6 +434,7 @@ where
+         Ok(Self {
+             anim,
+             custom_shader,
++            scale_to,
+         })
+     }
+ }
+diff --git a/niri-config/src/gestures.rs b/niri-config/src/gestures.rs
+index dcf296a..35e0aae 100644
+--- a/niri-config/src/gestures.rs
++++ b/niri-config/src/gestures.rs
+@@ -6,6 +6,9 @@ pub struct Gestures {
+     pub dnd_edge_view_scroll: DndEdgeViewScroll,
+     pub dnd_edge_workspace_switch: DndEdgeWorkspaceSwitch,
+     pub hot_corners: HotCorners,
++    pub touchpad_swipe: TouchpadSwipe,
++    pub pointer_drag: PointerDrag,
++    pub touch: TouchGestures,
+ }
+ 
+ #[derive(knuffel::Decode, Debug, Default, Clone, Copy, PartialEq)]
+@@ -16,6 +19,12 @@ pub struct GesturesPart {
+     pub dnd_edge_workspace_switch: Option<DndEdgeWorkspaceSwitchPart>,
+     #[knuffel(child)]
+     pub hot_corners: Option<HotCorners>,
++    #[knuffel(child)]
++    pub touchpad_swipe: Option<TouchpadSwipePart>,
++    #[knuffel(child)]
++    pub pointer_drag: Option<PointerDragPart>,
++    #[knuffel(child)]
++    pub touch: Option<TouchGesturesPart>,
+ }
+ 
+ impl MergeWith<GesturesPart> for Gestures {
+@@ -24,11 +33,178 @@ impl MergeWith<GesturesPart> for Gestures {
+             (self, part),
+             dnd_edge_view_scroll,
+             dnd_edge_workspace_switch,
++            touchpad_swipe,
++            pointer_drag,
++            touch,
+         );
+         merge_clone!((self, part), hot_corners);
+     }
+ }
+ 
++/// Rubber-band overscroll parameters (see `RubberBand` in niri).
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub struct RubberBandParams {
++    pub stiffness: f64,
++    pub limit: f64,
++}
++
++#[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
++pub struct RubberBandPart {
++    #[knuffel(property)]
++    pub stiffness: Option<FloatOrInt<0, 1000>>,
++    #[knuffel(property)]
++    pub limit: Option<FloatOrInt<0, 1000>>,
++}
++
++impl MergeWith<RubberBandPart> for RubberBandParams {
++    fn merge_with(&mut self, part: &RubberBandPart) {
++        merge!((self, part), stiffness, limit);
++    }
++}
++
++/// Mod+mouse-drag gestures (workspace switch and view scroll).
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub struct PointerDrag {
++    /// Pointer travel before the drag locks to a horizontal or vertical gesture.
++    pub direction_lock_distance: f64,
++}
++
++impl Default for PointerDrag {
++    fn default() -> Self {
++        Self {
++            direction_lock_distance: 8., // Taken from GTK 4.
++        }
++    }
++}
++
++#[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
++pub struct PointerDragPart {
++    #[knuffel(child, unwrap(argument))]
++    pub direction_lock_distance: Option<FloatOrInt<0, 65535>>,
++}
++
++impl MergeWith<PointerDragPart> for PointerDrag {
++    fn merge_with(&mut self, part: &PointerDragPart) {
++        merge!((self, part), direction_lock_distance);
++    }
++}
++
++/// Touchscreen gestures.
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub struct TouchGestures {
++    /// How long a touch must stay still in the overview before it starts moving the window.
++    pub long_press_ms: u16,
++}
++
++impl Default for TouchGestures {
++    fn default() -> Self {
++        Self { long_press_ms: 500 }
++    }
++}
++
++#[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
++pub struct TouchGesturesPart {
++    #[knuffel(child, unwrap(argument))]
++    pub long_press_ms: Option<u16>,
++}
++
++impl MergeWith<TouchGesturesPart> for TouchGestures {
++    fn merge_with(&mut self, part: &TouchGesturesPart) {
++        merge_clone!((self, part), long_press_ms);
++    }
++}
++
++/// Touchpad swipe distances: how far the fingers travel for one unit of the gesture.
++///
++/// A gesture commits to the nearest unit when released (plus velocity), so these also set
++/// how far a slow swipe must go before it no longer snaps back.
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub struct TouchpadSwipe {
++    /// Movement to switch the height of one workspace (three-finger vertical swipe).
++    pub workspace_movement: f64,
++    /// Movement to scroll the view by the width of one working area (three-finger
++    /// horizontal swipe).
++    pub view_movement: f64,
++    /// Movement to fully open or close the overview (four-finger vertical swipe).
++    pub overview_movement: f64,
++    /// Finger count for the workspace-switch / view-scroll swipe.
++    pub workspace_fingers: u32,
++    /// Finger count for the overview swipe.
++    pub overview_fingers: u32,
++    /// Per-millisecond velocity retention used to project where a released swipe coasts to.
++    pub deceleration: f64,
++    /// How much recent movement (ms) feeds the release velocity estimate.
++    pub velocity_window_ms: u16,
++    /// Overscroll feel past the first/last workspace.
++    pub workspace_rubber_band: RubberBandParams,
++    /// Overscroll feel past the overview's open/closed ends.
++    pub overview_rubber_band: RubberBandParams,
++}
++
++impl Default for TouchpadSwipe {
++    fn default() -> Self {
++        Self {
++            workspace_movement: 300.,
++            view_movement: 1200.,
++            overview_movement: 300.,
++            workspace_fingers: 3,
++            overview_fingers: 4,
++            deceleration: 0.997,
++            velocity_window_ms: 150,
++            workspace_rubber_band: RubberBandParams {
++                stiffness: 0.5,
++                limit: 0.05,
++            },
++            overview_rubber_band: RubberBandParams {
++                stiffness: 0.5,
++                limit: 0.05,
++            },
++        }
++    }
++}
++
++#[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
++pub struct TouchpadSwipePart {
++    #[knuffel(child, unwrap(argument))]
++    pub workspace_movement: Option<FloatOrInt<1, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub view_movement: Option<FloatOrInt<1, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub overview_movement: Option<FloatOrInt<1, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub workspace_fingers: Option<u32>,
++    #[knuffel(child, unwrap(argument))]
++    pub overview_fingers: Option<u32>,
++    #[knuffel(child, unwrap(argument))]
++    pub deceleration: Option<FloatOrInt<0, 1>>,
++    #[knuffel(child, unwrap(argument))]
++    pub velocity_window_ms: Option<u16>,
++    #[knuffel(child)]
++    pub workspace_rubber_band: Option<RubberBandPart>,
++    #[knuffel(child)]
++    pub overview_rubber_band: Option<RubberBandPart>,
++}
++
++impl MergeWith<TouchpadSwipePart> for TouchpadSwipe {
++    fn merge_with(&mut self, part: &TouchpadSwipePart) {
++        merge!(
++            (self, part),
++            workspace_movement,
++            view_movement,
++            overview_movement,
++            deceleration,
++            workspace_rubber_band,
++            overview_rubber_band,
++        );
++        merge_clone!(
++            (self, part),
++            workspace_fingers,
++            overview_fingers,
++            velocity_window_ms,
++        );
++    }
++}
++
+ #[derive(Debug, Clone, Copy, PartialEq)]
+ pub struct DndEdgeViewScroll {
+     pub trigger_width: f64,
+@@ -68,6 +244,9 @@ pub struct DndEdgeWorkspaceSwitch {
+     pub trigger_height: f64,
+     pub delay_ms: u16,
+     pub max_speed: f64,
++    /// Edge-scroll distance equivalent to one workspace height; 1500 matches the default
++    /// max-speed (one screen height per second).
++    pub workspace_movement: f64,
+ }
+ 
+ impl Default for DndEdgeWorkspaceSwitch {
+@@ -76,6 +255,7 @@ impl Default for DndEdgeWorkspaceSwitch {
+             trigger_height: 50.,
+             delay_ms: 100,
+             max_speed: 1500.,
++            workspace_movement: 1500.,
+         }
+     }
+ }
+@@ -88,11 +268,13 @@ pub struct DndEdgeWorkspaceSwitchPart {
+     pub delay_ms: Option<u16>,
+     #[knuffel(child, unwrap(argument))]
+     pub max_speed: Option<FloatOrInt<0, 1_000_000>>,
++    #[knuffel(child, unwrap(argument))]
++    pub workspace_movement: Option<FloatOrInt<1, 1_000_000>>,
+ }
+ 
+ impl MergeWith<DndEdgeWorkspaceSwitchPart> for DndEdgeWorkspaceSwitch {
+     fn merge_with(&mut self, part: &DndEdgeWorkspaceSwitchPart) {
+-        merge!((self, part), trigger_height, max_speed);
++        merge!((self, part), trigger_height, max_speed, workspace_movement);
+         merge_clone!((self, part), delay_ms);
+     }
+ }
+@@ -109,4 +291,7 @@ pub struct HotCorners {
+     pub bottom_left: bool,
+     #[knuffel(child)]
+     pub bottom_right: bool,
++    /// Size of the corner trigger area in logical pixels (default 1).
++    #[knuffel(child, unwrap(argument))]
++    pub trigger_size: Option<FloatOrInt<1, 65535>>,
+ }
+diff --git a/niri-config/src/input.rs b/niri-config/src/input.rs
+index 5a2eb13..1d45de3 100644
+--- a/niri-config/src/input.rs
++++ b/niri-config/src/input.rs
+@@ -8,7 +8,7 @@ use crate::binds::Modifiers;
+ use crate::utils::{Flag, MergeWith, Percent};
+ use crate::FloatOrInt;
+ 
+-#[derive(Debug, Default, PartialEq)]
++#[derive(Debug, PartialEq)]
+ pub struct Input {
+     pub keyboard: Keyboard,
+     pub touchpad: Touchpad,
+@@ -23,6 +23,29 @@ pub struct Input {
+     pub workspace_auto_back_and_forth: bool,
+     pub mod_key: Option<ModKey>,
+     pub mod_key_nested: Option<ModKey>,
++    /// Two clicks within this many ms count as a double click.
++    pub double_click_time_ms: u16,
++}
++
++impl Default for Input {
++    fn default() -> Self {
++        Self {
++            keyboard: Default::default(),
++            touchpad: Default::default(),
++            mouse: Default::default(),
++            trackpoint: Default::default(),
++            trackball: Default::default(),
++            tablet: Default::default(),
++            touch: Default::default(),
++            disable_power_key_handling: false,
++            warp_mouse_to_focus: None,
++            focus_follows_mouse: None,
++            workspace_auto_back_and_forth: false,
++            mod_key: None,
++            mod_key_nested: None,
++            double_click_time_ms: 400,
++        }
++    }
+ }
+ 
+ #[derive(knuffel::Decode, Debug, Default, PartialEq)]
+@@ -53,6 +76,8 @@ pub struct InputPart {
+     pub mod_key: Option<ModKey>,
+     #[knuffel(child, unwrap(argument, str))]
+     pub mod_key_nested: Option<ModKey>,
++    #[knuffel(child, unwrap(argument))]
++    pub double_click_time_ms: Option<u16>,
+ }
+ 
+ impl MergeWith<InputPart> for Input {
+@@ -72,6 +97,7 @@ impl MergeWith<InputPart> for Input {
+             trackball,
+             tablet,
+             touch,
++            double_click_time_ms,
+         );
+ 
+         merge_clone_opt!(
+diff --git a/niri-config/src/layout.rs b/niri-config/src/layout.rs
+index f84528b..9b4ad0a 100644
+--- a/niri-config/src/layout.rs
++++ b/niri-config/src/layout.rs
+@@ -4,6 +4,7 @@ use niri_ipc::{ColumnDisplay, SizeChange};
+ use crate::appearance::{
+     Border, FocusRing, InsertHint, Shadow, TabIndicator, DEFAULT_BACKGROUND_COLOR,
+ };
++use crate::gestures::{RubberBandParams, RubberBandPart};
+ use crate::utils::{expect_only_children, Flag, MergeWith};
+ use crate::{BorderRule, Color, FloatOrInt, InsertHintPart, ShadowRule, TabIndicatorPart};
+ 
+@@ -24,6 +25,18 @@ pub struct Layout {
+     pub gaps: f64,
+     pub struts: Struts,
+     pub background_color: Color,
++    /// Pointer travel (logical px) to pull a tiled window out into an interactive move.
++    pub interactive_move_threshold: f64,
++    /// Opacity of a tile while it is interactively moved over the scrolling layout.
++    pub interactive_move_opacity: f64,
++    /// Rubber-band feel while pulling a window out of the layout.
++    pub interactive_move_rubber_band: RubberBandParams,
++    /// Logical px moved per directional move action on a floating window.
++    pub floating_move_step: f64,
++    /// Size changes up to this many px don't animate.
++    pub resize_animation_threshold: f64,
++    /// Floating-window moves up to this many px don't animate.
++    pub move_animation_threshold: f64,
+ }
+ 
+ impl Default for Layout {
+@@ -52,6 +65,15 @@ impl Default for Layout {
+                 PresetSize::Proportion(2. / 3.),
+             ],
+             background_color: DEFAULT_BACKGROUND_COLOR,
++            interactive_move_threshold: 256.,
++            interactive_move_opacity: 0.75,
++            interactive_move_rubber_band: RubberBandParams {
++                stiffness: 1.0,
++                limit: 0.5,
++            },
++            floating_move_step: 50.,
++            resize_animation_threshold: 10.,
++            move_animation_threshold: 10.,
+         }
+     }
+ }
+@@ -68,6 +90,12 @@ impl MergeWith<LayoutPart> for Layout {
+             always_center_single_column,
+             empty_workspace_above_first,
+             gaps,
++            interactive_move_threshold,
++            interactive_move_opacity,
++            interactive_move_rubber_band,
++            floating_move_step,
++            resize_animation_threshold,
++            move_animation_threshold,
+         );
+ 
+         merge_clone!(
+@@ -126,6 +154,18 @@ pub struct LayoutPart {
+     pub struts: Option<Struts>,
+     #[knuffel(child)]
+     pub background_color: Option<Color>,
++    #[knuffel(child, unwrap(argument))]
++    pub interactive_move_threshold: Option<FloatOrInt<0, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub interactive_move_opacity: Option<FloatOrInt<0, 1>>,
++    #[knuffel(child)]
++    pub interactive_move_rubber_band: Option<RubberBandPart>,
++    #[knuffel(child, unwrap(argument))]
++    pub floating_move_step: Option<FloatOrInt<0, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub resize_animation_threshold: Option<FloatOrInt<0, 65535>>,
++    #[knuffel(child, unwrap(argument))]
++    pub move_animation_threshold: Option<FloatOrInt<0, 65535>>,
+ }
+ 
+ #[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
+diff --git a/niri-config/src/lib.rs b/niri-config/src/lib.rs
+index f026f9b..47fa6a4 100644
+--- a/niri-config/src/lib.rs
++++ b/niri-config/src/lib.rs
+@@ -49,7 +49,9 @@ pub use crate::appearance::*;
+ pub use crate::binds::*;
+ pub use crate::debug::Debug;
+ pub use crate::error::{ConfigIncludeError, ConfigParseResult};
+-pub use crate::gestures::Gestures;
++pub use crate::gestures::{
++    Gestures, PointerDrag, RubberBandParams, RubberBandPart, TouchGestures, TouchpadSwipe,
++};
+ pub use crate::input::{Input, ModKey, ScrollMethod, TrackLayout, WarpMouseToFocusMode, Xkb};
+ pub use crate::layer_rule::LayerRule;
+ pub use crate::layout::*;
+@@ -92,6 +94,7 @@ pub struct Config {
+     pub debug: Debug,
+     pub workspaces: Vec<Workspace>,
+     pub recent_windows: RecentWindows,
++    pub timeouts: Timeouts,
+ }
+ 
+ #[derive(Debug, Clone)]
+@@ -243,6 +246,11 @@ where
+                     config.borrow_mut().screenshot_path = part;
+                 }
+ 
++                "timeouts" => {
++                    let part = TimeoutsPart::decode_node(node, ctx)?;
++                    config.borrow_mut().timeouts.merge_with(&part);
++                }
++
+                 "layout" => {
+                     let mut part = LayoutPart::decode_node(node, ctx)?;
+ 
+@@ -1168,6 +1176,7 @@ mod tests {
+                 mod_key_nested: Some(
+                     Super,
+                 ),
++                double_click_time_ms: 400,
+             },
+             outputs: Outputs(
+                 [
+@@ -1226,6 +1235,7 @@ mod tests {
+                                 top_right: true,
+                                 bottom_left: true,
+                                 bottom_right: true,
++                                trigger_size: None,
+                             },
+                         ),
+                         layout: None,
+@@ -1506,6 +1516,15 @@ mod tests {
+                     b: 0.25,
+                     a: 1.0,
+                 },
++                interactive_move_threshold: 256.0,
++                interactive_move_opacity: 0.75,
++                interactive_move_rubber_band: RubberBandParams {
++                    stiffness: 1.0,
++                    limit: 0.5,
++                },
++                floating_move_step: 50.0,
++                resize_animation_threshold: 10.0,
++                move_animation_threshold: 10.0,
+             },
+             prefer_no_csd: true,
+             cursor: Cursor {
+@@ -1557,6 +1576,7 @@ mod tests {
+                         ),
+                     },
+                     custom_shader: None,
++                    scale_from: 0.5,
+                 },
+                 window_close: WindowCloseAnim {
+                     anim: Animation {
+@@ -1574,6 +1594,7 @@ mod tests {
+                         ),
+                     },
+                     custom_shader: None,
++                    scale_to: 0.8,
+                 },
+                 horizontal_view_movement: HorizontalViewMovementAnim(
+                     Animation {
+@@ -1688,6 +1709,7 @@ mod tests {
+                     trigger_height: 50.0,
+                     delay_ms: 100,
+                     max_speed: 1500.0,
++                    workspace_movement: 1500.0,
+                 },
+                 hot_corners: HotCorners {
+                     off: false,
+@@ -1695,6 +1717,30 @@ mod tests {
+                     top_right: false,
+                     bottom_left: false,
+                     bottom_right: false,
++                    trigger_size: None,
++                },
++                touchpad_swipe: TouchpadSwipe {
++                    workspace_movement: 300.0,
++                    view_movement: 1200.0,
++                    overview_movement: 300.0,
++                    workspace_fingers: 3,
++                    overview_fingers: 4,
++                    deceleration: 0.997,
++                    velocity_window_ms: 150,
++                    workspace_rubber_band: RubberBandParams {
++                        stiffness: 0.5,
++                        limit: 0.05,
++                    },
++                    overview_rubber_band: RubberBandParams {
++                        stiffness: 0.5,
++                        limit: 0.05,
++                    },
++                },
++                pointer_drag: PointerDrag {
++                    direction_lock_distance: 8.0,
++                },
++                touch: TouchGestures {
++                    long_press_ms: 500,
+                 },
+             },
+             overview: Overview {
+@@ -1724,6 +1770,7 @@ mod tests {
+                         a: 0.3137255,
+                     },
+                 },
++                scroll_cooldown_ms: 50,
+             },
+             environment: Environment(
+                 [
+@@ -2420,6 +2467,11 @@ mod tests {
+                         hotkey_overlay_title: None,
+                     },
+                 ],
++                edge_peek: 192.0,
++            },
++            timeouts: Timeouts {
++                xdg_activation_token_ms: 10000,
++                lock_surface_ms: 1000,
+             },
+         }
+         "#);
+diff --git a/niri-config/src/misc.rs b/niri-config/src/misc.rs
+index 66a200c..4b2a432 100644
+--- a/niri-config/src/misc.rs
++++ b/niri-config/src/misc.rs
+@@ -123,6 +123,8 @@ pub struct Overview {
+     pub zoom: f64,
+     pub backdrop_color: Color,
+     pub workspace_shadow: WorkspaceShadow,
++    /// Cooldown (ms) between repeated wheel-scroll workspace/column switches in the overview.
++    pub scroll_cooldown_ms: u16,
+ }
+ 
+ impl Default for Overview {
+@@ -131,6 +133,7 @@ impl Default for Overview {
+             zoom: 0.5,
+             backdrop_color: DEFAULT_BACKDROP_COLOR,
+             workspace_shadow: WorkspaceShadow::default(),
++            scroll_cooldown_ms: 50,
+         }
+     }
+ }
+@@ -143,12 +146,46 @@ pub struct OverviewPart {
+     pub backdrop_color: Option<Color>,
+     #[knuffel(child)]
+     pub workspace_shadow: Option<WorkspaceShadowPart>,
++    #[knuffel(child, unwrap(argument))]
++    pub scroll_cooldown_ms: Option<u16>,
+ }
+ 
+ impl MergeWith<OverviewPart> for Overview {
+     fn merge_with(&mut self, part: &OverviewPart) {
+         merge!((self, part), zoom, workspace_shadow);
+-        merge_clone!((self, part), backdrop_color);
++        merge_clone!((self, part), backdrop_color, scroll_cooldown_ms);
++    }
++}
++
++/// Internal timeouts.
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub struct Timeouts {
++    /// How long an xdg-activation token stays valid.
++    pub xdg_activation_token_ms: u32,
++    /// How long to wait for lock surfaces to paint before locking anyway.
++    pub lock_surface_ms: u32,
++}
++
++impl Default for Timeouts {
++    fn default() -> Self {
++        Self {
++            xdg_activation_token_ms: 10_000,
++            lock_surface_ms: 1000,
++        }
++    }
++}
++
++#[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]
++pub struct TimeoutsPart {
++    #[knuffel(child, unwrap(argument))]
++    pub xdg_activation_token_ms: Option<u32>,
++    #[knuffel(child, unwrap(argument))]
++    pub lock_surface_ms: Option<u32>,
++}
++
++impl MergeWith<TimeoutsPart> for Timeouts {
++    fn merge_with(&mut self, part: &TimeoutsPart) {
++        merge_clone!((self, part), xdg_activation_token_ms, lock_surface_ms);
+     }
+ }
+ 
+diff --git a/niri-config/src/recent_windows.rs b/niri-config/src/recent_windows.rs
+index 46e10f4..f1e1375 100644
+--- a/niri-config/src/recent_windows.rs
++++ b/niri-config/src/recent_windows.rs
+@@ -14,6 +14,8 @@ pub struct RecentWindows {
+     pub highlight: MruHighlight,
+     pub previews: MruPreviews,
+     pub binds: Vec<Bind>,
++    /// How much of the neighbouring previews peeks in from the screen edges (logical px).
++    pub edge_peek: f64,
+ }
+ 
+ impl Default for RecentWindows {
+@@ -25,6 +27,7 @@ impl Default for RecentWindows {
+             highlight: MruHighlight::default(),
+             previews: MruPreviews::default(),
+             binds: default_binds(),
++            edge_peek: 192.,
+         }
+     }
+ }
+@@ -45,6 +48,8 @@ pub struct RecentWindowsPart {
+     pub previews: Option<MruPreviewsPart>,
+     #[knuffel(child)]
+     pub binds: Option<MruBinds>,
++    #[knuffel(child, unwrap(argument))]
++    pub edge_peek: Option<FloatOrInt<0, 65535>>,
+ }
+ 
+ impl MergeWith<RecentWindowsPart> for RecentWindows {
+@@ -55,7 +60,7 @@ impl MergeWith<RecentWindowsPart> for RecentWindows {
+         }
+ 
+         merge_clone!((self, part), debounce_ms, open_delay_ms);
+-        merge!((self, part), highlight, previews);
++        merge!((self, part), highlight, previews, edge_peek);
+ 
+         if let Some(part) = &part.binds {
+             // Remove existing binds matching any new bind.
+diff --git a/src/handlers/compositor.rs b/src/handlers/compositor.rs
+index aba1509..297dfff 100644
+--- a/src/handlers/compositor.rs
++++ b/src/handlers/compositor.rs
+@@ -18,7 +18,7 @@ use smithay::wayland::shell::xdg::ToplevelCachedState;
+ use smithay::wayland::shm::{ShmHandler, ShmState};
+ 
+ use super::xdg_shell::add_mapped_toplevel_pre_commit_hook;
+-use crate::handlers::XDG_ACTIVATION_TOKEN_TIMEOUT;
++use crate::handlers::xdg_activation_token_timeout;
+ use crate::layout::{ActivateWindow, AddWindowTarget, LayoutElement as _};
+ use crate::niri::{CastTarget, ClientState, LockState, State};
+ use crate::utils::transaction::Transaction;
+@@ -160,9 +160,10 @@ impl CompositorHandler for State {
+                     let activate = activate.unwrap_or_else(|| {
+                         // Check the token timestamp again in case the window took a while between
+                         // requesting activation and mapping.
+-                        let token = activation_token_data.filter(|token| {
+-                            token.timestamp.elapsed() < XDG_ACTIVATION_TOKEN_TIMEOUT
+-                        });
++                        let token_timeout =
++                            xdg_activation_token_timeout(&self.niri.config.borrow());
++                        let token = activation_token_data
++                            .filter(|token| token.timestamp.elapsed() < token_timeout);
+                         if token.is_some() {
+                             ActivateWindow::Yes
+                         } else {
+diff --git a/src/handlers/mod.rs b/src/handlers/mod.rs
+index bd2d9a2..b5e0a6c 100644
+--- a/src/handlers/mod.rs
++++ b/src/handlers/mod.rs
+@@ -84,7 +84,10 @@ use crate::protocols::virtual_pointer::{
+ };
+ use crate::utils::{output_size, send_scale_transform};
+ 
+-pub const XDG_ACTIVATION_TOKEN_TIMEOUT: Duration = Duration::from_secs(10);
++/// How long an xdg-activation token stays valid.
++pub fn xdg_activation_token_timeout(config: &niri_config::Config) -> Duration {
++    Duration::from_millis(u64::from(config.timeouts.xdg_activation_token_ms))
++}
+ 
+ impl SeatHandler for State {
+     type KeyboardFocus = WlSurface;
+@@ -812,7 +815,8 @@ impl XdgActivationHandler for State {
+         token_data: XdgActivationTokenData,
+         surface: WlSurface,
+     ) {
+-        if token_data.timestamp.elapsed() < XDG_ACTIVATION_TOKEN_TIMEOUT {
++        let token_timeout = xdg_activation_token_timeout(&self.niri.config.borrow());
++        if token_data.timestamp.elapsed() < token_timeout {
+             if let Some((mapped, _)) = self.niri.layout.find_window_and_output_mut(&surface) {
+                 let window = mapped.window.clone();
+                 match mapped.rules().on_xdg_activate {
+diff --git a/src/handlers/xdg_shell.rs b/src/handlers/xdg_shell.rs
+index b0525d2..c6d873a 100644
+--- a/src/handlers/xdg_shell.rs
++++ b/src/handlers/xdg_shell.rs
+@@ -1,3 +1,4 @@
++use std::time::Duration;
+ use std::cell::Cell;
+ 
+ use calloop::Interest;
+@@ -37,7 +38,7 @@ use tracing::field::Empty;
+ 
+ use crate::input::move_grab::MoveGrab;
+ use crate::input::resize_grab::ResizeGrab;
+-use crate::input::{AnyStartData, DOUBLE_CLICK_TIME};
++use crate::input::AnyStartData;
+ use crate::layout::ActivateWindow;
+ use crate::niri::{CastTarget, PopupGrabState, State};
+ use crate::utils::transaction::Transaction;
+@@ -260,7 +261,10 @@ impl XdgShellHandler for State {
+         }
+ 
+         if let Some((last_time, last_edges)) = last {
+-            if time.saturating_sub(last_time) <= DOUBLE_CLICK_TIME {
++            let double_click_time = Duration::from_millis(u64::from(
++                self.niri.config.borrow().input.double_click_time_ms,
++            ));
++            if time.saturating_sub(last_time) <= double_click_time {
+                 // Allow quick resize after a triple click.
+                 last_cell.set(None);
+ 
+diff --git a/src/input/mod.rs b/src/input/mod.rs
+index 50db88f..2dddea8 100644
+--- a/src/input/mod.rs
++++ b/src/input/mod.rs
+@@ -69,7 +69,6 @@ pub mod touch_overview_grab;
+ 
+ use backend_ext::{NiriInputBackend as InputBackend, NiriInputDevice as _};
+ 
+-pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(400);
+ 
+ #[derive(Debug, Clone, Copy, PartialEq)]
+ pub struct TabletData {
+@@ -2979,7 +2978,10 @@ impl State {
+                         }
+ 
+                         if let Some((last_time, last_edges)) = last {
+-                            if time.saturating_sub(last_time) <= DOUBLE_CLICK_TIME {
++                            let double_click_time = Duration::from_millis(u64::from(
++                                self.niri.config.borrow().input.double_click_time_ms,
++                            ));
++                            if time.saturating_sub(last_time) <= double_click_time {
+                                 // Allow quick resize after a triple click.
+                                 last_cell.set(None);
+ 
+@@ -3101,6 +3103,9 @@ impl State {
+     }
+ 
+     fn on_pointer_axis<I: InputBackend>(&mut self, event: I::PointerAxisEvent) {
++        let overview_scroll_cooldown = Duration::from_millis(u64::from(
++            self.niri.config.borrow().overview.scroll_cooldown_ms,
++        ));
+         let pointer = &self.niri.seat.get_pointer().unwrap();
+ 
+         let source = event.source();
+@@ -3233,7 +3238,7 @@ impl State {
+                             },
+                             action: Action::FocusWorkspaceUpUnderMouse,
+                             repeat: true,
+-                            cooldown: Some(Duration::from_millis(50)),
++                            cooldown: Some(overview_scroll_cooldown),
+                             allow_when_locked: false,
+                             allow_inhibiting: false,
+                             hotkey_overlay_title: None,
+@@ -3245,7 +3250,7 @@ impl State {
+                             },
+                             action: Action::FocusWorkspaceDownUnderMouse,
+                             repeat: true,
+-                            cooldown: Some(Duration::from_millis(50)),
++                            cooldown: Some(overview_scroll_cooldown),
+                             allow_when_locked: false,
+                             allow_inhibiting: false,
+                             hotkey_overlay_title: None,
+@@ -3259,7 +3264,7 @@ impl State {
+                             },
+                             action: Action::FocusColumnLeftUnderMouse,
+                             repeat: true,
+-                            cooldown: Some(Duration::from_millis(50)),
++                            cooldown: Some(overview_scroll_cooldown),
+                             allow_when_locked: false,
+                             allow_inhibiting: false,
+                             hotkey_overlay_title: None,
+@@ -3271,7 +3276,7 @@ impl State {
+                             },
+                             action: Action::FocusColumnRightUnderMouse,
+                             repeat: true,
+-                            cooldown: Some(Duration::from_millis(50)),
++                            cooldown: Some(overview_scroll_cooldown),
+                             allow_when_locked: false,
+                             allow_inhibiting: false,
+                             hotkey_overlay_title: None,
+@@ -3935,12 +3940,17 @@ impl State {
+             return;
+         }
+ 
+-        if event.fingers() == 3 {
++        let (workspace_fingers, overview_fingers) = {
++            let config = self.niri.config.borrow();
++            let swipe = &config.gestures.touchpad_swipe;
++            (swipe.workspace_fingers, swipe.overview_fingers)
++        };
++        if event.fingers() == workspace_fingers {
+             self.niri.gesture_swipe_3f_cumulative = Some((0., 0.));
+ 
+             // We handled this event.
+             return;
+-        } else if event.fingers() == 4 {
++        } else if event.fingers() == overview_fingers {
+             self.niri.layout.overview_gesture_begin();
+             self.niri.queue_redraw_all();
+ 
+diff --git a/src/input/spatial_movement_grab.rs b/src/input/spatial_movement_grab.rs
+index 546929a..ed28f21 100644
+--- a/src/input/spatial_movement_grab.rs
++++ b/src/input/spatial_movement_grab.rs
+@@ -84,8 +84,15 @@ impl SpatialMovementGrab {
+             GestureState::Recognizing => {
+                 let c = self.new_location - self.start_data.location;
+ 
+-                // Check if the gesture moved far enough to decide. Threshold copied from GTK 4.
+-                if c.x * c.x + c.y * c.y >= 8. * 8. {
++                // Check if the gesture moved far enough to decide.
++                let lock_distance = data
++                    .niri
++                    .config
++                    .borrow()
++                    .gestures
++                    .pointer_drag
++                    .direction_lock_distance;
++                if c.x * c.x + c.y * c.y >= lock_distance * lock_distance {
+                     if c.x.abs() > c.y.abs() {
+                         self.gesture = GestureState::ViewOffset;
+                         if let Some((ws_idx, ws)) = layout.find_workspace_by_id(self.workspace_id) {
+diff --git a/src/input/swipe_tracker.rs b/src/input/swipe_tracker.rs
+index e4300a7..0d6849a 100644
+--- a/src/input/swipe_tracker.rs
++++ b/src/input/swipe_tracker.rs
+@@ -1,13 +1,14 @@
+ use std::collections::VecDeque;
+ use std::time::Duration;
+ 
+-const HISTORY_LIMIT: Duration = Duration::from_millis(150);
+-const DECELERATION_TOUCHPAD: f64 = 0.997;
+-
+ #[derive(Debug)]
+ pub struct SwipeTracker {
+     history: VecDeque<Event>,
+     pos: f64,
++    /// Per-millisecond velocity retention for the fling projection.
++    deceleration: f64,
++    /// How much recent history feeds the velocity estimate.
++    history_limit: Duration,
+ }
+ 
+ #[derive(Debug, Clone, Copy)]
+@@ -17,11 +18,12 @@ struct Event {
+ }
+ 
+ impl SwipeTracker {
+-    #[allow(clippy::new_without_default)]
+-    pub fn new() -> Self {
++    pub fn new(config: &niri_config::TouchpadSwipe) -> Self {
+         Self {
+             history: VecDeque::new(),
+             pos: 0.,
++            deceleration: config.deceleration,
++            history_limit: Duration::from_millis(u64::from(config.velocity_window_ms)),
+         }
+     }
+ 
+@@ -68,7 +70,11 @@ impl SwipeTracker {
+     /// Computes the gesture end position after decelerating to a halt.
+     pub fn projected_end_pos(&self) -> f64 {
+         let vel = self.velocity();
+-        self.pos - vel / (1000. * DECELERATION_TOUCHPAD.ln())
++        if !(0. < self.deceleration && self.deceleration < 1.) {
++            // No usable deceleration curve: stop where the fingers are.
++            return self.pos;
++        }
++        self.pos - vel / (1000. * self.deceleration.ln())
+     }
+ 
+     fn trim_history(&mut self) {
+@@ -77,7 +83,7 @@ impl SwipeTracker {
+         };
+ 
+         while let Some(first) = self.history.front() {
+-            if timestamp <= first.timestamp + HISTORY_LIMIT {
++            if timestamp <= first.timestamp + self.history_limit {
+                 break;
+             }
+ 
+diff --git a/src/input/touch_overview_grab.rs b/src/input/touch_overview_grab.rs
+index c5c4ef8..c74b08e 100644
+--- a/src/input/touch_overview_grab.rs
++++ b/src/input/touch_overview_grab.rs
+@@ -19,7 +19,6 @@ use crate::utils::get_monotonic_time;
+ use crate::window::Mapped;
+ 
+ // When the touch is stationary for this much time, it becomes an interactive move.
+-const INTERACTIVE_MOVE_THRESHOLD: Duration = Duration::from_millis(500);
+ 
+ pub struct TouchOverviewGrab {
+     start_data: AnyStartData<State>,
+@@ -83,7 +82,10 @@ impl TouchOverviewGrab {
+         if matches!(self.gesture, GestureState::Recognizing) {
+             if let Some(window) = self.window.as_ref().filter(|win| win.alive()) {
+                 let passed = timestamp.saturating_sub(self.start_timestamp);
+-                if INTERACTIVE_MOVE_THRESHOLD <= passed
++                let long_press = Duration::from_millis(u64::from(
++                    data.niri.config.borrow().gestures.touch.long_press_ms,
++                ));
++                if long_press <= passed
+                     && layout.interactive_move_begin(
+                         window.clone(),
+                         &self.output,
+diff --git a/src/layout/closing_window.rs b/src/layout/closing_window.rs
+index ca28f59..af13d34 100644
+--- a/src/layout/closing_window.rs
++++ b/src/layout/closing_window.rs
+@@ -41,6 +41,9 @@ pub struct ClosingWindow {
+     /// Where the window should be blocked out from.
+     block_out_from: Option<BlockOutFrom>,
+ 
++    /// Scale the window shrinks to by the end of the animation.
++    scale_to: f64,
++
+     /// Size of the window geometry.
+     geo_size: Size<f64, Logical>,
+ 
+@@ -102,6 +105,7 @@ impl ClosingWindow {
+         pos: Point<f64, Logical>,
+         blocker: TransactionBlocker,
+         anim: Animation,
++        scale_to: f64,
+     ) -> anyhow::Result<Self> {
+         let _span = tracy_client::span!("ClosingWindow::new");
+ 
+@@ -147,6 +151,7 @@ impl ClosingWindow {
+             buffer_with_blocked_out_bg,
+             blocked_out_buffer,
+             block_out_from: snapshot.block_out_from,
++            scale_to,
+             geo_size,
+             pos,
+             buffer_offset,
+@@ -286,7 +291,7 @@ impl ClosingWindow {
+         let elem = RescaleRenderElement::from_element(
+             elem,
+             (center - offset).to_physical_precise_round(scale),
+-            ((1. - clamped_progress) / 5. + 0.8).max(0.),
++            (1. - clamped_progress * (1. - self.scale_to)).max(0.),
+         );
+ 
+         let mut location = self.pos + offset;
+diff --git a/src/layout/floating.rs b/src/layout/floating.rs
+index 5fe1d29..0ac7444 100644
+--- a/src/layout/floating.rs
++++ b/src/layout/floating.rs
+@@ -28,8 +28,6 @@ use crate::utils::{
+ };
+ use crate::window::ResolvedWindowRules;
+ 
+-/// By how many logical pixels the directional move commands move floating windows.
+-pub const DIRECTIONAL_MOVE_PX: f64 = 50.;
+ 
+ /// Space for floating windows.
+ #[derive(Debug)]
+@@ -625,7 +623,14 @@ impl<W: LayoutElement> FloatingSpace<W> {
+ 
+         let scale = Scale::from(self.scale);
+         let res = ClosingWindow::new(
+-            renderer, snapshot, scale, tile_size, tile_pos, blocker, anim,
++            renderer,
++            snapshot,
++            scale,
++            tile_size,
++            tile_pos,
++            blocker,
++            anim,
++            self.options.animations.window_close.scale_to,
+         );
+         match res {
+             Ok(closing) => {
+@@ -946,19 +951,23 @@ impl<W: LayoutElement> FloatingSpace<W> {
+     }
+ 
+     pub fn move_left(&mut self) {
+-        self.move_by(Point::from((-DIRECTIONAL_MOVE_PX, 0.)));
++        let step = self.options.layout.floating_move_step;
++        self.move_by(Point::from((-step, 0.)));
+     }
+ 
+     pub fn move_right(&mut self) {
+-        self.move_by(Point::from((DIRECTIONAL_MOVE_PX, 0.)));
++        let step = self.options.layout.floating_move_step;
++        self.move_by(Point::from((step, 0.)));
+     }
+ 
+     pub fn move_up(&mut self) {
+-        self.move_by(Point::from((0., -DIRECTIONAL_MOVE_PX)));
++        let step = self.options.layout.floating_move_step;
++        self.move_by(Point::from((0., -step)));
+     }
+ 
+     pub fn move_down(&mut self) {
+-        self.move_by(Point::from((0., DIRECTIONAL_MOVE_PX)));
++        let step = self.options.layout.floating_move_step;
++        self.move_by(Point::from((0., step)));
+     }
+ 
+     pub fn move_window(
+@@ -1243,7 +1252,7 @@ impl<W: LayoutElement> FloatingSpace<W> {
+ 
+     fn move_and_animate(&mut self, idx: usize, new_pos: Point<f64, Logical>) {
+         // Moves up to this logical pixel distance are not animated.
+-        const ANIMATION_THRESHOLD_SQ: f64 = 10. * 10.;
++        let animation_threshold_sq = self.options.layout.move_animation_threshold.powi(2);
+ 
+         let tile = &mut self.tiles[idx];
+         let data = &mut self.data[idx];
+@@ -1253,7 +1262,7 @@ impl<W: LayoutElement> FloatingSpace<W> {
+         let new_pos = data.logical_pos;
+ 
+         let diff = prev_pos - new_pos;
+-        if diff.x * diff.x + diff.y * diff.y > ANIMATION_THRESHOLD_SQ {
++        if diff.x * diff.x + diff.y * diff.y > animation_threshold_sq {
+             tile.animate_move_from(prev_pos - new_pos);
+         }
+     }
+diff --git a/src/layout/mod.rs b/src/layout/mod.rs
+index 5df3959..e29014a 100644
+--- a/src/layout/mod.rs
++++ b/src/layout/mod.rs
+@@ -90,22 +90,6 @@ pub mod workspace;
+ #[cfg(test)]
+ mod tests;
+ 
+-/// Size changes up to this many pixels don't animate.
+-pub const RESIZE_ANIMATION_THRESHOLD: f64 = 10.;
+-
+-/// Pointer needs to move this far to pull a window from the layout.
+-const INTERACTIVE_MOVE_START_THRESHOLD: f64 = 256. * 256.;
+-
+-/// Opacity of interactively moved tiles targeting the scrolling layout.
+-const INTERACTIVE_MOVE_ALPHA: f64 = 0.75;
+-
+-/// Amount of touchpad movement to toggle the overview.
+-const OVERVIEW_GESTURE_MOVEMENT: f64 = 300.;
+-
+-const OVERVIEW_GESTURE_RUBBER_BAND: RubberBand = RubberBand {
+-    stiffness: 0.5,
+-    limit: 0.05,
+-};
+ 
+ /// Size-relative units.
+ pub struct SizeFrac;
+@@ -3173,7 +3157,7 @@ impl<W: LayoutElement> Layout<W> {
+ 
+                     // Animate the tile back to opaque.
+                     move_.tile.animate_alpha(
+-                        INTERACTIVE_MOVE_ALPHA,
++                        self.options.layout.interactive_move_opacity,
+                         1.,
+                         self.options.animations.window_movement.0,
+                     );
+@@ -3186,7 +3170,7 @@ impl<W: LayoutElement> Layout<W> {
+                     // Animate the tile back to semitransparent.
+                     move_.tile.animate_alpha(
+                         1.,
+-                        INTERACTIVE_MOVE_ALPHA,
++                        self.options.layout.interactive_move_opacity,
+                         self.options.animations.window_movement.0,
+                     );
+                     move_.tile.hold_alpha_animation_after_done();
+@@ -3744,7 +3728,7 @@ impl<W: LayoutElement> Layout<W> {
+ 
+         let value = self.overview_progress.take().map_or(0., |p| p.value());
+         let gesture = OverviewGesture {
+-            tracker: SwipeTracker::new(),
++            tracker: SwipeTracker::new(&self.options.gestures.touchpad_swipe),
+             start: value,
+             value,
+         };
+@@ -3760,10 +3744,11 @@ impl<W: LayoutElement> Layout<W> {
+ 
+         gesture.tracker.push(delta_y, timestamp);
+ 
+-        let total_height = OVERVIEW_GESTURE_MOVEMENT;
++        let total_height = self.options.gestures.touchpad_swipe.overview_movement;
+         let pos = gesture.tracker.pos() / total_height;
+         let new_value = gesture.start + pos;
+-        let new_value = OVERVIEW_GESTURE_RUBBER_BAND.clamp(0., 1., new_value);
++        let rubber_band = RubberBand::from(self.options.gestures.touchpad_swipe.overview_rubber_band);
++        let new_value = rubber_band.clamp(0., 1., new_value);
+ 
+         if gesture.value == new_value {
+             return Some(false);
+@@ -3784,7 +3769,7 @@ impl<W: LayoutElement> Layout<W> {
+         let now = self.clock.now_unadjusted();
+         gesture.tracker.push(0., now);
+ 
+-        let total_height = OVERVIEW_GESTURE_MOVEMENT;
++        let total_height = self.options.gestures.touchpad_swipe.overview_movement;
+ 
+         let mut velocity = gesture.tracker.velocity() / total_height;
+         let current_pos = gesture.tracker.pos() / total_height;
+@@ -3794,7 +3779,8 @@ impl<W: LayoutElement> Layout<W> {
+         let new_value = new_value.clamp(0., 1.).round();
+ 
+         velocity *=
+-            OVERVIEW_GESTURE_RUBBER_BAND.clamp_derivative(0., 1., gesture.start + current_pos);
++            RubberBand::from(self.options.gestures.touchpad_swipe.overview_rubber_band)
++                .clamp_derivative(0., 1., gesture.start + current_pos);
+ 
+         self.overview_open = new_value == 1.;
+         self.overview_progress = Some(OverviewProgress::Animation(Animation::new(
+@@ -3905,11 +3891,9 @@ impl<W: LayoutElement> Layout<W> {
+                 let (cx, cy) = (pointer_delta.x, pointer_delta.y);
+                 let sq_dist = cx * cx + cy * cy;
+ 
+-                let factor = RubberBand {
+-                    stiffness: 1.0,
+-                    limit: 0.5,
+-                }
+-                .band(sq_dist / INTERACTIVE_MOVE_START_THRESHOLD);
++                let start_threshold = self.options.layout.interactive_move_threshold.powi(2);
++                let factor = RubberBand::from(self.options.layout.interactive_move_rubber_band)
++                    .band(sq_dist / start_threshold);
+ 
+                 let (is_floating, tile, workspace_config) = self
+                     .workspaces_mut()
+@@ -3934,7 +3918,7 @@ impl<W: LayoutElement> Layout<W> {
+                     pointer_ratio_within_window,
+                 });
+ 
+-                if !is_floating && sq_dist < INTERACTIVE_MOVE_START_THRESHOLD {
++                if !is_floating && sq_dist < start_threshold {
+                     return true;
+                 }
+ 
+@@ -4013,7 +3997,7 @@ impl<W: LayoutElement> Layout<W> {
+                     // Animate to semitransparent.
+                     tile.animate_alpha(
+                         1.,
+-                        INTERACTIVE_MOVE_ALPHA,
++                        self.options.layout.interactive_move_opacity,
+                         self.options.animations.window_movement.0,
+                     );
+                     tile.hold_alpha_animation_after_done();
+@@ -4164,7 +4148,7 @@ impl<W: LayoutElement> Layout<W> {
+ 
+             // Also animate the tile back to opaque.
+             move_.tile.animate_alpha(
+-                INTERACTIVE_MOVE_ALPHA,
++                self.options.layout.interactive_move_opacity,
+                 1.,
+                 self.options.animations.window_movement.0,
+             );
+diff --git a/src/layout/monitor.rs b/src/layout/monitor.rs
+index f119e61..9b57366 100644
+--- a/src/layout/monitor.rs
++++ b/src/layout/monitor.rs
+@@ -33,18 +33,6 @@ use crate::utils::{
+     output_size, round_logical_in_physical, round_logical_in_physical_max1, ResizeEdge,
+ };
+ 
+-/// Amount of touchpad movement to scroll the height of one workspace.
+-const WORKSPACE_GESTURE_MOVEMENT: f64 = 300.;
+-
+-const WORKSPACE_GESTURE_RUBBER_BAND: RubberBand = RubberBand {
+-    stiffness: 0.5,
+-    limit: 0.05,
+-};
+-
+-/// Amount of DnD edge scrolling to scroll the height of one workspace.
+-///
+-/// This constant is tied to the default dnd-edge-workspace-switch max-speed setting.
+-const WORKSPACE_DND_EDGE_SCROLL_MOVEMENT: f64 = 1500.;
+ 
+ #[derive(Debug)]
+ pub struct Monitor<W: LayoutElement> {
+@@ -1852,7 +1840,7 @@ impl<W: LayoutElement> Monitor<W> {
+             start_idx: current_idx,
+             current_idx,
+             animation: None,
+-            tracker: SwipeTracker::new(),
++            tracker: SwipeTracker::new(&self.options.gestures.touchpad_swipe),
+             is_touchpad,
+             is_clamped: !self.overview_open,
+             dnd_last_event_time: None,
+@@ -1884,7 +1872,7 @@ impl<W: LayoutElement> Monitor<W> {
+             start_idx: current_idx,
+             current_idx,
+             animation: None,
+-            tracker: SwipeTracker::new(),
++            tracker: SwipeTracker::new(&self.options.gestures.touchpad_swipe),
+             is_touchpad: false,
+             is_clamped: false,
+             dnd_last_event_time: Some(self.clock.now_unadjusted()),
+@@ -1909,7 +1897,7 @@ impl<W: LayoutElement> Monitor<W> {
+ 
+         let zoom = self.overview_zoom();
+         let total_height = if gesture.is_touchpad {
+-            WORKSPACE_GESTURE_MOVEMENT
++            self.options.gestures.touchpad_swipe.workspace_movement
+         } else {
+             self.workspace_size_with_gap(1.).h
+         };
+@@ -1926,7 +1914,7 @@ impl<W: LayoutElement> Monitor<W> {
+         };
+ 
+         let delta_y = delta_y / delta_scale;
+-        let mut rubber_band = WORKSPACE_GESTURE_RUBBER_BAND;
++        let mut rubber_band = RubberBand::from(self.options.gestures.touchpad_swipe.workspace_rubber_band);
+         rubber_band.limit /= zoom;
+ 
+         gesture.tracker.push(delta_y, timestamp);
+@@ -2016,7 +2004,7 @@ impl<W: LayoutElement> Monitor<W> {
+ 
+         gesture.tracker.push(delta, now);
+ 
+-        let total_height = WORKSPACE_DND_EDGE_SCROLL_MOVEMENT;
++        let total_height = self.options.gestures.dnd_edge_workspace_switch.workspace_movement;
+         let pos = gesture.tracker.pos() / total_height;
+         let unclamped = gesture.start_idx + pos;
+ 
+@@ -2041,9 +2029,9 @@ impl<W: LayoutElement> Monitor<W> {
+ 
+         let zoom = self.overview_zoom();
+         let total_height = if gesture.dnd_last_event_time.is_some() {
+-            WORKSPACE_DND_EDGE_SCROLL_MOVEMENT
++            self.options.gestures.dnd_edge_workspace_switch.workspace_movement
+         } else if gesture.is_touchpad {
+-            WORKSPACE_GESTURE_MOVEMENT
++            self.options.gestures.touchpad_swipe.workspace_movement
+         } else {
+             self.workspace_size_with_gap(1.).h
+         };
+@@ -2056,7 +2044,7 @@ impl<W: LayoutElement> Monitor<W> {
+         let now = self.clock.now_unadjusted();
+         gesture.tracker.push(0., now);
+ 
+-        let mut rubber_band = WORKSPACE_GESTURE_RUBBER_BAND;
++        let mut rubber_band = RubberBand::from(self.options.gestures.touchpad_swipe.workspace_rubber_band);
+         rubber_band.limit /= zoom;
+ 
+         let mut velocity = gesture.tracker.velocity() / total_height;
+diff --git a/src/layout/opening_window.rs b/src/layout/opening_window.rs
+index 5ba97a3..9bb67ed 100644
+--- a/src/layout/opening_window.rs
++++ b/src/layout/opening_window.rs
+@@ -22,6 +22,7 @@ pub struct OpenAnimation {
+     anim: Animation,
+     random_seed: f32,
+     buffer: OffscreenBuffer,
++    scale_from: f64,
+ }
+ 
+ niri_render_elements! {
+@@ -32,11 +33,12 @@ niri_render_elements! {
+ }
+ 
+ impl OpenAnimation {
+-    pub fn new(anim: Animation) -> Self {
++    pub fn new(anim: Animation, scale_from: f64) -> Self {
+         Self {
+             anim,
+             random_seed: fastrand::f32(),
+             buffer: OffscreenBuffer::default(),
++            scale_from,
+         }
+     }
+ 
+@@ -128,7 +130,7 @@ impl OpenAnimation {
+         let elem = RescaleRenderElement::from_element(
+             elem,
+             center.to_physical_precise_round(scale),
+-            (progress / 2. + 0.5).max(0.),
++            (self.scale_from + progress * (1. - self.scale_from)).max(0.),
+         );
+ 
+         let elem = RelocateRenderElement::from_element(
+diff --git a/src/layout/scrolling.rs b/src/layout/scrolling.rs
+index c7d94c5..c7418da 100644
+--- a/src/layout/scrolling.rs
++++ b/src/layout/scrolling.rs
+@@ -28,9 +28,6 @@ use crate::utils::transaction::{Transaction, TransactionBlocker};
+ use crate::utils::ResizeEdge;
+ use crate::window::ResolvedWindowRules;
+ 
+-/// Amount of touchpad movement to scroll the view for the width of one working area.
+-const VIEW_GESTURE_WORKING_AREA_MOVEMENT: f64 = 1200.;
+-
+ /// A scrollable-tiling space for windows.
+ #[derive(Debug)]
+ pub struct ScrollingSpace<W: LayoutElement> {
+@@ -1560,7 +1557,14 @@ impl<W: LayoutElement> ScrollingSpace<W> {
+ 
+         let scale = Scale::from(self.scale);
+         let res = ClosingWindow::new(
+-            renderer, snapshot, scale, tile_size, tile_pos, blocker, anim,
++            renderer,
++            snapshot,
++            scale,
++            tile_size,
++            tile_pos,
++            blocker,
++            anim,
++            self.options.animations.window_close.scale_to,
+         );
+         match res {
+             Ok(closing) => {
+@@ -3063,7 +3067,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
+         let gesture = ViewGesture {
+             current_view_offset: self.view_offset.current(),
+             animation: None,
+-            tracker: SwipeTracker::new(),
++            tracker: SwipeTracker::new(&self.options.gestures.touchpad_swipe),
+             delta_from_tracker: self.view_offset.current(),
+             stationary_view_offset: self.view_offset.stationary(),
+             is_touchpad,
+@@ -3086,7 +3090,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
+         let gesture = ViewGesture {
+             current_view_offset: self.view_offset.current(),
+             animation: None,
+-            tracker: SwipeTracker::new(),
++            tracker: SwipeTracker::new(&self.options.gestures.touchpad_swipe),
+             delta_from_tracker: self.view_offset.current(),
+             stationary_view_offset: self.view_offset.stationary(),
+             is_touchpad: false,
+@@ -3115,7 +3119,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
+         gesture.tracker.push(delta_x, timestamp);
+ 
+         let norm_factor = if gesture.is_touchpad {
+-            self.working_area.size.w / VIEW_GESTURE_WORKING_AREA_MOVEMENT
++            self.working_area.size.w / self.options.gestures.touchpad_swipe.view_movement
+         } else {
+             1.
+         };
+@@ -3219,7 +3223,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
+         gesture.tracker.push(0., now);
+ 
+         let norm_factor = if gesture.is_touchpad {
+-            self.working_area.size.w / VIEW_GESTURE_WORKING_AREA_MOVEMENT
++            self.working_area.size.w / self.options.gestures.touchpad_swipe.view_movement
+         } else {
+             1.
+         };
+diff --git a/src/layout/tile.rs b/src/layout/tile.rs
+index db8ce67..515ef62 100644
+--- a/src/layout/tile.rs
++++ b/src/layout/tile.rs
+@@ -13,7 +13,7 @@ use super::opening_window::{OpenAnimation, OpeningWindowRenderElement};
+ use super::shadow::Shadow;
+ use super::{
+     HitType, LayoutElement, LayoutElementRenderElement, LayoutElementRenderSnapshot, Options,
+-    SizeFrac, RESIZE_ANIMATION_THRESHOLD,
++    SizeFrac,
+ };
+ use crate::animation::{Animation, Clock};
+ use crate::layout::SizingMode;
+@@ -354,7 +354,7 @@ impl<W: LayoutElement> Tile<W> {
+             let tile_change = self.tile_size().to_f64().to_point() - tile_size_from.to_point();
+             let tile_change = f64::max(tile_change.x.abs(), tile_change.y.abs());
+             let change = f64::max(change, tile_change);
+-            if change > RESIZE_ANIMATION_THRESHOLD {
++            if change > self.options.layout.resize_animation_threshold {
+                 let anim = Animation::new(
+                     self.clock.clone(),
+                     0.,
+@@ -579,7 +579,9 @@ impl<W: LayoutElement> Tile<W> {
+             1.,
+             0.,
+             self.options.animations.window_open.anim,
+-        )));
++        ),
++            self.options.animations.window_open.scale_from,
++        ));
+     }
+ 
+     pub fn resize_animation(&self) -> Option<&Animation> {
+diff --git a/src/niri.rs b/src/niri.rs
+index fa44b5c..03eaeed 100644
+--- a/src/niri.rs
++++ b/src/niri.rs
+@@ -129,7 +129,7 @@ use crate::dbus::gnome_shell_introspect::{self, IntrospectToNiri, NiriToIntrospe
+ #[cfg(feature = "dbus")]
+ use crate::dbus::gnome_shell_screenshot::{NiriToScreenshot, ScreenshotToNiri};
+ use crate::frame_clock::FrameClock;
+-use crate::handlers::{configure_lock_surface, XDG_ACTIVATION_TOKEN_TIMEOUT};
++use crate::handlers::{configure_lock_surface, xdg_activation_token_timeout};
+ use crate::input::pick_color_grab::PickColorGrab;
+ use crate::input::scroll_swipe_gesture::ScrollSwipeGesture;
+ use crate::input::scroll_tracker::ScrollTracker;
+@@ -2384,12 +2384,14 @@ impl Niri {
+         let activation_state = XdgActivationState::new::<State>(&display_handle);
+         event_loop
+             .insert_source(
+-                Timer::from_duration(XDG_ACTIVATION_TOKEN_TIMEOUT),
++                Timer::from_duration(xdg_activation_token_timeout(&config.borrow())),
+                 |_, _, state| {
+-                    state.niri.activation_state.retain_tokens(|_, token_data| {
+-                        token_data.timestamp.elapsed() < XDG_ACTIVATION_TOKEN_TIMEOUT
+-                    });
+-                    TimeoutAction::ToDuration(XDG_ACTIVATION_TOKEN_TIMEOUT)
++                    let timeout = xdg_activation_token_timeout(&state.niri.config.borrow());
++                    state
++                        .niri
++                        .activation_state
++                        .retain_tokens(|_, token_data| token_data.timestamp.elapsed() < timeout);
++                    TimeoutAction::ToDuration(timeout)
+                 },
+             )
+             .unwrap();
+@@ -3106,17 +3108,18 @@ impl Niri {
+         let geom = self.global_space.output_geometry(output).unwrap();
+         let size = geom.size.to_f64();
+ 
++        let trigger = hot_corners.trigger_size.map_or(1., |s| s.0);
+         let contains = move |corner: Point<f64, Logical>| {
+-            Rectangle::new(corner, Size::new(1., 1.)).contains(pos)
++            Rectangle::new(corner, Size::new(trigger, trigger)).contains(pos)
+         };
+ 
+-        if hot_corners.top_right && contains(Point::new(size.w - 1., 0.)) {
++        if hot_corners.top_right && contains(Point::new(size.w - trigger, 0.)) {
+             return true;
+         }
+-        if hot_corners.bottom_left && contains(Point::new(0., size.h - 1.)) {
++        if hot_corners.bottom_left && contains(Point::new(0., size.h - trigger)) {
+             return true;
+         }
+-        if hot_corners.bottom_right && contains(Point::new(size.w - 1., size.h - 1.)) {
++        if hot_corners.bottom_right && contains(Point::new(size.w - trigger, size.h - trigger)) {
+             return true;
+         }
+ 
+@@ -5906,7 +5909,9 @@ impl Niri {
+             // let's wait for the lock surfaces.
+             //
+             // Give them a second; swaylock can take its time to paint a big enough image.
+-            let timer = Timer::from_duration(Duration::from_millis(1000));
++            let timer = Timer::from_duration(Duration::from_millis(u64::from(
++                self.config.borrow().timeouts.lock_surface_ms,
++            )));
+             let deadline_token = self
+                 .event_loop
+                 .insert_source(timer, |_, _, state| {
+diff --git a/src/rubber_band.rs b/src/rubber_band.rs
+index 1543d71..aa80cab 100644
+--- a/src/rubber_band.rs
++++ b/src/rubber_band.rs
+@@ -4,6 +4,15 @@ pub struct RubberBand {
+     pub limit: f64,
+ }
+ 
++impl From<niri_config::RubberBandParams> for RubberBand {
++    fn from(params: niri_config::RubberBandParams) -> Self {
++        Self {
++            stiffness: params.stiffness,
++            limit: params.limit,
++        }
++    }
++}
++
+ impl RubberBand {
+     pub fn band(&self, x: f64) -> f64 {
+         let c = self.stiffness;
+diff --git a/src/ui/mru.rs b/src/ui/mru.rs
+index d8ec6de..79627b5 100644
+--- a/src/ui/mru.rs
++++ b/src/ui/mru.rs
+@@ -60,7 +60,6 @@ const TITLE_GAP: f64 = 14.;
+ const GAP: f64 = 16.;
+ 
+ /// How much of the next window will always peek from the side of the screen.
+-const STRUT: f64 = 192.;
+ 
+ /// Padding in the scope indication panel.
+ const PANEL_PADDING: i32 = 12;
+@@ -1303,7 +1302,8 @@ impl Inner {
+ 
+         let output_size = output_size(&self.output);
+ 
+-        let working_x = STRUT + GAP;
++        let strut = self.config.borrow().recent_windows.edge_peek;
++        let working_x = strut + GAP;
+         let working_width = (output_size.w - working_x * 2.).max(0.);
+ 
+         let mut current_geo = Rectangle::default();
+diff --git a/src/ui/screenshot_ui.rs b/src/ui/screenshot_ui.rs
+index a158636..bc6a61b 100644
+--- a/src/ui/screenshot_ui.rs
++++ b/src/ui/screenshot_ui.rs
+@@ -22,7 +22,6 @@ use smithay::output::{Output, WeakOutput};
+ use smithay::utils::{Buffer, Physical, Point, Rectangle, Scale, Size, Transform};
+ 
+ use crate::animation::{Animation, Clock};
+-use crate::layout::floating::DIRECTIONAL_MOVE_PX;
+ use crate::niri_render_elements;
+ use crate::render_helpers::primary_gpu_texture::PrimaryGpuTextureRenderElement;
+ use crate::render_helpers::solid_color::{SolidColorBuffer, SolidColorRenderElement};
+@@ -315,6 +314,7 @@ impl ScreenshotUi {
+         let Self::Open {
+             selection: (output, a, b),
+             output_data,
++            config,
+             ..
+         } = self
+         else {
+@@ -323,7 +323,8 @@ impl ScreenshotUi {
+ 
+         let data = &output_data[output];
+ 
+-        let delta: i32 = to_physical_precise_round(data.scale, DIRECTIONAL_MOVE_PX);
++        let step = config.borrow().layout.floating_move_step;
++        let delta: i32 = to_physical_precise_round(data.scale, step);
+         let delta = min(delta, min(a.x, b.x));
+         a.x -= delta;
+         b.x -= delta;
+@@ -335,6 +336,7 @@ impl ScreenshotUi {
+         let Self::Open {
+             selection: (output, a, b),
+             output_data,
++            config,
+             ..
+         } = self
+         else {
+@@ -343,7 +345,8 @@ impl ScreenshotUi {
+ 
+         let data = &output_data[output];
+ 
+-        let delta: i32 = to_physical_precise_round(data.scale, DIRECTIONAL_MOVE_PX);
++        let step = config.borrow().layout.floating_move_step;
++        let delta: i32 = to_physical_precise_round(data.scale, step);
+         let delta = min(delta, data.size.w - max(a.x, b.x) - 1);
+         a.x += delta;
+         b.x += delta;
+@@ -355,6 +358,7 @@ impl ScreenshotUi {
+         let Self::Open {
+             selection: (output, a, b),
+             output_data,
++            config,
+             ..
+         } = self
+         else {
+@@ -363,7 +367,8 @@ impl ScreenshotUi {
+ 
+         let data = &output_data[output];
+ 
+-        let delta: i32 = to_physical_precise_round(data.scale, DIRECTIONAL_MOVE_PX);
++        let step = config.borrow().layout.floating_move_step;
++        let delta: i32 = to_physical_precise_round(data.scale, step);
+         let delta = min(delta, min(a.y, b.y));
+         a.y -= delta;
+         b.y -= delta;
+@@ -375,6 +380,7 @@ impl ScreenshotUi {
+         let Self::Open {
+             selection: (output, a, b),
+             output_data,
++            config,
+             ..
+         } = self
+         else {
+@@ -383,7 +389,8 @@ impl ScreenshotUi {
+ 
+         let data = &output_data[output];
+ 
+-        let delta: i32 = to_physical_precise_round(data.scale, DIRECTIONAL_MOVE_PX);
++        let step = config.borrow().layout.floating_move_step;
++        let delta: i32 = to_physical_precise_round(data.scale, step);
+         let delta = min(delta, data.size.h - max(a.y, b.y) - 1);
+         a.y += delta;
+         b.y += delta;

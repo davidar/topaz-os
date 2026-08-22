@@ -67,6 +67,9 @@ input {
     // Focus windows and outputs automatically when moving the mouse into them.
     // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
     // focus-follows-mouse max-scroll-amount="0%"
+
+    // topaz build of niri (ledger 0037): upstream hardcodes 400.
+    double-click-time-ms 400
 }
 
 // You can configure outputs by their name, which you can find
@@ -260,6 +263,15 @@ layout {
         // top 64
         // bottom 64
     }
+
+    // topaz build of niri (ledger 0037): upstream compile-time constants,
+    // shown at their upstream values. Logical pixels unless noted.
+    interactive-move-threshold 256      // drag distance before a tiled window detaches
+    interactive-move-opacity 0.75       // tile opacity while being dragged over the layout
+    interactive-move-rubber-band stiffness=1.0 limit=0.5
+    floating-move-step 50               // per directional move action on floating windows
+    resize-animation-threshold 10       // smaller size changes don't animate
+    move-animation-threshold 10         // smaller floating moves don't animate
 }
 
 // Add lines like this to spawn processes at startup.
@@ -306,6 +318,15 @@ animations {
 
     // Slow down all animations by this factor. Values below 1 speed them up instead.
     // slowdown 3.0
+
+    // topaz build of niri (ledger 0037): the open/close curve shape (the
+    // timing above was already configurable). Upstream values.
+    window-open {
+        scale-from 0.5
+    }
+    window-close {
+        scale-to 0.8
+    }
 }
 
 // Window rules let you adjust behavior for individual windows.
@@ -650,5 +671,79 @@ window-rule {
 
     background-effect {
         blur true
+        // niri defaults blur to "xray" (see through every window to the
+        // wallpaper — cheap, cached once). COSMIC's frosted glass blurs what
+        // is actually behind the surface, so turn xray off here and on the
+        // shell's layer surfaces below.
+        xray false
     }
+}
+
+// Same for COSMIC's layer-shell surfaces (OSD, launcher, notifications,
+// panel popups): libcosmic requests blur through ext-background-effect
+// and niri would otherwise punch a see-through rectangle to the wallpaper.
+layer-rule {
+    match layer="top"
+    match layer="overlay"
+
+    background-effect {
+        xray false
+    }
+}
+
+// topaz build of niri (ledger 0037): gesture, overview, window-switcher and
+// timeout constants that upstream compiles in, shown at their upstream
+// values. Everything hot-reloads.
+gestures {
+    touchpad-swipe {
+        // Finger travel (logical px) for one workspace (vertical swipe), one
+        // screen width of view scroll (horizontal swipe) and a full overview
+        // open/close. A slow swipe commits once it passes half the distance;
+        // shorter swipes snap back. Lower = less travel.
+        workspace-movement 300
+        view-movement 1200
+        overview-movement 300
+        // Which finger count drives the workspace/view swipe and the overview swipe.
+        workspace-fingers 3
+        overview-fingers 4
+        // Fling projection on release: velocity retained per millisecond
+        // (closer to 1 = a flick carries further) and how many ms of recent
+        // movement estimate that velocity.
+        deceleration 0.997
+        velocity-window-ms 150
+        // Overscroll feel past the first/last workspace and the overview ends.
+        workspace-rubber-band stiffness=0.5 limit=0.05
+        overview-rubber-band stiffness=0.5 limit=0.05
+    }
+    dnd-edge-workspace-switch {
+        // Edge-scroll distance per workspace while drag-and-dropping.
+        workspace-movement 1500
+    }
+    hot-corners {
+        // Size of the corner hit area; upstream is exactly one pixel.
+        trigger-size 1
+    }
+    pointer-drag {
+        // Mod+mouse drag: travel before it locks to horizontal or vertical.
+        direction-lock-distance 8
+    }
+    touch {
+        // Touchscreen hold before a window in the overview starts moving.
+        long-press-ms 500
+    }
+}
+
+overview {
+    // Repeat cooldown for wheel scrolling in the overview.
+    scroll-cooldown-ms 50
+}
+
+recent-windows {
+    // How much of the neighbouring previews peeks in at the screen edges.
+    edge-peek 192
+}
+
+timeouts {
+    xdg-activation-token-ms 10000   // how long a focus-request token stays valid
+    lock-surface-ms 1000            // wait for lock surfaces to paint before locking anyway
 }

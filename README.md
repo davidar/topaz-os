@@ -30,7 +30,8 @@ In broad strokes:
   screen and fingerprint re-arm after suspend, pending upstream.
 - **COSMIC on niri** — a second session running the stock COSMIC shell on the
   [niri](https://github.com/YaLTeR/niri) scrollable-tiling compositor, with the normal
-  COSMIC session still there as the fallback.
+  COSMIC session still there as the fallback. niri is built from source with every
+  hardcoded gesture, input, layout and animation constant promoted to config.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

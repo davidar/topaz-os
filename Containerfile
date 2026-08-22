@@ -112,6 +112,31 @@ RUN git init -q /src-idle && \
         "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" \
         > /out/build-info
 
+# niri itself, rebuilt from the upstream release Fedora packages plus one
+# patch (ledger 0037): the touchpad swipe distances are compile-time
+# constants upstream; the patch makes them config keys that hot-reload
+# like the rest of niri's config. Same Fedora-release rule as above.
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
+ARG NIRI_REPO=https://github.com/niri-wm/niri.git
+ARG NIRI_REF=b0eb8ad8c80094de34abd88c109aea421461622b
+RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
+    git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
+    glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \
+    libinput-devel pipewire-devel libseat-devel systemd-devel pango-devel \
+    wayland-devel libxkbcommon-devel && dnf clean all
+COPY build_files/niri-tunables.patch /patches/
+RUN git init -q /src && \
+    git -C /src fetch --depth=1 "$NIRI_REPO" "$NIRI_REF" && \
+    git -C /src checkout -q FETCH_HEAD && \
+    git -C /src apply /patches/niri-tunables.patch && \
+    # Upstream's release profile keeps line-table debuginfo (a 160 MiB
+    # binary); strip at link time like the Fedora package does.
+    SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
+    CARGO_PROFILE_RELEASE_STRIP=true \
+        cargo build --release --manifest-path=/src/Cargo.toml && \
+    install -Dm0755 /src/target/release/niri /out/niri && \
+    printf 'niri_repo=%s\nniri_ref=%s\n' "$NIRI_REPO" "$NIRI_REF" > /out/build-info
+
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:6a1b8c50515e2dbebe2eb09e7807bb859a06137910ef9f92aaf97b0feaec3940
 
@@ -144,8 +169,10 @@ RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/in
     /ctx/install-greeter.sh
 
 # niri-session binaries from the niri-session-build stage (ledger 0035)
+# and the patched niri from the niri-build stage (ledger 0037)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
+    --mount=type=bind,from=niri-build,source=/out,target=/niri-build \
     /ctx/install-niri-session.sh
 
 # topaz system files and configuration on top of the installed set

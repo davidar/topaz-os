@@ -33,8 +33,9 @@ components talk to niri over the standard `ext-*` protocols.
 Three pieces make it an image feature rather than a hand-assembled trial:
 
 - **niri and xwayland-satellite** come from the locked Fedora package set
-  (ledger 0022). niri has no built-in XWayland; xwayland-satellite provides
-  it for X11 clients.
+  (ledger 0022); the niri binary itself is then replaced by the image's own
+  build of the same release with one patch (ledger 0037). niri has no
+  built-in XWayland; xwayland-satellite provides it for X11 clients.
 - **cosmic-ext-alternative-startup** has no package anywhere, so the image
   builds it (Containerfile `niri-session-build` stage) from a pinned
   upstream commit.
