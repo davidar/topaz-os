@@ -99,11 +99,11 @@ RUN git init -q /src-startup && \
         cargo build --release --manifest-path=/src-startup/Cargo.toml && \
     install -Dm0755 /src-startup/target/release/cosmic-ext-alternative-startup \
         /out/cosmic-ext-alternative-startup
-COPY build_files/cosmic-idle-optional-output-power.patch /patches/
+COPY build_files/cosmic-idle-niri-compat.patch /patches/
 RUN git init -q /src-idle && \
     git -C /src-idle fetch --depth=1 "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" && \
     git -C /src-idle checkout -q FETCH_HEAD && \
-    git -C /src-idle apply /patches/cosmic-idle-optional-output-power.patch && \
+    git -C /src-idle apply /patches/cosmic-idle-niri-compat.patch && \
     SOURCE_DATE_EPOCH="$(git -C /src-idle log -1 --format=%ct)" \
         cargo build --release --manifest-path=/src-idle/Cargo.toml && \
     install -Dm0755 /src-idle/target/release/cosmic-idle /out/cosmic-idle && \

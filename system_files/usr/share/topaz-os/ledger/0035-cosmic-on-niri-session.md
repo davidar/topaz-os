@@ -39,14 +39,22 @@ Three pieces make it an image feature rather than a hand-assembled trial:
   builds it (Containerfile `niri-session-build` stage) from a pinned
   upstream commit.
 - **cosmic-idle** is rebuilt from the same upstream commit Fedora packages,
-  with one patch: upstream binds `zwlr_output_power_manager_v1`
-  unconditionally and aborts when the compositor does not offer it. niri
-  does not implement that protocol, so the packaged binary dies at session
-  start, taking idle locking and idle suspend with it. Patched, the bind is
-  optional and only screen power-off is lost (the fade-to-black surface
-  still covers the screens). The patched binary replaces the packaged one
+  with one patch (`cosmic-idle-niri-compat.patch`): upstream binds
+  `zwlr_output_power_manager_v1` and `wp_single_pixel_buffer_manager_v1`
+  unconditionally and aborts when the compositor does not offer them. niri
+  implements neither, so the packaged binary dies at session start, taking
+  idle locking and idle suspend with it. Patched, both binds are optional:
+  without single-pixel-buffer the fade-to-black surface draws a 1×1
+  `wl_shm` buffer instead, and without output-power-management screen
+  power goes through the compositor's own IPC where there is one
+  (`niri msg action power-off-monitors` / `power-on-monitors`, used only
+  when `NIRI_SOCKET` is set). The patched binary replaces the packaged one
   image-wide; it is a superset of upstream's behavior, so the COSMIC
-  session is unaffected.
+  session is unaffected. The first version of this patch covered only the
+  output-power bind and had been exercised only under cosmic-comp, where
+  the other protocol exists — on niri it still crashed. The check now
+  asserts both fallbacks are compiled in, and the fix was run under niri
+  before it shipped.
 
 `/usr/bin/start-cosmic-niri` is derived at build time from the packaged
 `start-cosmic` by substituting the compositor argument, so both sessions

@@ -15,17 +15,18 @@ set -ouex pipefail
 #
 # cosmic-idle is replaced with a build of the same upstream commit Fedora
 # packages, plus one patch: upstream unconditionally binds
-# zwlr_output_power_manager_v1 and aborts when it is missing. niri does
-# not implement that protocol, so the packaged binary dies at session
-# start and takes idle locking and idle suspend with it; patched, screens
-# simply stay powered (the fade-to-black surface still covers them).
-# Guard: fail loudly when Fedora bumps cosmic-idle, so the patch is
-# re-verified against the new source rather than silently shadowing it.
+# zwlr_output_power_manager_v1 and wp_single_pixel_buffer_manager_v1 and
+# aborts when either is missing. niri implements neither, so the packaged
+# binary dies at session start and takes idle locking and idle suspend
+# with it; patched, the fade uses a wl_shm buffer and screen power goes
+# through niri's own IPC. Guard: fail loudly when Fedora bumps
+# cosmic-idle, so the patch is re-verified against the new source rather
+# than silently shadowing it.
 patch_base_version=1.5.0
 packaged_version=$(rpm -q --qf '%{VERSION}' cosmic-idle)
 if [ "$packaged_version" != "$patch_base_version" ]; then
     echo "cosmic-idle is now $packaged_version but the patch is based on $patch_base_version" >&2
-    echo "Re-verify build_files/cosmic-idle-optional-output-power.patch and update COSMIC_IDLE_REF" >&2
+    echo "Re-verify build_files/cosmic-idle-niri-compat.patch and update COSMIC_IDLE_REF" >&2
     exit 1
 fi
 install -m0755 /niri-session/cosmic-ext-alternative-startup \

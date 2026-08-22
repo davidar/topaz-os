@@ -107,8 +107,9 @@ cmd_check() {
                      /usr/share/wayland-sessions/cosmic-niri.desktop)"'
     chk "cosmic-session startup shim for niri is installed" \
         test -x /usr/bin/cosmic-ext-alternative-startup
-    chk "cosmic-idle treats wlr-output-power-management as optional" \
-        grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle
+    chk "cosmic-idle runs without wlr-output-power and single-pixel-buffer (niri)" \
+        bash -c 'grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle &&
+                 grep -aq "fading to black through wl_shm" /usr/bin/cosmic-idle'
     chk "baked niri config is valid and starts the COSMIC shim" \
         bash -c 'grep -q cosmic-ext-alternative-startup /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'

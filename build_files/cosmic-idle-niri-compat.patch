@@ -1,0 +1,243 @@
+diff --git a/src/fade_black.rs b/src/fade_black.rs
+index aed3cbe..e1ac5f8 100644
+--- a/src/fade_black.rs
++++ b/src/fade_black.rs
+@@ -1,10 +1,16 @@
+ // Layer shell surface that fades to black, before setting DPMS off.
+ 
+ use keyframe::{ease, functions::EaseInOut};
+-use std::time::{Duration, Instant};
++use std::{
++    fs::OpenOptions,
++    io::Write,
++    os::fd::AsFd,
++    path::PathBuf,
++    time::{Duration, Instant},
++};
+ use wayland_client::{
+     Connection, Dispatch, QueueHandle, delegate_noop,
+-    protocol::{wl_buffer, wl_callback, wl_output, wl_pointer, wl_surface},
++    protocol::{wl_buffer, wl_callback, wl_output, wl_pointer, wl_shm, wl_shm_pool, wl_surface},
+ };
+ use wayland_protocols::wp::{
+     single_pixel_buffer::v1::client::wp_single_pixel_buffer_manager_v1,
+@@ -64,10 +70,16 @@ impl FadeBlackSurface {
+     pub fn update(&self, inner: &StateInner) {
+         let time = self.started.elapsed().as_secs_f64() / FADE_TIME.as_secs_f64();
+         let alpha = ease(EaseInOut, 0., u32::MAX as f64, time) as u32;
+-        let buffer =
+-            inner
+-                .single_pixel_buffer_manager
+-                .create_u32_rgba_buffer(0, 0, 0, alpha, &inner.qh, ());
++        let buffer = match &inner.single_pixel_buffer_manager {
++            Some(manager) => manager.create_u32_rgba_buffer(0, 0, 0, alpha, &inner.qh, ()),
++            None => match shm_black_pixel(inner, alpha) {
++                Ok(buffer) => buffer,
++                Err(err) => {
++                    log::error!("failed to create fade-to-black buffer: {}", err);
++                    return;
++                }
++            },
++        };
+         self.surface.attach(Some(&buffer), 0, 0);
+         self.surface.frame(&inner.qh, self.surface.clone());
+         self.surface.damage(0, 0, i32::MAX, i32::MAX);
+@@ -76,6 +88,41 @@ impl FadeBlackSurface {
+     }
+ }
+ 
++// Fallback for compositors without wp-single-pixel-buffer (niri): a 1x1
++// ARGB8888 wl_shm buffer holding the same premultiplied black pixel. The
++// viewport scales it to the output exactly like the single-pixel buffer.
++fn shm_black_pixel(inner: &StateInner, alpha: u32) -> std::io::Result<wl_buffer::WlBuffer> {
++    let dir = std::env::var_os("XDG_RUNTIME_DIR")
++        .map(PathBuf::from)
++        .unwrap_or_else(std::env::temp_dir);
++    let path = dir.join(format!("cosmic-idle-fade-{}", std::process::id()));
++    let mut file = OpenOptions::new()
++        .read(true)
++        .write(true)
++        .create(true)
++        .truncate(true)
++        .open(&path)?;
++    // The descriptor is the only handle anyone needs; a fresh file per frame
++    // keeps the compositor's mapping of the previous one untouched.
++    let _ = std::fs::remove_file(&path);
++    let pixel = [0u8, 0, 0, (alpha >> 24) as u8]; // little-endian ARGB: B, G, R, A
++    file.write_all(&pixel)?;
++    let pool = inner
++        .shm
++        .create_pool(file.as_fd(), pixel.len() as i32, &inner.qh, ());
++    let buffer = pool.create_buffer(
++        0,
++        1,
++        1,
++        pixel.len() as i32,
++        wl_shm::Format::Argb8888,
++        &inner.qh,
++        (),
++    );
++    pool.destroy();
++    Ok(buffer)
++}
++
+ impl Drop for FadeBlackSurface {
+     fn drop(&mut self) {
+         self.viewport.destroy();
+@@ -179,3 +226,5 @@ impl Dispatch<wl_pointer::WlPointer, ()> for State {
+ delegate_noop!(State: ignore wl_buffer::WlBuffer);
+ delegate_noop!(State: ignore wl_surface::WlSurface);
+ delegate_noop!(State: wp_single_pixel_buffer_manager_v1::WpSinglePixelBufferManagerV1);
++delegate_noop!(State: ignore wl_shm::WlShm);
++delegate_noop!(State: wl_shm_pool::WlShmPool);
+diff --git a/src/main.rs b/src/main.rs
+index d8511c3..62d5ce6 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -11,7 +11,7 @@ use upower_dbus::UPowerProxy;
+ use wayland_client::{
+     Connection, Dispatch, Proxy, QueueHandle, delegate_noop,
+     globals::{GlobalListContents, registry_queue_init},
+-    protocol::{wl_compositor, wl_output, wl_registry, wl_seat},
++    protocol::{wl_compositor, wl_output, wl_registry, wl_seat, wl_shm},
+ };
+ use wayland_protocols::{
+     ext::idle_notify::v1::client::{ext_idle_notification_v1, ext_idle_notifier_v1},
+@@ -74,7 +74,7 @@ async fn receive_battery_task(sender: EventSender) -> zbus::Result<()> {
+ #[derive(Debug)]
+ struct Output {
+     output: wl_output::WlOutput,
+-    output_power: zwlr_output_power_v1::ZwlrOutputPowerV1,
++    output_power: Option<zwlr_output_power_v1::ZwlrOutputPowerV1>,
+     fade_surface: Option<FadeBlackSurface>,
+     global_name: u32,
+ }
+@@ -82,11 +82,13 @@ struct Output {
+ // Immutate references to globals, needed for calls
+ struct StateInner {
+     registry: wl_registry::WlRegistry,
+-    output_power_manager: zwlr_output_power_manager_v1::ZwlrOutputPowerManagerV1,
++    output_power_manager: Option<zwlr_output_power_manager_v1::ZwlrOutputPowerManagerV1>,
+     compositor: wl_compositor::WlCompositor,
+     layer_shell: zwlr_layer_shell_v1::ZwlrLayerShellV1,
+     viewporter: wp_viewporter::WpViewporter,
+-    single_pixel_buffer_manager: wp_single_pixel_buffer_manager_v1::WpSinglePixelBufferManagerV1,
++    single_pixel_buffer_manager:
++        Option<wp_single_pixel_buffer_manager_v1::WpSinglePixelBufferManagerV1>,
++    shm: wl_shm::WlShm,
+     idle_notifier: ext_idle_notifier_v1::ExtIdleNotifierV1,
+     seat: wl_seat::WlSeat,
+     qh: QueueHandle<State>,
+@@ -128,10 +130,11 @@ impl State {
+             .inner
+             .registry
+             .bind(global_name, version.min(3), &self.inner.qh, ());
+-        let output_power =
+-            self.inner
+-                .output_power_manager
+-                .get_output_power(&output, &self.inner.qh, ());
++        let output_power = self
++            .inner
++            .output_power_manager
++            .as_ref()
++            .map(|manager| manager.get_output_power(&output, &self.inner.qh, ()));
+         self.outputs.push(Output {
+             output,
+             output_power,
+@@ -146,19 +149,39 @@ impl State {
+                 output.fade_surface = Some(FadeBlackSurface::new(&self.inner, &output.output));
+             } else {
+                 output.fade_surface = None;
+-                output.output_power.set_mode(zwlr_output_power_v1::Mode::On);
++                if let Some(output_power) = &output.output_power {
++                    output_power.set_mode(zwlr_output_power_v1::Mode::On);
++                }
+             }
+         }
++        if !is_idle {
++            self.niri_set_monitors_power(true);
++        }
++    }
++
++    // Without wlr-output-power-management, fall back to the compositor's own
++    // IPC where one exists: niri exposes the same DPMS switch as an action.
++    fn niri_set_monitors_power(&self, on: bool) {
++        if self.inner.output_power_manager.is_some() || std::env::var_os("NIRI_SOCKET").is_none() {
++            return;
++        }
++        let action = if on {
++            "power-on-monitors"
++        } else {
++            "power-off-monitors"
++        };
++        crate::run_command(format!("niri msg action {}", action));
+     }
+ 
+     // Fade surfaces on all outputs have finished fading out
+     fn fade_done(&mut self) {
+         for output in &mut self.outputs {
+-            output
+-                .output_power
+-                .set_mode(zwlr_output_power_v1::Mode::Off);
++            if let Some(output_power) = &output.output_power {
++                output_power.set_mode(zwlr_output_power_v1::Mode::Off);
++            }
+             output.fade_surface = None;
+         }
++        self.niri_set_monitors_power(false);
+ 
+         let timer = timer::Timer::from_duration(LOCK_SCREEN_DELAY);
+         self.loop_handle
+@@ -238,9 +261,18 @@ fn main() {
+     let (globals, event_queue) = registry_queue_init::<State>(&connection).unwrap();
+     let qh = event_queue.handle();
+ 
++    // Optional: not every compositor offers wlr-output-power-management
++    // (niri doesn't). Without it, screen-off is the fade-to-black surface
++    // only; idle lock and suspend work regardless.
+     let output_power_manager = globals
+         .bind::<zwlr_output_power_manager_v1::ZwlrOutputPowerManagerV1, _, _>(&qh, 1..=1, ())
+-        .unwrap();
++        .inspect_err(|err| {
++            log::warn!(
++                "no zwlr-output-power-management global; screens will not power off on idle: {}",
++                err
++            )
++        })
++        .ok();
+ 
+     let idle_notifier = globals
+         .bind::<ext_idle_notifier_v1::ExtIdleNotifierV1, _, _>(&qh, 1..=1, ())
+@@ -263,13 +295,23 @@ fn main() {
+         .bind::<wp_viewporter::WpViewporter, _, _>(&qh, 1..=1, ())
+         .unwrap();
+ 
++    // Optional as well (niri lacks it): the fade-to-black surface then uses
++    // a 1x1 wl_shm buffer instead, see fade_black.rs.
+     let single_pixel_buffer_manager = globals
+         .bind::<wp_single_pixel_buffer_manager_v1::WpSinglePixelBufferManagerV1, _, _>(
+             &qh,
+             1..=1,
+             (),
+         )
+-        .unwrap();
++        .inspect_err(|err| {
++            log::warn!(
++                "no wp-single-pixel-buffer global; fading to black through wl_shm instead: {}",
++                err
++            )
++        })
++        .ok();
++
++    let shm = globals.bind::<wl_shm::WlShm, _, _>(&qh, 1..=1, ()).unwrap();
+ 
+     let config = cosmic_config::Config::new("com.system76.CosmicIdle", 1).unwrap();
+     let conf = CosmicIdleConfig::get_entry(&config).unwrap_or_else(|(errs, conf)| {
+@@ -292,6 +334,7 @@ fn main() {
+             layer_shell,
+             viewporter,
+             single_pixel_buffer_manager,
++            shm,
+             idle_notifier,
+             seat,
+             qh,
