@@ -81,7 +81,16 @@ defaulting to upstream behaviour where a default exists:
   blur; only pixels below `mask-threshold` alpha (default 0.25) ramp to
   none. `mask`/`mask-threshold` live in every `background-effect` rule
   block, hot-reloaded. The former corner-radius rule in the baked config
-  is gone.
+  is gone. Two details make it hold on real COSMIC surfaces: the mask
+  texture is looked up through Smithay's multi-GPU renderer (the TTY
+  backend's, under which the plain lookup found nothing and the mask
+  silently switched off), and a surface's declared opaque region is not
+  trusted — libcosmic's layer surfaces (the OSD, the launcher) declare
+  themselves fully opaque over transparent corners, so only a buffer
+  format without alpha disqualifies a surface, and such surfaces are
+  rendered without opaque regions so the masked effect beneath their
+  corners is not culled. Each surface's mask outcome is logged once per
+  change at debug level, so the next silent failure names itself.
 - **Trusted sandbox engines.** Clients connecting through a
   `wp_security_context_v1` listener are restricted to the unprivileged
   protocol set in upstream niri, unconditionally. COSMIC's panel hands
