@@ -107,6 +107,12 @@ cmd_check() {
                      /usr/share/wayland-sessions/cosmic-niri.desktop)"'
     chk "cosmic-session startup shim for niri is installed" \
         test -x /usr/bin/cosmic-ext-alternative-startup
+    chk "niri session logs to the journal and routes the workspaces overlay to niri" \
+        bash -c 'test -x /usr/libexec/topaz/niri-journal &&
+                 test -x /usr/libexec/topaz/niri-session/cosmic-workspaces &&
+                 grep -q "cosmic-session /usr/libexec/topaz/niri-journal " /usr/bin/start-cosmic-niri &&
+                 grep -q "^export PATH=/usr/libexec/topaz/niri-session:" /usr/bin/start-cosmic-niri &&
+                 ! grep -q "cosmic-session niri" /usr/bin/start-cosmic-niri'
     chk "cosmic-idle runs without wlr-output-power and single-pixel-buffer (niri)" \
         bash -c 'grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle &&
                  grep -aq "fading to black through wl_shm" /usr/bin/cosmic-idle'

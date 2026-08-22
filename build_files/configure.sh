@@ -105,11 +105,20 @@ sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
 # from the packaged script instead of shipping a second copy, so upstream
 # changes to the session environment reach both sessions. The session
 # file sets XDG_CURRENT_DESKTOP=niri, which the script only defaults.
-# Guard: fail the build if either exec line moves or changes shape.
+# The compositor is launched through /usr/libexec/topaz/niri-journal,
+# which sends niri's log to the journal (cosmic-session discards the
+# compositor's stderr), and a directory of session-only shims is put on
+# PATH ahead of the packaged binaries (the panel's Workspaces button is
+# routed to niri's own overview). Guards: fail the build if either exec
+# line or the run marker moves or changes shape.
 [ "$(grep -c '/usr/bin/cosmic-session$' /usr/bin/start-cosmic)" = 2 ]
-sed 's|/usr/bin/cosmic-session$|/usr/bin/cosmic-session niri|' \
+[ "$(grep -c '^# Run cosmic-session$' /usr/bin/start-cosmic)" = 1 ]
+sed -e 's|/usr/bin/cosmic-session$|/usr/bin/cosmic-session /usr/libexec/topaz/niri-journal|' \
+    -e 's|^# Run cosmic-session$|export PATH=/usr/libexec/topaz/niri-session:$PATH\n\n&|' \
     /usr/bin/start-cosmic > /usr/bin/start-cosmic-niri
 chmod 0755 /usr/bin/start-cosmic-niri
+test -x /usr/libexec/topaz/niri-journal
+test -x /usr/libexec/topaz/niri-session/cosmic-workspaces
 
 ### Session teardown stops graphical-session.target (ledger 0036)
 # start-cosmic execs cosmic-session and never stops graphical-session.target
@@ -124,9 +133,9 @@ chmod 0755 /usr/bin/start-cosmic-niri
 # sessions is clean in either direction.
 # Guard: fail the build if the exec lines move or change shape.
 for launcher in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
-    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( niri)?$' \
+    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( /usr/libexec/topaz/niri-journal)?$' \
         "$launcher")" = 2 ]
-    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( niri)?)$#    \1 || rc=$?#' \
+    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( /usr/libexec/topaz/niri-journal)?)$#    \1 || rc=$?#' \
         "$launcher"
     cat >> "$launcher" <<'TEARDOWN'
 

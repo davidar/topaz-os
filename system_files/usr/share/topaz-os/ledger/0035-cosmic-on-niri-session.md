@@ -5,6 +5,8 @@ status: active
 paths:
   - /usr/share/wayland-sessions/cosmic-niri.desktop
   - /usr/bin/start-cosmic-niri
+  - /usr/libexec/topaz/niri-journal
+  - /usr/libexec/topaz/niri-session/cosmic-workspaces
   - /usr/bin/cosmic-ext-alternative-startup
   - /usr/bin/cosmic-idle
   - /etc/niri/config.kdl
@@ -60,7 +62,26 @@ Three pieces make it an image feature rather than a hand-assembled trial:
 
 `/usr/bin/start-cosmic-niri` is derived at build time from the packaged
 `start-cosmic` by substituting the compositor argument, so both sessions
-share one startup environment and upstream changes to it reach both.
+share one startup environment and upstream changes to it reach both. Two
+session-only pieces are added in the derivation:
+
+- The compositor argument is `/usr/libexec/topaz/niri-journal`, a wrapper
+  that runs niri with its output in the journal. cosmic-session pipes the
+  compositor's stdout and stderr into its process supervisor and forwards
+  neither — cosmic-comp logs to journald on its own, so upstream never
+  needed to — and niri writes only to stderr, so every line it logged was
+  lost. The wrapper strips niri's colour codes and hands the rest to
+  `systemd-cat -t niri`; it does not set `NO_COLOR`, because the
+  compositor's environment is inherited by every app in the session.
+- `/usr/libexec/topaz/niri-session` is put on `PATH` ahead of the packaged
+  binaries, for this session only. It holds one shim: `cosmic-workspaces`
+  needs cosmic-comp's zcosmic toplevel, workspace and image-capture
+  protocols and exits the moment its overlay is toggled on niri. The
+  daemon instance cosmic-session starts is passed to the real binary (idle
+  and harmless); the panel's Workspaces button, which re-runs the desktop
+  file's `Exec=` to toggle the overlay, is routed to niri's own overview
+  (`niri msg action toggle-overview`) instead.
+
 `/etc/niri/config.kdl` — niri's system-wide fallback, used by any account
 without `~/.config/niri/config.kdl` — is niri's default config with the
 bar replaced by the shim, the terminal/launcher/lock binds pointed at

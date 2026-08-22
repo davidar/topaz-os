@@ -1,0 +1,14 @@
+#!/bin/bash
+# Routes the panel's Workspaces button to niri's overview (ledger 0035).
+# cosmic-workspaces needs cosmic-comp's zcosmic toplevel, workspace and
+# image-capture globals and exits the moment its overlay is toggled on
+# niri. cosmic-session starts it once as a daemon (idle and harmless); the
+# panel's Workspaces button then runs the desktop file's
+# Exec=cosmic-workspaces again to toggle the overlay. This directory is on
+# PATH only inside the niri session: the daemon start is passed to the
+# real binary, the toggle goes to niri.
+real=/usr/bin/cosmic-workspaces
+if [ $# -eq 0 ] && [ "$(cat /proc/$PPID/comm 2>/dev/null)" != cosmic-session ]; then
+    exec niri msg action toggle-overview
+fi
+exec "$real" "$@"

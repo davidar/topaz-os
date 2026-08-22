@@ -1,0 +1,11 @@
+#!/bin/bash
+# Runs niri as the "COSMIC on niri" session's compositor with its log in the
+# journal (ledger 0035). cosmic-session pipes the compositor's stdout and
+# stderr into launch-pad and registers no forwarder for them: cosmic-comp
+# logs to journald by itself, so upstream never needed one, but niri only
+# writes to stderr and every line of it vanished. niri colours its output
+# when asked nicely and not otherwise; the escape codes are stripped on the
+# way out rather than through NO_COLOR, because the compositor is the root
+# of the session's process tree and its environment reaches every app.
+exec /usr/bin/niri "$@" \
+    > >(sed -u 's/\x1b\[[0-9;]*m//g' | systemd-cat -t niri --level-prefix=false) 2>&1
