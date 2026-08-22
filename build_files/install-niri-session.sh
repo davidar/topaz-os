@@ -36,7 +36,7 @@ install -m0755 /niri-session/cosmic-idle /usr/bin/cosmic-idle
 
 ### niri with configurable swipe distances (ledger 0037)
 # The packaged niri binary is replaced by a build of the same upstream
-# release with build_files/niri-tunables.patch applied. Everything
+# release with build_files/niri-topaz.patch applied. Everything
 # else from the niri package (session files, systemd units, default
 # config, docs) stays. Guard: fail loudly when Fedora bumps niri, so the
 # patch is re-verified against the new source and NIRI_REF moved.
@@ -44,7 +44,7 @@ niri_base_version=26.04
 packaged_niri=$(rpm -q --qf '%{VERSION}' niri)
 if [ "$packaged_niri" != "$niri_base_version" ]; then
     echo "niri is now $packaged_niri but the patch is based on $niri_base_version" >&2
-    echo "Re-verify build_files/niri-tunables.patch and update NIRI_REF" >&2
+    echo "Re-verify build_files/niri-topaz.patch and update NIRI_REF" >&2
     exit 1
 fi
 install -m0755 /niri-build/niri /usr/bin/niri

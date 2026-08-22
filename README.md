@@ -31,7 +31,8 @@ In broad strokes:
 - **COSMIC on niri** — a second session running the stock COSMIC shell on the
   [niri](https://github.com/YaLTeR/niri) scrollable-tiling compositor, with the normal
   COSMIC session still there as the fallback. niri is built from source with every
-  hardcoded gesture, input, layout and animation constant promoted to config.
+  hardcoded gesture, input, layout and animation constant promoted to config and blur
+  masked by each surface's own shape.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

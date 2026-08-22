@@ -124,11 +124,11 @@ RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \
     libinput-devel pipewire-devel libseat-devel systemd-devel pango-devel \
     wayland-devel libxkbcommon-devel && dnf clean all
-COPY build_files/niri-tunables.patch /patches/
+COPY build_files/niri-topaz.patch /patches/
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$NIRI_REPO" "$NIRI_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
-    git -C /src apply /patches/niri-tunables.patch && \
+    git -C /src apply /patches/niri-topaz.patch && \
     # Upstream's release profile keeps line-table debuginfo (a 160 MiB
     # binary); strip at link time like the Fedora package does.
     SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \

@@ -661,14 +661,11 @@ binds {
 // translucency in two pieces: a rectangular blur region published via
 // ext-background-effect, and rounded corners requested through the
 // zcosmic corner-radius protocol — which only cosmic-comp implements.
-// On niri the corner request goes nowhere, so a blurred rectangle would
-// show through the window's own rounded edges. Rounding and blur are
-// therefore driven by rule here instead: niri clips each window to its
-// own rounded geometry and blurs behind it.
+// On niri the corner request goes nowhere. The topaz build of niri
+// (ledger 0037) masks every background effect by the surface's own
+// alpha, so the blur follows the rounded shape the client actually
+// painted and no corner radius needs restating here.
 window-rule {
-    geometry-corner-radius 8
-    clip-to-geometry true
-
     background-effect {
         blur true
         // niri defaults blur to "xray" (see through every window to the
@@ -676,6 +673,11 @@ window-rule {
         // is actually behind the surface, so turn xray off here and on the
         // shell's layer surfaces below.
         xray false
+        // Alpha masking (topaz build): on by default; the threshold is the
+        // surface alpha at which the effect reaches full strength, shown at
+        // its default. Lower it if antialiased edges look stepped.
+        mask true
+        mask-threshold 0.25
     }
 }
 
@@ -689,6 +691,17 @@ layer-rule {
     background-effect {
         xray false
     }
+}
+
+// COSMIC's panel hands its applets a wp_security_context socket rather
+// than the session socket, and niri restricts every security-context
+// client to the unprivileged protocol set — which hides the window list
+// from the dock and the workspace list from the workspaces applet. The
+// topaz build of niri (ledger 0037) can trust a sandbox engine by name;
+// only unrestricted clients can create security contexts, so nothing
+// sandboxed can claim this label for itself (ledger 0038).
+security-context {
+    trust-sandbox-engine "com.system76.CosmicPanel"
 }
 
 // topaz build of niri (ledger 0037): gesture, overview, window-switcher and

@@ -110,7 +110,7 @@ cmd_check() {
     chk "cosmic-idle runs without wlr-output-power and single-pixel-buffer (niri)" \
         bash -c 'grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle &&
                  grep -aq "fading to black through wl_shm" /usr/bin/cosmic-idle'
-    chk "niri is the topaz build with configurable swipe distances (ledger 0037)" \
+    chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
         bash -c 'test -f /usr/share/topaz-os/niri-session-build &&
                  rpm -Vf /usr/bin/niri | grep "/usr/bin/niri$" | grep -q 5 &&
                  [ "$(rpm -q --qf %{VERSION} niri)" = \
@@ -119,6 +119,8 @@ cmd_check() {
     chk "baked niri config is valid and starts the COSMIC shim" \
         bash -c 'grep -q cosmic-ext-alternative-startup /etc/niri/config.kdl &&
                  grep -q "touchpad-swipe" /etc/niri/config.kdl &&
+                 grep -q "mask-threshold" /etc/niri/config.kdl &&
+                 grep -q "trust-sandbox-engine \"com.system76.CosmicPanel\"" /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
     chk "session launchers tear graphical-session.target down on exit (ledger 0036)" \
         bash -c 'test -f /usr/lib/systemd/user/topaz-session-shutdown.target &&

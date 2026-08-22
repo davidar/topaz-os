@@ -1,5 +1,5 @@
 ---
-title: niri built from source with its hardcoded tunables promoted to config
+title: niri built from source with topaz patches (tunables, masked blur, trusted sandboxes)
 date: 2026-08-22
 status: active
 paths:
@@ -7,7 +7,7 @@ paths:
   - /usr/share/topaz-os/niri-session-build
   - /etc/niri/config.kdl
 ---
-# niri built from source with its hardcoded tunables promoted to config
+# niri built from source with topaz patches (tunables, masked blur, trusted sandboxes)
 
 niri is configured almost entirely from its config file, with one class of
 exception: the numbers that shape how gestures and interactions *feel* are
@@ -59,13 +59,39 @@ other niri option:
 
 The image builds niri (Containerfile `niri-build` stage) from the
 upstream commit Fedora's package is built from, with
-`build_files/niri-tunables.patch` applied, and the built binary
+`build_files/niri-topaz.patch` applied, and the built binary
 replaces `/usr/bin/niri`; everything else from the niri package — session
 files, units, default config, docs — is unchanged. `/etc/niri/config.kdl`
 (the baked fallback, ledger 0035) carries every key at its upstream
 default so the knobs are documented where they are set, and the build's
 `niri validate` proves the baked binary accepts them. Per-user configs
 override it entirely, as before.
+
+The same patch carries two further changes, both configurable and both
+defaulting to upstream behaviour where a default exists:
+
+- **Background effects masked by surface alpha.** niri draws blur (and
+  noise/saturation) over the rectangle a surface requests. libcosmic
+  draws its rounded corners client-side and requests a rectangular blur
+  region, so a square slab of blur showed behind every rounded corner on
+  niri; the only upstream remedy is restating each client's radius in a
+  window rule. The patch samples the surface's own texture and limits
+  the effect to pixels the surface covers, the way Hyprland's stencil
+  pass does. Coverage, not opacity: a translucent surface keeps full
+  blur; only pixels below `mask-threshold` alpha (default 0.25) ramp to
+  none. `mask`/`mask-threshold` live in every `background-effect` rule
+  block, hot-reloaded. The former corner-radius rule in the baked config
+  is gone.
+- **Trusted sandbox engines.** Clients connecting through a
+  `wp_security_context_v1` listener are restricted to the unprivileged
+  protocol set in upstream niri, unconditionally. COSMIC's panel hands
+  every applet such a socket, which is why the dock, workspaces and
+  minimize applets saw no windows on niri even once they no longer
+  crashed (ledger 0038). `security-context { trust-sandbox-engine
+  "<name>" }` lifts the restriction for clients of a named engine.
+  Safe by construction: only unrestricted clients can create security
+  contexts, so a sandboxed client cannot label itself. Default: no
+  engines trusted, i.e. upstream behaviour.
 
 The patch is a patch file, not a fork repository: it tracks the upstream
 tag, and the upstream project's contribution stance means it stays local.

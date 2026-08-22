@@ -63,10 +63,12 @@ share one startup environment and upstream changes to it reach both.
 `/etc/niri/config.kdl` — niri's system-wide fallback, used by any account
 without `~/.config/niri/config.kdl` — is niri's default config with the
 bar replaced by the shim, the terminal/launcher/lock binds pointed at
-COSMIC's, and one compatibility window rule: libcosmic's frosted-glass
-windows publish a rectangular blur region via `ext-background-effect` and
-round their corners through a zcosmic protocol only cosmic-comp
-implements, so on niri the rounding and blur are driven by rule instead.
+COSMIC's, and two compatibility rules: libcosmic's frosted-glass windows
+publish a rectangular blur region via `ext-background-effect` and round
+their corners through a zcosmic protocol only cosmic-comp implements, so
+on niri blur is enabled by rule with xray off (the topaz niri build masks
+it by the surface's own shape, ledger 0037); and the panel's sandbox
+engine is trusted so its applets see the window list (ledger 0038).
 
 `/usr/share/topaz-os/niri-session-build` records both pinned commits.
 Standing obligation, enforced by the build: when Fedora bumps cosmic-idle
