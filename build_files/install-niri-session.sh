@@ -49,6 +49,22 @@ if [ "$packaged_niri" != "$niri_base_version" ]; then
 fi
 install -m0755 /niri-build/niri /usr/bin/niri
 
+### COSMIC dock on niri (ledger 0038)
+# cosmic-applets is a multicall binary; /usr/bin/cosmic-app-list and the
+# other applet names are symlinks into it, so replacing the one binary
+# patches every applet. Same guard as above: a Fedora version bump fails
+# the build until the patch is re-verified and COSMIC_APPLETS_REF moved.
+applets_base_version=1.5.0
+packaged_applets=$(rpm -q --qf '%{VERSION}' cosmic-applets)
+if [ "$packaged_applets" != "$applets_base_version" ]; then
+    echo "cosmic-applets is now $packaged_applets but the patch is based on $applets_base_version" >&2
+    echo "Re-verify build_files/cosmic-applets-niri-dock.patch and update COSMIC_APPLETS_REF" >&2
+    exit 1
+fi
+test -L /usr/bin/cosmic-app-list
+install -m0755 /cosmic-applets-build/cosmic-applets /usr/bin/cosmic-applets
+
 { cat /niri-session/build-info; echo "idle_base=$patch_base_version";
-  cat /niri-build/build-info; echo "niri_base=$niri_base_version"; } \
+  cat /niri-build/build-info; echo "niri_base=$niri_base_version";
+  cat /cosmic-applets-build/build-info; echo "applets_base=$applets_base_version"; } \
     > /usr/share/topaz-os/niri-session-build

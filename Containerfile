@@ -137,6 +137,31 @@ RUN git init -q /src && \
     install -Dm0755 /src/target/release/niri /out/niri && \
     printf 'niri_repo=%s\nniri_ref=%s\n' "$NIRI_REPO" "$NIRI_REF" > /out/build-info
 
+# cosmic-applets rebuilt from the upstream commit Fedora packages plus one
+# patch (ledger 0038): the dock (cosmic-app-list) and the minimize applet
+# abort at startup without cosmic-comp's zcosmic toplevel manager. Patched,
+# they list windows through ext-foreign-toplevel-list and act on them
+# through wlr-foreign-toplevel-management when the zcosmic manager is
+# absent; under cosmic-comp the original path runs unchanged.
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS cosmic-applets-build
+ARG COSMIC_APPLETS_REPO=https://github.com/pop-os/cosmic-applets.git
+ARG COSMIC_APPLETS_REF=ec8ffdc85d1f316b387cf89672609933064e6e88
+RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
+    git-core just libxkbcommon-devel wayland-devel mesa-libEGL-devel \
+    mesa-libGL-devel fontconfig-devel freetype-devel dbus-devel \
+    pulseaudio-libs-devel pipewire-devel libinput-devel systemd-devel \
+    expat-devel openssl-devel lld && dnf clean all
+COPY build_files/cosmic-applets-niri-dock.patch /patches/
+RUN git init -q /src && \
+    git -C /src fetch --depth=1 "$COSMIC_APPLETS_REPO" "$COSMIC_APPLETS_REF" && \
+    git -C /src checkout -q FETCH_HEAD && \
+    git -C /src apply /patches/cosmic-applets-niri-dock.patch && \
+    SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
+    CARGO_PROFILE_RELEASE_STRIP=true \
+        cargo build --release --manifest-path=/src/Cargo.toml -p cosmic-applets && \
+    install -Dm0755 /src/target/release/cosmic-applets /out/cosmic-applets && \
+    printf 'applets_repo=%s\napplets_ref=%s\n' "$COSMIC_APPLETS_REPO" "$COSMIC_APPLETS_REF" > /out/build-info
+
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:6a1b8c50515e2dbebe2eb09e7807bb859a06137910ef9f92aaf97b0feaec3940
 
@@ -168,11 +193,13 @@ RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/in
     --mount=type=bind,from=greeter-build,source=/out,target=/greeter \
     /ctx/install-greeter.sh
 
-# niri-session binaries from the niri-session-build stage (ledger 0035)
-# and the patched niri from the niri-build stage (ledger 0037)
+# niri-session binaries from the niri-session-build stage (ledger 0035),
+# the patched niri from the niri-build stage (ledger 0037) and the
+# patched applets from the cosmic-applets-build stage (ledger 0038)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \
+    --mount=type=bind,from=cosmic-applets-build,source=/out,target=/cosmic-applets-build \
     /ctx/install-niri-session.sh
 
 # topaz system files and configuration on top of the installed set

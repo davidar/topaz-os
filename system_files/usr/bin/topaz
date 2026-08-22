@@ -122,6 +122,13 @@ cmd_check() {
                  grep -q "mask-threshold" /etc/niri/config.kdl &&
                  grep -q "trust-sandbox-engine \"com.system76.CosmicPanel\"" /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
+    chk "cosmic-applets is the topaz build with the wlr toplevel fallback (ledger 0038)" \
+        bash -c 'rpm -Vf /usr/bin/cosmic-applets | grep "/usr/bin/cosmic-applets$" | grep -q 5 &&
+                 [ "$(rpm -q --qf %{VERSION} cosmic-applets)" = \
+                   "$(sed -n "s/^applets_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
+                 grep -aq "zwlr_foreign_toplevel_manager_v1" /usr/bin/cosmic-applets &&
+                 [ "$(readlink -f /usr/bin/cosmic-app-list)" = /usr/bin/cosmic-applets ] &&
+                 ! ldd /usr/bin/cosmic-applets | grep -q "not found"'
     chk "session launchers tear graphical-session.target down on exit (ledger 0036)" \
         bash -c 'test -f /usr/lib/systemd/user/topaz-session-shutdown.target &&
                  for f in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
