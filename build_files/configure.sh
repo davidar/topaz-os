@@ -111,6 +111,41 @@ sed 's|/usr/bin/cosmic-session$|/usr/bin/cosmic-session niri|' \
     /usr/bin/start-cosmic > /usr/bin/start-cosmic-niri
 chmod 0755 /usr/bin/start-cosmic-niri
 
+### Session teardown stops graphical-session.target (ledger 0036)
+# start-cosmic execs cosmic-session and never stops graphical-session.target
+# when the session ends: xdg-desktop-portal's Requisite= on that target
+# pins it (it is StopWhenUnneeded), so a logout leaves the portal daemon —
+# and everything else PartOf= the target — alive with the dead session's
+# environment, and the next login of either session inherits a portal
+# wired to the previous compositor. Run cosmic-session as a child instead
+# and, once it exits, force the target down through a Conflicts= target
+# and unset the session variables: the teardown niri-session and
+# gnome-session already perform. Both launchers, so switching between the
+# sessions is clean in either direction.
+# Guard: fail the build if the exec lines move or change shape.
+for launcher in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
+    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( niri)?$' \
+        "$launcher")" = 2 ]
+    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( niri)?)$#    \1 || rc=$?#' \
+        "$launcher"
+    cat >> "$launcher" <<'TEARDOWN'
+
+# topaz-os (ledger 0036): tear the graphical session down once
+# cosmic-session exits, so nothing PartOf= graphical-session.target
+# outlives the session or leaks its environment into the next one.
+if command -v systemctl >/dev/null; then
+    systemctl --user start --job-mode=replace-irreversibly \
+        topaz-session-shutdown.target || :
+    systemctl --user unset-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET \
+        XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP || :
+fi
+exit "${rc:-0}"
+TEARDOWN
+    [ "$(grep -c ' || rc=\$?$' "$launcher")" = 2 ]
+    ! grep -qE '^ *exec .*cosmic-session' "$launcher"
+    bash -n "$launcher"
+done
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

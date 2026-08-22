@@ -1,0 +1,10 @@
+# topaz-os (ledger 0036): started by the session launchers once
+# cosmic-session exits. Conflicts= forces graphical-session.target down,
+# which xdg-desktop-portal's Requisite= on it otherwise keeps alive across
+# a logout. Same shape as niri-shutdown.target / gnome-session-shutdown.target.
+[Unit]
+Description=Shutdown running COSMIC session
+DefaultDependencies=no
+StopWhenUnneeded=true
+Conflicts=graphical-session.target graphical-session-pre.target
+After=graphical-session.target graphical-session-pre.target

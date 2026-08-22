@@ -113,6 +113,12 @@ cmd_check() {
     chk "baked niri config is valid and starts the COSMIC shim" \
         bash -c 'grep -q cosmic-ext-alternative-startup /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
+    chk "session launchers tear graphical-session.target down on exit (ledger 0036)" \
+        bash -c 'test -f /usr/lib/systemd/user/topaz-session-shutdown.target &&
+                 for f in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
+                     grep -q topaz-session-shutdown.target "$f" || exit 1
+                     ! grep -qE "^ *exec .*cosmic-session" "$f" || exit 1
+                 done'
     chk "GDM remains the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
