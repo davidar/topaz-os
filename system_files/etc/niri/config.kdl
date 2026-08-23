@@ -389,7 +389,12 @@ binds {
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
     Mod+D hotkey-overlay-title="Run an Application: cosmic-launcher" { spawn "cosmic-launcher"; }
-    Super+Alt+L hotkey-overlay-title="Lock the Screen: cosmic-greeter" { spawn "cosmic-greeter"; }
+    // Lock through logind: cosmic-session already runs the locker (cosmic-greeter)
+    // as a resident process that reacts to the session's Lock signal, the same
+    // path cosmic-idle uses. Spawning a second cosmic-greeter here takes the
+    // session lock and then exits (no logind session for a PID 1 child),
+    // leaving niri locked with nothing to unlock it.
+    Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn "loginctl" "lock-session"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.

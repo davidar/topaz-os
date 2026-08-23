@@ -84,8 +84,12 @@ session-only pieces are added in the derivation:
 
 `/etc/niri/config.kdl` — niri's system-wide fallback, used by any account
 without `~/.config/niri/config.kdl` — is niri's default config with the
-bar replaced by the shim, the terminal/launcher/lock binds pointed at
-COSMIC's, and two compatibility rules: libcosmic's frosted-glass windows
+bar replaced by the shim, the terminal/launcher binds pointed at COSMIC's,
+the lock bind routed through `loginctl lock-session` (cosmic-session runs
+the locker as a resident process that answers logind's Lock signal —
+spawning a second `cosmic-greeter` takes the session lock and then exits,
+leaving niri locked with nothing to unlock it), and two compatibility
+rules: libcosmic's frosted-glass windows
 publish a rectangular blur region via `ext-background-effect` and round
 their corners through a zcosmic protocol only cosmic-comp implements, so
 on niri blur is enabled by rule with xray off (the topaz niri build masks
