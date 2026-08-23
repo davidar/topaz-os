@@ -54,7 +54,7 @@ RUN git init -q /src && \
 # the binary links a glibc the image does not ship.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS greeter-build
 ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
-ARG COSMIC_GREETER_REF=9918b062a8c90a269a42d1dda056a48cf140d7c8
+ARG COSMIC_GREETER_REF=abf573b05fed6d605bfc5fb57ee4fde92863ed03
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     pam-devel clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
@@ -119,7 +119,7 @@ RUN git init -q /src-idle && \
 # panel's applets see the window list. Same Fedora-release rule as above.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
-ARG NIRI_REF=d20bd750d640f4f9b921d721b6d038db46e9636a
+ARG NIRI_REF=1c0c6f2cffbc57618b1e022eb2fb76fd148f8668
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \

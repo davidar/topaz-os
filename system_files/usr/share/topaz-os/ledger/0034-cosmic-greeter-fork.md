@@ -33,6 +33,16 @@ carries three small patches on top of the packaged 1.5.0:
   keep the patch series minimal).
 - **Lock state reported to logind** (`LockedHint`), so `loginctl` and
   anything watching the session sees the lock.
+- **Lock state follows the compositor.** The locker ignored the
+  ext-session-lock `finished` event (the compositor abandoning a lock it
+  never confirmed), so a failed lock left it believing the session was
+  locked — PAM conversation running, `LockedHint` set, and a stale
+  lockfile that made the next locker instance take the session lock the
+  moment it started. `finished` now resets it like an unlock. Paired
+  with this, a logind failure no longer exits the process while a lock is
+  held (the compositor would stay locked with no client to unlock it);
+  the lock screen keeps working with a password and the locker exits once
+  unlocked.
 
 Only the UI binary is replaced; `cosmic-greeter-daemon` stays Fedora's —
 none of the patches touch it.

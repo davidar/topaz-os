@@ -101,6 +101,12 @@ defaulting to upstream behaviour where a default exists:
   Safe by construction: only unrestricted clients can create security
   contexts, so a sandboxed client cannot label itself. Default: no
   engines trusted, i.e. upstream behaviour.
+- **A lock in flight survives a skipped frame.** Upstream abandons a
+  session lock when an output fails to render the locked frame. The
+  usual trigger is the lock requested for suspend: logind revokes DRM
+  master before the locked frame is queued, the flip fails, and the
+  machine resumes unlocked. A skipped render now leaves the lock waiting
+  (input is already blocked); the redraw on resume confirms it.
 
 The fork tracks the upstream release tag; the upstream project's
 contribution stance means the changes stay there rather than going up.
