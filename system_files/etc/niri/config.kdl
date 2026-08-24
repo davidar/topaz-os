@@ -279,6 +279,14 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
+// Import the session's addresses into the systemd user manager and the
+// D-Bus activation environment — the same import `niri --session` would
+// perform, which niri skips here because cosmic-session owns the
+// compositor. Without it, everything the user manager starts (portal
+// backends, D-Bus-activated services) runs without a display and dies;
+// the logout teardown (ledger 0036) unsets this same variable list.
+spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP; hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP"
+
 // This line starts the shim that makes this a COSMIC session: it reports
 // the Wayland, X11 and niri socket addresses back to cosmic-session over
 // the COSMIC_SESSION_SOCK file descriptor, and cosmic-session then brings

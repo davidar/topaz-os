@@ -6,6 +6,7 @@ paths:
   - /usr/bin/start-cosmic
   - /usr/bin/start-cosmic-niri
   - /usr/lib/systemd/user/topaz-session-shutdown.target
+  - /etc/niri/config.kdl
 ---
 # Session launchers tear graphical-session.target down on exit
 
@@ -37,3 +38,15 @@ sessions sees stale values. The launcher exits with cosmic-session's
 status. The patch is grep-guarded: the build fails if the packaged
 script's exec lines move or change shape. Upstream candidate for
 cosmic-session / start-cosmic.
+
+The unset half assumes the variables were imported in the first place. On
+stock COSMIC, cosmic-comp performs that import itself; niri only does it
+when running as the session (`niri --session`), which it is not here —
+cosmic-session owns the compositor (ledger 0035). The baked niri config
+therefore spawns the same import at startup (`systemctl --user
+import-environment` plus `dbus-update-activation-environment`, over the
+variable list above), closing the cycle: import at compositor startup,
+unset at logout. Without the import, every unit the user manager starts
+runs without a display — xdg-desktop-portal-gtk crash-loops on "cannot
+open display", leaving the FileChooser portal with no living backend, and
+D-Bus-activated GUI daemons abort the same way.
