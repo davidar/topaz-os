@@ -21,12 +21,21 @@
     {
       // The released-skopeo image used for the registry push (the
       // runner's baked skopeo is a git dev build — see build.yml).
+      // Tag-only on purpose: quay GCs superseded manifests of this tag
+      // every few days, so digest pins rot faster than bump PRs merge
+      // (see the comment at skopeo_image= in build.yml). The digest
+      // group is optional here so Renovate keeps offering version
+      // bumps without re-pinning a digest.
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/build\\.yml$/"],
       "matchStrings": [
-        "skopeo_image=\"(?<depName>[^:@\\s\"]+):(?<currentValue>[^@\\s\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\"",
+        "skopeo_image=\"(?<depName>[^:@\\s\"]+):(?<currentValue>[^@\\s\"]+?)(@(?<currentDigest>sha256:[a-f0-9]{64}))?\"",
       ],
       "datasourceTemplate": "docker",
+      // Routes this dep through the workflow-files rule below that
+      // disables pin/digest updates (best-practices pinDigests would
+      // otherwise re-add the digest).
+      "depTypeTemplate": "container",
     },
   ],
 
