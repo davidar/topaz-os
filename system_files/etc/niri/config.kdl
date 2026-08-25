@@ -360,6 +360,19 @@ window-rule {
     open-floating true
 }
 
+// Portal dialogs (file chooser, access prompts, print) are transient
+// dialogs from another process, so niri can't tie them to their parent
+// window and would tile them; float them instead (ledger 0039).
+// CosmicFilesDialog = COSMIC Files in dialog mode, spawned by
+// portal-cosmic's FileChooser; CosmicPortal = its other dialogs;
+// the gtk id covers everything portal-gtk serves.
+window-rule {
+    match app-id=r#"^com\.system76\.CosmicFilesDialog$"#
+    match app-id=r#"^com\.system76\.CosmicPortal$"#
+    match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
+    open-floating true
+}
+
 // Example: block out two password managers from screen capture.
 // (This example rule is commented out with a "/-" in front.)
 /-window-rule {
@@ -772,4 +785,13 @@ recent-windows {
 timeouts {
     xdg-activation-token-ms 10000   // how long a focus-request token stays valid
     lock-surface-ms 1000            // wait for lock surfaces to paint before locking anyway
+}
+
+debug {
+    // Register niri's D-Bus interfaces (org.gnome.Mutter.ScreenCast among
+    // them) even though cosmic-session, not `niri --session`, starts the
+    // compositor. xdg-desktop-portal-gnome's ScreenCast backend talks to
+    // that API; without it screen sharing has no backend in this session
+    // (ledger 0039).
+    dbus-interfaces-in-non-session-instances
 }
