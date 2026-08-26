@@ -38,11 +38,19 @@ carries three small patches on top of the packaged 1.5.0:
   never confirmed), so a failed lock left it believing the session was
   locked — PAM conversation running, `LockedHint` set, and a stale
   lockfile that made the next locker instance take the session lock the
-  moment it started. `finished` now resets it like an unlock. Paired
-  with this, a logind failure no longer exits the process while a lock is
-  held (the compositor would stay locked with no client to unlock it);
-  the lock screen keeps working with a password and the locker exits once
-  unlocked.
+  moment it started. Resetting the locker's own state in-process proved
+  insufficient: the toolkit's session-lock state, the PAM conversation
+  and the logind listener can all be left broken after `finished`, and
+  every later lock signal becomes a silent no-op (observed as a locker
+  that ignored lock requests for 36 hours after a suspend abandoned a
+  lock in flight). On `finished` the locker now removes its lockfile (so
+  the replacement waits for a lock signal instead of recovering a dead
+  lock), clears `LockedHint` with a bounded wait, and exits non-zero so
+  the session's process manager restarts a clean instance (launch-pad
+  restarts only on unsuccessful exit). Paired with this, a logind failure
+  no longer exits the process while a lock is held (the compositor would
+  stay locked with no client to unlock it); the lock screen keeps working
+  with a password and the locker exits once unlocked.
 
 Only the UI binary is replaced; `cosmic-greeter-daemon` stays Fedora's —
 none of the patches touch it.

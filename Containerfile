@@ -54,7 +54,7 @@ RUN git init -q /src && \
 # the binary links a glibc the image does not ship.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS greeter-build
 ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
-ARG COSMIC_GREETER_REF=abf573b05fed6d605bfc5fb57ee4fde92863ed03
+ARG COSMIC_GREETER_REF=6ef6178c5bcfe0fbc8fea95a89535c5ca76845cb
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     pam-devel clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
