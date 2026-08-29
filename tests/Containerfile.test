@@ -6,12 +6,15 @@
 ARG BASE=localhost/topaz-os:test
 FROM $BASE
 
-COPY files/topaz-test-session /usr/bin/topaz-test-session
-COPY files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml
-
+# One RUN, one layer: on the CI runner each step's commit over the
+# ~400-layer chunked base costs ~5 minutes, so the COPYs ride the same
+# layer via a bind-mounted context instead of steps of their own.
 # The tester user itself is injected at disk-build time (disk-test.toml),
 # not here — the image layer ships no users and /var stays empty.
-RUN systemctl disable gdm.service && \
+RUN --mount=type=bind,source=files,target=/run/test-files \
+    install -m 0755 /run/test-files/topaz-test-session /usr/bin/topaz-test-session && \
+    install -m 0644 /run/test-files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml && \
+    systemctl disable gdm.service && \
     systemctl enable cosmic-greeter.service sshd.service && \
     echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/50-topaz-test && \
     chmod 0440 /etc/sudoers.d/50-topaz-test
