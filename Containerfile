@@ -161,7 +161,7 @@ RUN git init -q /src && \
     printf 'applets_repo=%s\napplets_ref=%s\n' "$COSMIC_APPLETS_REPO" "$COSMIC_APPLETS_REF" > /out/build-info
 
 # Base: Bluefin DX with NVIDIA open kernel modules
-FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:e612d6503dc735ea02d7c8eaea33723ad4868ebe121faff7294d6d9b583076c7
+FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:stable@sha256:18da0341ba9f2ab03e737d4435cc4a08895994cbdeed098aacd0ad91cdd32ac5
 
 # The image ships as ordinary content-keyed OCI layers — no rechunking.
 # Each RUN below is one layer, ordered least- to most-frequently changing,
