@@ -35,7 +35,11 @@ env:
 jobs:
   verify-vm:
     name: Boot and verify in QEMU
-    runs-on: ubuntu-26.04
+    # 24.04, not 26.04 like build.yml: on 26.04 osbuild's container-deploy
+    # stage is denied its containers-storage mount inside the privileged
+    # builder container (run 33230063872); the rootful bootc-image-builder
+    # path is proven on 24.04 (ublue's disk builds, same invocation).
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
@@ -75,6 +79,10 @@ jobs:
 
       - name: Boot and verify
         run: sudo bash tests/run.sh all
+
+      - name: Kernel denials (debug)
+        if: failure()
+        run: sudo dmesg | grep -iE 'apparmor|denied|audit' | tail -40 || true
 
       - name: Collect evidence
         if: always()
