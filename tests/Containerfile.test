@@ -1,0 +1,17 @@
+# Derived VM-test image — never published. Adds only what the harness
+# needs to drive the image unattended: greetd autologin into the
+# COSMIC-on-niri session, sshd as the assertion channel, and the display
+# manager flipped to cosmic-greeter to match the greetd trial on
+# hardware (topaz check's enforced-GDM claim fails here by design).
+ARG BASE=localhost/topaz-os:test
+FROM $BASE
+
+COPY files/topaz-test-session /usr/bin/topaz-test-session
+COPY files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml
+
+# The tester user itself is injected at disk-build time (disk-test.toml),
+# not here — the image layer ships no users and /var stays empty.
+RUN systemctl disable gdm.service && \
+    systemctl enable cosmic-greeter.service sshd.service && \
+    echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/50-topaz-test && \
+    chmod 0440 /etc/sudoers.d/50-topaz-test

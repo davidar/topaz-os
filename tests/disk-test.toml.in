@@ -1,0 +1,12 @@
+# bootc-image-builder config template for the test disk. run.sh renders
+# it to .artifacts/disk-test.toml, substituting the per-checkout ssh
+# public key. Mirrors disk_config/disk.toml plus the harness login user.
+[[customizations.filesystem]]
+mountpoint = "/"
+minsize = "30 GiB"
+
+[[customizations.user]]
+name = "tester"
+uid = 1000
+key = "@SSH_PUBKEY@"
+groups = ["wheel"]
