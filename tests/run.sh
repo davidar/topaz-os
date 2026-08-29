@@ -20,6 +20,7 @@ usage() {
 #usage#   start | stop | status
 #usage#   ssh [cmd...]  shell into the running VM as the test user
 #usage#   suite <name>  run tests/suites/<name>.sh against the running VM
+#usage#                 (a path runs that suite file — companion repos)
 #usage#   screendump [out.png]
 
 cmd="${1:-all}"

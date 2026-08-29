@@ -234,9 +234,13 @@ wait_user_graphical() {
 }
 
 run_suite() {
+    # A bare name resolves under tests/suites/; a path to a suite file is
+    # run as-is, so a companion repo can ride this harness with its own
+    # suite. TESTS_DIR is passed down for the suite to source lib.sh.
     local name="$1" script="$TESTS_DIR/suites/$1.sh"
+    [[ -f "$script" ]] || script="$name"
     [[ -f "$script" ]] || { echo "no such suite: $name" >&2; return 2; }
-    bash "$script"
+    TESTS_DIR="$TESTS_DIR" bash "$script"
 }
 
 # --- suite assertion helpers (same output shape as topaz check) -------------
