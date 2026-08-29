@@ -1,5 +1,7 @@
 cosign.key
 _build_*
 output
+tests/.artifacts
 _build-*/**
 CLAUDE.local.md
+__pycache__/

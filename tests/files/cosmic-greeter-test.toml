@@ -1,0 +1,17 @@
+# Test-image copy of /etc/greetd/cosmic-greeter.toml: identical to the
+# shipped config plus an initial_session, so the first boot lands in the
+# COSMIC-on-niri session with no one at the console. Subsequent logins
+# (the relogin-cycle suite) go through cosmic-greeter as usual.
+[terminal]
+vt = "1"
+
+[general]
+service = "cosmic-greeter"
+
+[default_session]
+command = "cosmic-greeter-start"
+user = "cosmic-greeter"
+
+[initial_session]
+command = "/usr/bin/topaz-test-session"
+user = "tester"

@@ -417,6 +417,11 @@ spawn-vm rebuild="0" type="qcow2" ram="6G":
       --vsock=false --pass-ssh-key=false \
       -i ./output/**/*.{{ type }}
 
+# Boot the image in a QEMU VM and run automated verification (tests/README.md)
+[group('Test')]
+verify-vm suite="boot-verify":
+    bash tests/run.sh all {{ suite }}
+
 # Runs shell check on all Bash scripts
 lint:
     #!/usr/bin/env bash

@@ -1,0 +1,16 @@
+# bootc-image-builder config template for the test disk. run.sh renders
+# it to .artifacts/disk-test.toml, substituting the per-checkout ssh
+# public key. Mirrors disk_config/disk.toml plus the harness login user.
+[[customizations.filesystem]]
+mountpoint = "/"
+# Generous slack: deploying the published chunked image (~400 layers,
+# ~13 GB) onto a 30 GiB btrfs root tripped ostree's min-free-space
+# guard — the known btrfs free-space misreporting class
+# (ostreedev/ostree#1688). The qcow2 is sparse, so this costs nothing.
+minsize = "40 GiB"
+
+[[customizations.user]]
+name = "tester"
+uid = 1000
+key = "@SSH_PUBKEY@"
+groups = ["wheel"]

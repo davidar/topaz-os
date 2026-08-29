@@ -1,0 +1,106 @@
+---
+name: Verify VM boot
+
+# Boots the published image in QEMU on the runner and machine-checks the
+# post-boot session state (tests/README.md). The runner has no GPU, so
+# the harness hosts the guest's GL on llvmpipe via SDL's offscreen
+# driver; KVM is available on standard GitHub runners. The whole harness
+# runs rootful: bootc-image-builder needs root anyway, and a single root
+# container storage halves the disk footprint of the 13 GB image.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Image to boot-test"
+        required: false
+        default: "quay.io/davidar/topaz-os:latest"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tests/**"
+      - ".github/workflows/verify-vm.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TEST_IMAGE: ${{ inputs.image || 'quay.io/davidar/topaz-os:latest' }}
+
+jobs:
+  verify-vm:
+    name: Boot and verify in QEMU
+    # 24.04, not 26.04 like build.yml: on 26.04 osbuild's container-deploy
+    # stage is denied its containers-storage mount inside the privileged
+    # builder container (run 33230063872); the rootful bootc-image-builder
+    # path is proven on 24.04 (ublue's disk builds, same invocation).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6
+
+      # Same sampler as build.yml: the disk-build peak (image in root
+      # storage + osbuild tree + raw disk + qcow2) is the tight resource
+      # here — if the job dies of exhaustion, let it name itself.
+      - name: Start resource sampler
+        run: |
+          cat > ${RUNNER_TEMP}/sample.sh <<'EOF'
+          while true; do
+            printf '%s avail_mem=%sMiB tmp_used=%sMiB root_free=%sMiB\n' \
+              "$(date -u +%H:%M:%S)" \
+              "$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo)" \
+              "$(df -m --output=used /tmp | tail -1 | tr -d ' ')" \
+              "$(df -m --output=avail / | tail -1 | tr -d ' ')"
+            sleep 15
+          done
+          EOF
+          nohup bash ${RUNNER_TEMP}/sample.sh >> ${RUNNER_TEMP}/resources.log 2>/dev/null &
+
+      - name: Install QEMU
+        # The mesa/EGL packages back the guest's virtio GL on llvmpipe;
+        # --no-install-recommends leaves them out and QEMU dies at
+        # startup with "Couldn't open libEGL.so.1" (run 33232099963).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 qemu-system-gui qemu-utils ovmf \
+            libegl1 libegl-mesa0 libgl1 libgl1-mesa-dri libgles2
+
+      - name: Pull image under test
+        run: |
+          sudo podman pull "$TEST_IMAGE"
+          sudo podman tag "$TEST_IMAGE" localhost/topaz-os:test
+
+      - name: Boot and verify
+        run: sudo bash tests/run.sh all
+
+      - name: Kernel denials (debug)
+        if: failure()
+        run: sudo dmesg | grep -iE 'apparmor|denied|audit' | tail -40 || true
+
+      - name: Collect evidence
+        if: always()
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" tests/.artifacts || true
+          cat ${RUNNER_TEMP}/resources.log || true
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vm-evidence
+          path: |
+            tests/.artifacts/serial.log
+            tests/.artifacts/screens/
+          if-no-files-found: ignore
+          retention-days: 14
