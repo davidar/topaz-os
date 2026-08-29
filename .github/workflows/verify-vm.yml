@@ -67,10 +67,14 @@ jobs:
           nohup bash ${RUNNER_TEMP}/sample.sh >> ${RUNNER_TEMP}/resources.log 2>/dev/null &
 
       - name: Install QEMU
+        # The mesa/EGL packages back the guest's virtio GL on llvmpipe;
+        # --no-install-recommends leaves them out and QEMU dies at
+        # startup with "Couldn't open libEGL.so.1" (run 33232099963).
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            qemu-system-x86 qemu-system-gui qemu-utils ovmf
+            qemu-system-x86 qemu-system-gui qemu-utils ovmf \
+            libegl1 libegl-mesa0 libgl1 libgl1-mesa-dri libgles2
 
       - name: Pull image under test
         run: |
