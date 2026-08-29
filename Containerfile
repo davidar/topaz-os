@@ -28,7 +28,7 @@ COPY system_files /system_files
 # build rather than the login.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
-ARG COSMIC_COMP_REF=864aadb0adfc6a1421fef6f2fc427adbffd21b38
+ARG COSMIC_COMP_REF=15ba5884ffd6e58c5b8ea46934b6f08ec15af278
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     libseat-devel libinput-devel systemd-devel mesa-libgbm-devel \
     libxkbcommon-devel pixman-devel wayland-devel libglvnd-devel \
@@ -47,18 +47,18 @@ RUN git init -q /src && \
     printf 'repo=%s\nref=%s\n' "$COSMIC_COMP_REPO" "$COSMIC_COMP_REF" \
         > /out/fork-info
 
-# Greeter fork: cosmic-greeter with JXL wallpaper decoding and fingerprint
-# re-arm on wake, built at a pinned commit of
+# Greeter fork: cosmic-greeter with fingerprint re-arm on wake and lock
+# lifecycle fixes, built at a pinned commit of
 # github.com/davidar/cosmic-greeter (ledger 0034). Same Fedora-release rule
 # as comp-build above: the builder must track the base image's release or
 # the binary links a glibc the image does not ship.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS greeter-build
 ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
-ARG COSMIC_GREETER_REF=6ef6178c5bcfe0fbc8fea95a89535c5ca76845cb
+ARG COSMIC_GREETER_REF=fb97e5437b930ae24096711dd4466d9e59c40c9c
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     pam-devel clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
-    fontconfig-devel clang-libs && dnf clean all
+    fontconfig-devel clang-libs libdav1d-devel && dnf clean all
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$COSMIC_GREETER_REPO" "$COSMIC_GREETER_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
@@ -145,7 +145,7 @@ RUN git init -q /src && \
 # under cosmic-comp the original path runs unchanged.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS cosmic-applets-build
 ARG COSMIC_APPLETS_REPO=https://github.com/davidar/cosmic-applets.git
-ARG COSMIC_APPLETS_REF=05afaaa7493f47d4c1de4afc3da3142353675d7c
+ARG COSMIC_APPLETS_REF=187763f31591904118f0750fb711d405c60e7bed
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core just libxkbcommon-devel wayland-devel mesa-libEGL-devel \
     mesa-libGL-devel fontconfig-devel freetype-devel dbus-devel \

@@ -11,7 +11,7 @@ paths:
 The compositor binary is not Fedora's: it is compiled in the image build
 (Containerfile `comp-build` stage) from a pinned commit of
 <https://github.com/davidar/cosmic-comp>, branch `topaz`, which carries
-three small patch series on top of the packaged 1.5.0:
+four small patch series on top of the packaged 1.6.0:
 
 - **Config-driven workspace swipe gestures.** Upstream hardcodes
   four-finger workspace switching and silently swallows three-finger
@@ -22,10 +22,15 @@ three small patch series on top of the packaged 1.5.0:
   cosmic-config (`com.system76.CosmicComp` `gestures` key), defaults
   matching upstream behavior. Pending upstream as the answer to
   pop-os/cosmic-epoch#54; drop the corresponding patches when merged.
-- **smithay drm-master probe fix** (via the fork's pinned
-  github.com/davidar/smithay): probe DRM master with AUTH_MAGIC instead
-  of trusting `drmSetMaster` errno, needed for sessions launched from a
-  bare VT during compositor development.
+- **smithay fixes** (via the fork's pinned github.com/davidar/smithay):
+  probe DRM master with AUTH_MAGIC instead of trusting `drmSetMaster`
+  errno (needed for sessions launched from a bare VT during compositor
+  development), and accept zero-size positioner anchor rectangles, which
+  the stable xdg-shell spec allows but smithay fatally rejected.
+- **Startup retry for busy DRM devices** (cherry-pick of upstream
+  pop-os/cosmic-comp#2670): taking a device fails with EBUSY while the
+  compositor being replaced is still shutting down, and coming up with
+  no device is fatal. Drop when upstream merges it.
 - **Trace-level logging available in release builds** for live debugging.
 
 Provenance: `/usr/share/topaz-os/cosmic-comp-fork` records the repo, the
