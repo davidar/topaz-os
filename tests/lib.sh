@@ -193,6 +193,12 @@ qmp() {
     python3 "$TESTS_DIR/qmp.py" "$QMP_SOCK" "$@"
 }
 
+png_valid() { # non-empty, PNG signature, complete (IEND trailer present)
+    [[ -s "$1" ]] &&
+        [[ "$(head -c 8 "$1" | od -An -tx1 | tr -d ' \n')" == 89504e470d0a1a0a ]] &&
+        tail -c 12 "$1" | grep -q IEND
+}
+
 screendump() {
     local out="${1:-$ART/screens/screen-$(date +%Y%m%d-%H%M%S).png}"
     mkdir -p "$(dirname "$out")"
@@ -204,16 +210,34 @@ screendump() {
         # No VNC listener (sdl display mode): capture inside the guest.
         # Weaker — needs the session up — but display-server-free hosts
         # have no hypervisor-side view of the GL scanout at all.
+        # The compositor writes the file asynchronously after the action
+        # returns, so wait until a complete PNG lands (an early read once
+        # shipped a zero-byte artifact); the dir is cleared first so the
+        # newest file is unambiguously this capture.
         # shellcheck disable=SC2016  # $(...) expands in the guest shell
         tssh 'export NIRI_SOCKET=$(systemctl --user show-environment | sed -n "s/^NIRI_SOCKET=//p")
+            dir="$HOME/Pictures/Screenshots"
+            mkdir -p "$dir" && rm -f "$dir"/*
             niri msg action screenshot-screen >/dev/null || exit 1
-            sleep 1
-            shot=$(ls -t "$HOME/Pictures/Screenshots/" | head -1)
+            shot=
+            for _ in $(seq 40); do
+                shot=$(ls -t "$dir" 2>/dev/null | head -1)
+                [ -n "$shot" ] && tail -c 12 "$dir/$shot" 2>/dev/null | grep -q IEND && break
+                shot=
+                sleep 0.5
+            done
             [ -n "$shot" ] || exit 1
-            cat "$HOME/Pictures/Screenshots/$shot" && rm -f "$HOME/Pictures/Screenshots/$shot"' \
+            cat "$dir/$shot" && rm -f "$dir/$shot"' \
             >"$out" || { echo "screendump failed" >&2; return 1; }
     fi
-    [[ -s "$out" ]] || { echo "screendump wrote nothing" >&2; return 1; }
+    # Verify the state, not the tool's exit code: anything that is not a
+    # complete PNG is a failed capture, kept aside as evidence instead of
+    # masquerading as a screenshot in the artifact.
+    if ! png_valid "$out"; then
+        mv -f "$out" "$out.invalid" 2>/dev/null || rm -f "$out"
+        echo "screendump produced an invalid PNG: $out" >&2
+        return 1
+    fi
     echo "$out"
 }
 

@@ -72,7 +72,8 @@ check "topaz check: GDM flip is the one expected failure" \
     contains "$tc_out" '[FAIL] GDM remains the display manager'
 [[ -n "$unexpected" ]] && printf '%s\n' "$unexpected"
 
-shot="$(screendump "$ART/screens/boot-verify.png" || true)"
-[[ -n "$shot" ]] && echo "screendump: $shot"
+# The screendump is evidence, not decoration: a failed or invalid
+# capture fails the suite instead of shipping a broken artifact.
+check "screendump: boot-verify.png" screendump "$ART/screens/boot-verify.png"
 
 suite_verdict boot-verify
