@@ -24,7 +24,7 @@ set -ouex pipefail
 # screen through niri's own IPC. Guard: fail loudly when Fedora bumps
 # cosmic-idle, so the fork is rebased onto the new source rather than
 # silently shadowing it.
-idle_base_version=1.5.0
+idle_base_version=1.6.0
 packaged_version=$(rpm -q --qf '%{VERSION}' cosmic-idle)
 if [ "$packaged_version" != "$idle_base_version" ]; then
     echo "cosmic-idle is now $packaged_version but the fork is based on $idle_base_version" >&2
@@ -55,7 +55,7 @@ install -m0755 /niri-build/niri /usr/bin/niri
 # other applet names are symlinks into it, so replacing the one binary
 # covers every applet. Same guard as above: a Fedora version bump fails
 # the build until the fork is rebased and COSMIC_APPLETS_REF moved.
-applets_base_version=1.5.0
+applets_base_version=1.6.0
 packaged_applets=$(rpm -q --qf '%{VERSION}' cosmic-applets)
 if [ "$packaged_applets" != "$applets_base_version" ]; then
     echo "cosmic-applets is now $packaged_applets but the fork is based on $applets_base_version" >&2

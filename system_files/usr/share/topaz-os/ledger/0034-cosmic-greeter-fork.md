@@ -11,15 +11,10 @@ paths:
 The greeter/lock-screen binary is not Fedora's: it is compiled in the
 image build (Containerfile `greeter-build` stage) from a pinned commit of
 <https://github.com/davidar/cosmic-greeter>, branch `auth-rearm`, which
-carries three small patches on top of the packaged 1.5.0:
+carries three small patches on top of the packaged 1.6.0 (the fork's
+JPEG XL wallpaper decoding patch was dropped at the 1.6.0 rebase:
+upstream now registers the same jxl-oxide hook itself):
 
-- **JPEG XL wallpaper decoding.** Upstream hands wallpaper bytes to the
-  image crate, which cannot decode JXL, so distributions shipping JXL
-  wallpapers (Bluefin, Aurora) get a blank grey background on both the
-  greeter and the lock screen while the desktop renders fine — cosmic-bg
-  registers jxl-oxide's image-crate decoding hook and cosmic-greeter did
-  not. The fork registers the same hook. Pending upstream; drop the
-  patch when merged.
 - **Fingerprint re-arm on wake.** The locker runs a single PAM
   conversation per lock, so the fingerprint prompt expires after about a
   minute and never returns — coming back to a locked screen left

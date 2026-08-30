@@ -15,7 +15,7 @@ set -ouex pipefail
 # loudly when Fedora bumps cosmic-greeter, so the fork gets rebased
 # rather than silently shadowing a newer base version. Only the UI
 # binary is replaced; cosmic-greeter-daemon stays Fedora's.
-fork_base_version=1.5.0
+fork_base_version=1.6.0
 packaged_version=$(rpm -q --qf '%{VERSION}' cosmic-greeter)
 if [ "$packaged_version" != "$fork_base_version" ]; then
     echo "cosmic-greeter is now $packaged_version but the fork is based on $fork_base_version" >&2
