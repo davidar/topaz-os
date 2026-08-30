@@ -257,6 +257,19 @@ wait_user_graphical() {
     done
 }
 
+wait_session_painted() {
+    # graphical-session.target goes active before the shell has drawn
+    # anything — a screendump taken right away catches a grey void. The
+    # shell processes coming up is the assertable half; the settle after
+    # covers first-frame latency, which nothing exposes to poll on.
+    local deadline=$((SECONDS + ${1:-120}))
+    until tssh 'pgrep -x cosmic-panel >/dev/null && pgrep -x cosmic-bg >/dev/null' 2>/dev/null; do
+        ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
+        sleep 3
+    done
+    sleep "${TOPAZ_TEST_PAINT_SETTLE:-10}"
+}
+
 run_suite() {
     # A bare name resolves under tests/suites/; a path to a suite file is
     # run as-is, so a companion repo can ride this harness with its own

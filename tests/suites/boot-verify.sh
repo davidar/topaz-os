@@ -74,6 +74,7 @@ check "topaz check: GDM flip is the one expected failure" \
 
 # The screendump is evidence, not decoration: a failed or invalid
 # capture fails the suite instead of shipping a broken artifact.
+wait_session_painted 60
 check "screendump: boot-verify.png" screendump "$ART/screens/boot-verify.png"
 
 suite_verdict boot-verify
