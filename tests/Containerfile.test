@@ -16,5 +16,10 @@ RUN --mount=type=bind,source=files,target=/run/test-files \
     install -m 0644 /run/test-files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml && \
     systemctl disable gdm.service && \
     systemctl enable cosmic-greeter.service sshd.service && \
+    # niri's first-launch "Important Hotkeys" overlay would sit over
+    # every screendump; uncomment the baked config's opt-out. The grep
+    # proves the edit landed (and fails loudly if the config drifts).
+    sed -i 's|^\( *\)// skip-at-startup$|\1skip-at-startup|' /etc/niri/config.kdl && \
+    grep -q '^ *skip-at-startup$' /etc/niri/config.kdl && \
     echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/50-topaz-test && \
     chmod 0440 /etc/sudoers.d/50-topaz-test
