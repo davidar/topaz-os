@@ -1,12 +1,12 @@
 ---
-title: niri session portals — ScreenCast wired up, Settings from COSMIC
+title: niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC
 date: 2026-08-25
 status: active
 paths:
   - /etc/niri/config.kdl
   - /usr/share/xdg-desktop-portal/niri-portals.conf
 ---
-# niri session portals — ScreenCast wired up, Settings from COSMIC
+# niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC
 
 Portal wiring for the COSMIC-on-niri session (ledger 0035): two gaps
 that are consequences of niri not being started as `niri --session`, and
@@ -46,18 +46,24 @@ portal-gnome remains the fallback.
 
 **FileChooser.** Routed to portal-cosmic as well: its dialog is COSMIC
 Files in dialog mode — an ordinary window that works under niri and
-matches the shell — with gtk as fallback. This is as far as
-portal-cosmic can go on niri: its ScreenCast and Screenshot backends
-capture through `ext-image-copy-capture-v1`, which niri does not
-implement (the same gap that disables applet thumbnails, ledger 0038),
-so those stay on gnome. Portal dialogs are transient windows from
+matches the shell — with gtk as fallback.
+
+**Screenshot.** Routed to portal-cosmic too, with gnome as fallback.
+Its Screenshot and ScreenCast backends capture through
+`ext-image-copy-capture-v1`, which upstream niri does not implement;
+the topaz niri build does (ledger 0037), and a screenshot through this
+route was verified end to end in the VM harness. ScreenCast stays on
+gnome for now: the build's dmabuf capture path is disabled until it is
+verified on real hardware, and the Mutter route already works.
+
+Portal dialogs are transient windows from
 another process that niri cannot tie to their parent and would tile;
 the baked niri config floats them by app-id (the cosmic dialogs and
 everything portal-gtk serves).
 
 `topaz check` asserts the debug flag is in the baked config (whose
 validity the ledger 0037 check proves against the baked binary), the
-gtk-first default and both explicit preferences are in
+gtk-first default and the explicit preferences are in
 `niri-portals.conf`, and the routing targets declare the interfaces they
 are handed. Runtime verification is post-boot: file dialogs opening, a
 screen-share picker appearing in the session, and a COSMIC theme toggle

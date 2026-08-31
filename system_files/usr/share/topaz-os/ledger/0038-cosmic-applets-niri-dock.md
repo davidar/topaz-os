@@ -13,8 +13,10 @@ In the COSMIC-on-niri session (ledger 0035) the panel's dock
 (cosmic-app-list) came up empty and the minimize applet died: both
 unconditionally bind `zcosmic_toplevel_manager_v1`, a cosmic-comp-only
 protocol, and abort when it is missing. A second abort sat behind the
-first — window thumbnails unwrap an image-copy-capture session that niri
-does not offer — and would have killed the dock on the first hover.
+first — window thumbnails unwrap an image-copy-capture session that
+upstream niri does not offer — and would have killed the dock on the
+first click; the topaz niri build now implements that protocol (ledger
+0037), so thumbnails work.
 
 The image builds cosmic-applets (Containerfile `cosmic-applets-build`
 stage) from the topaz fork, <https://github.com/davidar/cosmic-applets>,
@@ -29,8 +31,7 @@ COSMIC session is unaffected. Without it, windows are listed through
 protocols hand out unrelated handles for the same window, so they are
 matched on `(app_id, title)` with announcement order as the tiebreak.
 Known limit: two windows with identical app_id and title can swap.
-Thumbnails are off on niri (no capture protocol), and niri has no
-minimize, so the minimize applet stays empty there.
+niri has no minimize, so the minimize applet stays empty there.
 
 The applet binding alone is not enough: the panel gives each applet a
 `wp_security_context` socket, and niri restricts such clients from the

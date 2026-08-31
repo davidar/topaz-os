@@ -155,8 +155,8 @@ TEARDOWN
     bash -n "$launcher"
 done
 
-### niri session portals: gtk first, ScreenCast on gnome, Settings from
-### COSMIC (ledger 0039)
+### niri session portals: gtk first, ScreenCast on gnome, FileChooser,
+### Screenshot and Settings from COSMIC (ledger 0039)
 # The frontend routes by what a backend's .portal file DECLARES, and
 # portal-gnome declares fourteen interfaces while exporting only Settings
 # when not on GNOME — so upstream's gnome-first default sends FileChooser
@@ -168,16 +168,20 @@ done
 # under niri — portal-gnome's gsettings-backed Settings would miss a
 # COSMIC dark/light toggle. FileChooser also goes to portal-cosmic: its
 # dialog (COSMIC Files in dialog mode) is an ordinary window that works
-# under niri and matches the shell, unlike its capture-bound
-# ScreenCast/Screenshot. Guard: fail the build if upstream's file gains
-# its own preferences or changes shape.
+# under niri and matches the shell. Screenshot goes to portal-cosmic as
+# well: it captures through ext-image-copy-capture-v1, which the topaz
+# niri build implements (ledger 0037); ScreenCast stays on gnome until
+# the dmabuf path of that implementation is verified on real hardware.
+# Guard: fail the build if upstream's file gains its own preferences or
+# changes shape.
 grep -q '^default=gnome;gtk;$' /usr/share/xdg-desktop-portal/niri-portals.conf
-! grep -qE 'portal\.(Settings|ScreenCast|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
+! grep -qE 'portal\.(Settings|ScreenCast|Screenshot|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
 sed -i 's/^default=gnome;gtk;$/default=gtk;gnome;/' \
     /usr/share/xdg-desktop-portal/niri-portals.conf
 printf '%s\n' \
     'org.freedesktop.impl.portal.FileChooser=cosmic;gtk;' \
     'org.freedesktop.impl.portal.ScreenCast=gnome;' \
+    'org.freedesktop.impl.portal.Screenshot=cosmic;gnome;' \
     'org.freedesktop.impl.portal.Settings=cosmic;gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 

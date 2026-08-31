@@ -115,11 +115,13 @@ RUN git init -q /src-idle && \
 # upstream release Fedora packages (ledger 0037): hardcoded gesture,
 # input, layout and animation constants promoted to config keys that
 # hot-reload like the rest of niri's config, background effects masked by
-# each surface's own alpha, and a trust list for sandbox engines so the
-# panel's applets see the window list. Same Fedora-release rule as above.
+# each surface's own alpha, a trust list for sandbox engines so the
+# panel's applets see the window list, and the ext-image-copy-capture
+# protocols so COSMIC's screenshot and thumbnail clients can capture.
+# Same Fedora-release rule as above.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
-ARG NIRI_REF=1c0c6f2cffbc57618b1e022eb2fb76fd148f8668
+ARG NIRI_REF=d12bd420d2000fc485cbf0dfe9bbda2175d2a3dd
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \

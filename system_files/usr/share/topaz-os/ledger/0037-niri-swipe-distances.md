@@ -67,8 +67,8 @@ default so the knobs are documented where they are set, and the build's
 `niri validate` proves the baked binary accepts them. Per-user configs
 override it entirely, as before.
 
-The fork carries two further changes, both configurable and both
-defaulting to upstream behaviour where a default exists:
+The fork carries further changes, configurable where a choice exists
+and defaulting to upstream behaviour:
 
 - **Background effects masked by surface alpha.** niri draws blur (and
   noise/saturation) over the rectangle a surface requests. libcosmic
@@ -107,6 +107,18 @@ defaulting to upstream behaviour where a default exists:
   master before the locked frame is queued, the flip fails, and the
   machine resumes unlocked. A skipped render now leaves the lock waiting
   (input is already blocked); the redraw on resume confirms it.
+- **`ext-image-capture-source-v1` and `ext-image-copy-capture-v1`.**
+  The standard Wayland screen-capture protocols, which COSMIC's
+  screenshot portal, `cosmic-screenshot` and the dock's window
+  thumbnails all require and upstream niri does not offer (its capture
+  path is the Mutter ScreenCast D-Bus API, ledger 0039). Based on an
+  open upstream pull request, adapted to the Smithay revision niri
+  pins, with two fixes found in the VM harness: sessions were dropped
+  the moment they were created (every capture ended after one frame),
+  and only one shm format was rendered while clients ignore the
+  advertised list — all four common 8888 layouts are now accepted and
+  advertised. Shared-memory capture only: dmabuf capture is disabled
+  until it is verified on real hardware.
 
 The fork tracks the upstream release tag; the upstream project's
 contribution stance means the changes stay there rather than going up.
