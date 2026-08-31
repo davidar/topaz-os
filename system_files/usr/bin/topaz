@@ -69,6 +69,12 @@ chk() { # chk <description> <command...>
 }
 
 cmd_check() {
+    # Kernel releases with a known regression on this hardware are held out
+    # of the image (ledger 0040): the pattern is the denylist, the ledger
+    # entry says why and when to drop it. The weekly input refresh goes
+    # red instead of shipping such a kernel.
+    chk "kernel is not a known-bad release: 7.1.6/7.1.7 amdgpu scanout corruption (ledger 0040)" \
+        bash -c '! rpm -q kernel --qf "%{VERSION}-%{RELEASE}\n" | grep -qE "^7\.1\.[67]-"'
     chk "MGLRU anti-thrash threshold ships (kill fast instead of thrashing)" \
         grep -q 'min_ttl_ms - - - - 1000' /usr/lib/tmpfiles.d/topaz-mglru.conf
     chk "SysRq is fully enabled (manual OOM kill escape hatch)" \
