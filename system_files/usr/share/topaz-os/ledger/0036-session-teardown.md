@@ -6,7 +6,7 @@ paths:
   - /usr/bin/start-cosmic
   - /usr/bin/start-cosmic-niri
   - /usr/lib/systemd/user/topaz-session-shutdown.target
-  - /etc/niri/config.kdl
+  - /etc/niri/cosmic-shell.kdl
 ---
 # Session launchers tear graphical-session.target down on exit
 

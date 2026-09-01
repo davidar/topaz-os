@@ -120,8 +120,8 @@ cmd_check() {
                  grep -q "^export PATH=/usr/libexec/topaz/niri-session:" /usr/bin/start-cosmic-niri &&
                  ! grep -q "cosmic-session niri" /usr/bin/start-cosmic-niri'
     chk "niri session imports its environment into the user manager (ledger 0036)" \
-        bash -c 'grep -q "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET" /etc/niri/config.kdl &&
-                 grep -q "dbus-update-activation-environment WAYLAND_DISPLAY" /etc/niri/config.kdl'
+        bash -c 'grep -q "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET" /etc/niri/cosmic-shell.kdl &&
+                 grep -q "dbus-update-activation-environment WAYLAND_DISPLAY" /etc/niri/cosmic-shell.kdl'
     chk "cosmic-idle runs without wlr-output-power and single-pixel-buffer (niri)" \
         bash -c 'grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle &&
                  grep -aq "fading to black through wl_shm" /usr/bin/cosmic-idle'
@@ -131,16 +131,31 @@ cmd_check() {
                  [ "$(rpm -q --qf %{VERSION} niri)" = \
                    "$(sed -n "s/^niri_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
                  ! ldd /usr/bin/niri | grep -q "not found"'
-    chk "baked niri config is valid and starts the COSMIC shim" \
-        bash -c 'grep -q cosmic-ext-alternative-startup /etc/niri/config.kdl &&
+    chk "baked niri config is valid and starts the COSMIC shim from the image-owned include" \
+        bash -c 'grep -q "^include \"cosmic-shell.kdl\"$" /etc/niri/config.kdl &&
+                 grep -q "^spawn-at-startup \"/usr/bin/cosmic-ext-alternative-startup\"$" /etc/niri/cosmic-shell.kdl &&
+                 ! grep -q "alternative-startup\|import-environment" /etc/niri/config.kdl &&
                  grep -q "touchpad-swipe" /etc/niri/config.kdl &&
                  grep -q "mask-threshold" /etc/niri/config.kdl &&
                  grep -q "trust-sandbox-engine \"com.system76.CosmicPanel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"loginctl\" \"lock-session\"" /etc/niri/config.kdl &&
                  ! grep -q "spawn \"cosmic-greeter\"" /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
+    # niri 26.04 skips a startup spawn whose binary is missing without a
+    # word (the spawner deadlocks on the exec error), so resolve every
+    # target here instead of finding out at login.
+    chk "every spawn-at-startup target in the baked niri config exists" \
+        bash -c 'set -o pipefail
+                 grep -h "^spawn-at-startup " /etc/niri/*.kdl |
+                     sed "s/^spawn-at-startup \"\([^\"]*\)\".*/\1/" |
+                     while read -r cmd; do
+                         case $cmd in
+                         /*) test -x "$cmd" ;;
+                         *) command -v "$cmd" >/dev/null ;;
+                         esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
+                     done'
     chk "niri session portals: gtk first, ScreenCast on gnome, FileChooser, Screenshot and Settings from COSMIC (ledger 0039)" \
-        bash -c 'grep -q "dbus-interfaces-in-non-session-instances" /etc/niri/config.kdl &&
+        bash -c 'grep -q "dbus-interfaces-in-non-session-instances" /etc/niri/cosmic-shell.kdl &&
                  grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.FileChooser=cosmic;gtk;$" \
@@ -151,7 +166,7 @@ cmd_check() {
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.Settings=cosmic;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "CosmicFilesDialog" /etc/niri/config.kdl &&
+                 grep -q "CosmicFilesDialog" /etc/niri/cosmic-shell.kdl &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/gtk.portal &&
                  grep -q "impl.portal.ScreenCast" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&

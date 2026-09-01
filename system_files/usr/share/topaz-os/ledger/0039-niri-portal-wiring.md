@@ -3,7 +3,7 @@ title: niri session portals — ScreenCast wired up, Screenshot and Settings fro
 date: 2026-08-25
 status: active
 paths:
-  - /etc/niri/config.kdl
+  - /etc/niri/cosmic-shell.kdl
   - /usr/share/xdg-desktop-portal/niri-portals.conf
 ---
 # niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC

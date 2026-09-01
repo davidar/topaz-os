@@ -1,0 +1,55 @@
+// COSMIC-on-niri session plumbing (ledgers 0035, 0036, 0039).
+//
+// Everything that turns a niri instance started by cosmic-session into a
+// working COSMIC session lives here, and only here: the environment
+// import, the startup shim that hands the socket addresses back to
+// cosmic-session, the portal-dialog float rule and the D-Bus registration
+// the screen-share portal needs. The baked config includes this file, and
+// a personal ~/.config/niri/config.kdl should include it too —
+//
+//     include "/etc/niri/cosmic-shell.kdl"
+//
+// — rather than carry copies of these lines. A copied line rots: the
+// startup spawn once pointed at a staged ~/.local/bin binary that was
+// later removed, and niri 26.04 says nothing when a startup spawn fails
+// to exec, so the whole shell (panel, notifications, locker, idle) was
+// simply absent after login with no trace of why. Keeping the lines
+// image-owned means `topaz check` validates them against the baked
+// binary and every spawn target is a path the image ships.
+
+// Import the session's addresses into the systemd user manager and the
+// D-Bus activation environment — the same import `niri --session` would
+// perform, which niri skips here because cosmic-session owns the
+// compositor. Without it, everything the user manager starts (portal
+// backends, D-Bus-activated services) runs without a display and dies;
+// the logout teardown (ledger 0036) unsets this same variable list.
+spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP; hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP"
+
+// The shim that makes this a COSMIC session: it reports the Wayland, X11
+// and niri socket addresses back to cosmic-session over the
+// COSMIC_SESSION_SOCK file descriptor, and cosmic-session then brings up
+// the COSMIC shell (panel, launcher, notifications, background, ...)
+// against this compositor instead of cosmic-comp.
+spawn-at-startup "/usr/bin/cosmic-ext-alternative-startup"
+
+// Portal dialogs (file chooser, access prompts, print) are transient
+// dialogs from another process, so niri can't tie them to their parent
+// window and would tile them; float them instead (ledger 0039).
+// CosmicFilesDialog = COSMIC Files in dialog mode, spawned by
+// portal-cosmic's FileChooser; CosmicPortal = its other dialogs;
+// the gtk id covers everything portal-gtk serves.
+window-rule {
+    match app-id=r#"^com\.system76\.CosmicFilesDialog$"#
+    match app-id=r#"^com\.system76\.CosmicPortal$"#
+    match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
+    open-floating true
+}
+
+debug {
+    // Register niri's D-Bus interfaces (org.gnome.Mutter.ScreenCast among
+    // them) even though cosmic-session, not `niri --session`, starts the
+    // compositor. xdg-desktop-portal-gnome's ScreenCast backend talks to
+    // that API; without it screen sharing has no backend in this session
+    // (ledger 0039). Registration happens at compositor startup.
+    dbus-interfaces-in-non-session-instances
+}

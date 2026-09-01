@@ -10,6 +10,7 @@ paths:
   - /usr/bin/cosmic-ext-alternative-startup
   - /usr/bin/cosmic-idle
   - /etc/niri/config.kdl
+  - /etc/niri/cosmic-shell.kdl
   - /usr/share/topaz-os/niri-session-build
 ---
 # COSMIC on niri session
@@ -31,6 +32,18 @@ not know about that handshake, so the baked niri config spawns
 (<https://github.com/Drakulix/cosmic-ext-alternative-startup>), a shim that
 performs it. There are no protocol shims involved — the COSMIC shell
 components talk to niri over the standard `ext-*` protocols.
+
+The lines that turn a niri instance into this session — the environment
+import (ledger 0036), the shim spawn, the portal-dialog float rule and the
+D-Bus registration for screen sharing (ledger 0039) — live in one
+image-owned include, `/etc/niri/cosmic-shell.kdl`, which the baked config
+pulls in with `include "cosmic-shell.kdl"`. A personal config is meant to
+include the same file rather than copy the lines: a copy once pointed the
+shim spawn at a staged binary that had since been removed, and niri 26.04
+does not report a startup spawn that fails to exec (its spawner thread
+deadlocks on the exec error), so the shell was simply absent after login.
+The check validates the include against the baked binary and resolves
+every `spawn-at-startup` target to a path the image ships.
 
 Three pieces make it an image feature rather than a hand-assembled trial:
 
