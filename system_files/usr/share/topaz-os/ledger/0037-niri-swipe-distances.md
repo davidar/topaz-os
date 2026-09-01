@@ -131,6 +131,15 @@ and defaulting to upstream behaviour:
   intermediate process now also watches the child's pidfd and exits as
   soon as the child does, so a failed spawn returns at once with its
   warning; a regression test covers it.
+- **A `has-sibling` window-rule matcher.** `match has-sibling=true`
+  selects a window whose client already had a mapped window when this
+  one appeared — a browser's extension popout or a page's popup, which
+  is subordinate to the window that opened it but usually sets no xdg
+  parent and no fixed size, so upstream tiles it into a new column. The
+  fact is captured when the window is created (and again when it unmaps
+  and reappears) and kept for its lifetime, so rules on it are stable.
+  `/etc/niri/config.kdl` uses it to float Firefox's secondary windows
+  without matching on window titles.
 
 The fork tracks the upstream release tag; the upstream project's
 contribution stance means the changes stay there rather than going up.

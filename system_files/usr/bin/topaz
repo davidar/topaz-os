@@ -139,6 +139,7 @@ cmd_check() {
                  grep -q "mask-threshold" /etc/niri/config.kdl &&
                  grep -q "trust-sandbox-engine \"com.system76.CosmicPanel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"loginctl\" \"lock-session\"" /etc/niri/config.kdl &&
+                 grep -q "has-sibling=true" /etc/niri/config.kdl &&
                  ! grep -q "spawn \"cosmic-greeter\"" /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
     # niri 26.04 skips a startup spawn whose binary is missing without a

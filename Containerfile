@@ -121,7 +121,7 @@ RUN git init -q /src-idle && \
 # Same Fedora-release rule as above.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
-ARG NIRI_REF=cfe1b4c0526d890df16958b107705fb360cbf254
+ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \

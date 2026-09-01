@@ -352,6 +352,15 @@ window-rule {
     open-floating true
 }
 
+// Float Firefox's secondary windows (extension popouts, page popups).
+// They set no xdg parent and no fixed size, so upstream niri tiles them
+// into a new column; `has-sibling` is a topaz fork matcher that is true
+// for a window whose client already had one mapped (ledger 0037).
+window-rule {
+    match app-id=r#"firefox$"# has-sibling=true
+    open-floating true
+}
+
 // Example: block out two password managers from screen capture.
 // (This example rule is commented out with a "/-" in front.)
 /-window-rule {
