@@ -121,7 +121,7 @@ RUN git init -q /src-idle && \
 # Same Fedora-release rule as above.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
-ARG NIRI_REF=d12bd420d2000fc485cbf0dfe9bbda2175d2a3dd
+ARG NIRI_REF=cfe1b4c0526d890df16958b107705fb360cbf254
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
     glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \
@@ -147,7 +147,7 @@ RUN git init -q /src && \
 # under cosmic-comp the original path runs unchanged.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS cosmic-applets-build
 ARG COSMIC_APPLETS_REPO=https://github.com/davidar/cosmic-applets.git
-ARG COSMIC_APPLETS_REF=187763f31591904118f0750fb711d405c60e7bed
+ARG COSMIC_APPLETS_REF=cb45cffc3f0a3063550d86533131a7fff3d66044
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core just libxkbcommon-devel wayland-devel mesa-libEGL-devel \
     mesa-libGL-devel fontconfig-devel freetype-devel dbus-devel \

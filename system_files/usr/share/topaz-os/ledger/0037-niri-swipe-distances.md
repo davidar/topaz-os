@@ -119,6 +119,18 @@ and defaulting to upstream behaviour:
   advertised list — all four common 8888 layouts are now accepted and
   advertised. Shared-memory capture only: dmabuf capture is disabled
   until it is verified on real hardware.
+- **A spawn that fails to exec is reported, not deadlocked.** When a
+  command niri spawns cannot be executed (a stale path in a
+  `spawn-at-startup`, say), the intermediate process that the
+  systemd-scope spawn path forks waited for a go-ahead that could only
+  arrive after the spawn had returned, while the spawn waited for that
+  process: the spawner thread hung for good, one orphaned `niri`
+  process was left behind per failed spawn, and the "error spawning"
+  warning never reached the journal — which is how a missing startup
+  shim once cost a whole login with nothing logged (ledger 0035). The
+  intermediate process now also watches the child's pidfd and exits as
+  soon as the child does, so a failed spawn returns at once with its
+  warning; a regression test covers it.
 
 The fork tracks the upstream release tag; the upstream project's
 contribution stance means the changes stay there rather than going up.

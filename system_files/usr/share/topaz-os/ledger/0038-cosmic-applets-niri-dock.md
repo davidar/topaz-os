@@ -33,6 +33,18 @@ matched on `(app_id, title)` with announcement order as the tiebreak.
 Known limit: two windows with identical app_id and title can swap.
 niri has no minimize, so the minimize applet stays empty there.
 
+The fork also opens the dock's window previews on hover. Upstream shows
+the preview popup only on click, and only for applications with two or
+more windows, so a single window had no thumbnail at all. Resting the
+pointer on an icon opens the same popup after a short delay for any
+number of windows; it closes once the pointer has left both the icon and
+the popup, when the popup loses focus, or when the active window
+changes, and a click on the icon keeps it. A hover popup takes no input
+grab, so the rest of the bar stays live under it — moving to another
+icon swaps the preview. The knobs are in the applet's own config
+(`com.system76.CosmicAppList`): `hover_thumbnails` (default on) and
+`hover_delay_ms` (default 400).
+
 The applet binding alone is not enough: the panel gives each applet a
 `wp_security_context` socket, and niri restricts such clients from the
 toplevel and workspace protocols. The topaz niri build trusts the

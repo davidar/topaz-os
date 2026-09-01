@@ -173,11 +173,12 @@ cmd_check() {
                  grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  test -x /usr/libexec/xdg-desktop-portal-cosmic'
-    chk "cosmic-applets is the topaz build with the wlr toplevel fallback (ledger 0038)" \
+    chk "cosmic-applets is the topaz build with the wlr toplevel fallback and hover previews (ledger 0038)" \
         bash -c 'rpm -Vf /usr/bin/cosmic-applets | grep "/usr/bin/cosmic-applets$" | grep -q 5 &&
                  [ "$(rpm -q --qf %{VERSION} cosmic-applets)" = \
                    "$(sed -n "s/^applets_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
                  grep -aq "zwlr_foreign_toplevel_manager_v1" /usr/bin/cosmic-applets &&
+                 grep -aq "hover_delay_ms" /usr/bin/cosmic-applets &&
                  [ "$(readlink -f /usr/bin/cosmic-app-list)" = /usr/bin/cosmic-applets ] &&
                  ! ldd /usr/bin/cosmic-applets | grep -q "not found"'
     chk "session launchers tear graphical-session.target down on exit (ledger 0036)" \
