@@ -402,7 +402,21 @@ cmd_pull() {
     echo "Fetching $image with parallel layer downloads…"
     local old_id new_id
     old_id=$(podman image inspect --format '{{.Id}}' "$image" 2>/dev/null || true)
-    podman pull "$image"
+    # A partial pull reads each layer's chunk table with a multi-range
+    # request; one truncated read of that response fails the whole pull,
+    # and podman's own retry did not cover it (observed 2026-09-01). Layers
+    # already committed to storage are not fetched again, so a bounded
+    # retry resumes the pull rather than restarting it.
+    local attempt
+    for attempt in 1 2 3; do
+        podman pull "$image" && break
+        [ "$attempt" -lt 3 ] || {
+            echo "podman pull failed $attempt times; nothing staged."
+            exit 1
+        }
+        echo "podman pull failed (attempt $attempt of 3); retrying in 10 s…"
+        sleep 10
+    done
     new_id=$(podman image inspect --format '{{.Id}}' "$image")
     echo "Importing into bootc from local container storage…"
     bootc switch --transport containers-storage "$image"

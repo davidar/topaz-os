@@ -24,6 +24,12 @@ lands, `topaz pull` packages the proven workaround as one verb:
    (~5 GiB standing cost in /var), reclaiming only the copy it
    supersedes.
 
+The podman fetch is retried up to three times: a partial pull reads
+each layer's chunk table with a multi-range request, and a single
+truncated response fails the pull without triggering podman's own
+retry. Layers already in storage are not fetched again, so a retry
+resumes where the last attempt stopped.
+
 With no argument it fetches the current bootc origin; passing a
 registry reference makes it a fast tag switch. When the registry digest
 is already staged or booted the verb exits without touching anything,
