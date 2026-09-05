@@ -26,7 +26,7 @@ COPY system_files /system_files
 # ships, and the compositor fails to load at session start. `topaz check`
 # asserts the binary's libraries resolve, so a mismatched bump fails the
 # build rather than the login.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS comp-build
+FROM registry.fedoraproject.org/fedora:44@sha256:73f8f084d8328edd72d05d86d192234c346678a491ed3f10595ead0e910f394a AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
 ARG COSMIC_COMP_REF=15ba5884ffd6e58c5b8ea46934b6f08ec15af278
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
@@ -52,7 +52,7 @@ RUN git init -q /src && \
 # github.com/davidar/cosmic-greeter (ledger 0034). Same Fedora-release rule
 # as comp-build above: the builder must track the base image's release or
 # the binary links a glibc the image does not ship.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS greeter-build
+FROM registry.fedoraproject.org/fedora:44@sha256:73f8f084d8328edd72d05d86d192234c346678a491ed3f10595ead0e910f394a AS greeter-build
 ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
 ARG COSMIC_GREETER_REF=fb97e5437b930ae24096711dd4466d9e59c40c9c
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
@@ -81,7 +81,7 @@ RUN git init -q /src && \
 # without them, leaving the session with no idle lock or suspend). Same
 # Fedora-release rule as the stages above: the builder must track the
 # base image's release.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-session-build
+FROM registry.fedoraproject.org/fedora:44@sha256:73f8f084d8328edd72d05d86d192234c346678a491ed3f10595ead0e910f394a AS niri-session-build
 ARG COSMIC_ALT_STARTUP_REPO=https://github.com/Drakulix/cosmic-ext-alternative-startup.git
 ARG COSMIC_ALT_STARTUP_REF=8ceda00197c7ec0905cf1dccdc2d67d738e45417
 ARG COSMIC_IDLE_REPO=https://github.com/davidar/cosmic-idle.git
@@ -119,7 +119,7 @@ RUN git init -q /src-idle && \
 # panel's applets see the window list, and the ext-image-copy-capture
 # protocols so COSMIC's screenshot and thumbnail clients can capture.
 # Same Fedora-release rule as above.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS niri-build
+FROM registry.fedoraproject.org/fedora:44@sha256:73f8f084d8328edd72d05d86d192234c346678a491ed3f10595ead0e910f394a AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
 ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
@@ -145,7 +145,7 @@ RUN git init -q /src && \
 # ext-foreign-toplevel-list and acts on them through
 # wlr-foreign-toplevel-management when the zcosmic manager is absent;
 # under cosmic-comp the original path runs unchanged.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS cosmic-applets-build
+FROM registry.fedoraproject.org/fedora:44@sha256:73f8f084d8328edd72d05d86d192234c346678a491ed3f10595ead0e910f394a AS cosmic-applets-build
 ARG COSMIC_APPLETS_REPO=https://github.com/davidar/cosmic-applets.git
 ARG COSMIC_APPLETS_REF=cb45cffc3f0a3063550d86533131a7fff3d66044
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
