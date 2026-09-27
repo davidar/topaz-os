@@ -43,8 +43,16 @@ OVMF_VARS="${OVMF_CODE/CODE/VARS}"
 
 # --- image and disk builds --------------------------------------------------
 
+# TOPAZ_TEST_EXTRA names a directory a companion repo staged: when it holds
+# an executable install.sh, the image build runs it (as root, from inside that
+# directory) so the companion's payload is baked into the test image instead
+# of being copied into every booted guest. Unset, the build context is an
+# empty directory and the image is exactly what it was.
 build_image() {
+    local extra="${TOPAZ_TEST_EXTRA:-$ART/extra-empty}"
+    [[ -n "${TOPAZ_TEST_EXTRA:-}" ]] || mkdir -p "$extra"
     podman build --build-arg "BASE=$BASE_IMAGE" -t "$TEST_IMAGE" \
+        --build-context "extra=$extra" \
         -f "$TESTS_DIR/Containerfile.test" "$TESTS_DIR"
 }
 

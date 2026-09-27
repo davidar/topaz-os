@@ -24,6 +24,12 @@ the original paths — and every `run.sh` command acts on that guest. Each
 guest boots with `-snapshot`, so they never write the shared disk; size
 `TOPAZ_TEST_RAM` (default 8G) to what the host can hold.
 
+A companion repo can bake its own payload into the test image rather than
+copy it into every booted guest: stage a directory holding an executable
+`install.sh` (run as root, from that directory, at image build time) and
+build with `TOPAZ_TEST_EXTRA=<dir> tests/run.sh image`, then `tests/run.sh
+disk`. Unset, the image is unchanged.
+
 Pieces:
 
 - `Containerfile.test` — derived test image, never published: greetd

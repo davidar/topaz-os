@@ -11,7 +11,16 @@ FROM $BASE
 # layer via a bind-mounted context instead of steps of their own.
 # The tester user itself is injected at disk-build time (disk-test.toml),
 # not here — the image layer ships no users and /var stays empty.
+#
+# A companion repo's payload rides the same layer: lib.sh passes the
+# directory named by TOPAZ_TEST_EXTRA as the `extra` build context (an empty
+# one when unset), and its install.sh is run as root from inside it — a
+# non-empty context without one fails the build rather than baking nothing.
+# `z` relabels it for SELinux: an additional context outside this directory
+# is otherwise unreadable here and would look empty. Without one this is
+# exactly the image it was.
 RUN --mount=type=bind,source=files,target=/run/test-files \
+    --mount=type=bind,from=extra,target=/run/test-extra,z \
     install -m 0755 /run/test-files/topaz-test-session /usr/bin/topaz-test-session && \
     install -m 0644 /run/test-files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml && \
     systemctl disable gdm.service && \
@@ -22,4 +31,7 @@ RUN --mount=type=bind,source=files,target=/run/test-files \
     sed -i 's|^\( *\)// skip-at-startup$|\1skip-at-startup|' /etc/niri/config.kdl && \
     grep -q '^ *skip-at-startup$' /etc/niri/config.kdl && \
     echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/50-topaz-test && \
-    chmod 0440 /etc/sudoers.d/50-topaz-test
+    chmod 0440 /etc/sudoers.d/50-topaz-test && \
+    if [ -n "$(ls -A /run/test-extra)" ]; then \
+        (cd /run/test-extra && ./install.sh); \
+    fi
