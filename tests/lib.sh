@@ -6,14 +6,34 @@ TESTS_DIR="${TESTS_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 ART="$TESTS_DIR/.artifacts"
 mkdir -p "$ART"
 
+# Several guests can run side by side off the one base disk (-snapshot keeps
+# them independent). TOPAZ_TEST_ID picks one: everything that belongs to a
+# running guest — its ssh port, QMP and VNC sockets, pidfile, serial log and
+# its copy of the UEFI variables — is that id's. Id 0 is the default and keeps
+# the original layout (port 2233, files directly under .artifacts/), so a
+# caller that sets nothing sees no change; id N uses port 2233+N and
+# .artifacts/N/. The base disk, its image id and the ssh key stay shared.
+TOPAZ_TEST_ID="${TOPAZ_TEST_ID:-0}"
+[[ "$TOPAZ_TEST_ID" =~ ^[0-9]+$ ]] || {
+    echo "TOPAZ_TEST_ID must be a small non-negative integer" >&2
+    return 2 2>/dev/null || exit 2
+}
+if [[ "$TOPAZ_TEST_ID" = 0 ]]; then
+    RUN_ART="$ART"
+else
+    RUN_ART="$ART/$TOPAZ_TEST_ID"
+fi
+mkdir -p "$RUN_ART"
+
 BASE_IMAGE="${TOPAZ_TEST_BASE_IMAGE:-localhost/topaz-os:test}"
 TEST_IMAGE="localhost/topaz-os-test:latest"
 BIB_IMAGE="${TOPAZ_TEST_BIB_IMAGE:-quay.io/centos-bootc/bootc-image-builder:latest}"
 DISK="$ART/disk.qcow2"
-SSH_PORT="${TOPAZ_TEST_SSH_PORT:-2233}"
+SSH_PORT="${TOPAZ_TEST_SSH_PORT:-$((2233 + TOPAZ_TEST_ID))}"
 SSH_KEY="$ART/id_ed25519"
-QMP_SOCK="$ART/qmp.sock"
-PIDFILE="$ART/qemu.pid"
+QMP_SOCK="$RUN_ART/qmp.sock"
+PIDFILE="$RUN_ART/qemu.pid"
+VNC_SOCK="$RUN_ART/vnc.sock"
 # UEFI firmware lives under different names per distro (Fedora, Ubuntu).
 OVMF_CODE=""
 for _fw in /usr/share/edk2/ovmf/OVMF_CODE.fd /usr/share/OVMF/OVMF_CODE_4M.fd; do
@@ -97,7 +117,7 @@ vm_start() {
     fi
     [[ -f "$DISK" ]] || { echo "no test disk — run: tests/run.sh disk" >&2; return 1; }
     [[ -f "$OVMF_CODE" ]] || { echo "no OVMF firmware — install edk2-ovmf (Fedora) or ovmf (Ubuntu)" >&2; return 1; }
-    [[ -f "$ART/OVMF_VARS.fd" ]] || cp "$OVMF_VARS" "$ART/OVMF_VARS.fd"
+    [[ -f "$RUN_ART/OVMF_VARS.fd" ]] || cp "$OVMF_VARS" "$RUN_ART/OVMF_VARS.fd"
 
     # -snapshot: every run boots a pristine disk; set TOPAZ_TEST_PERSIST=1
     # to keep changes across boots (e.g. while iterating inside the VM).
@@ -125,36 +145,38 @@ vm_start() {
             display=sdl
         fi
     fi
-    rm -f "$ART/vnc.sock"
+    rm -f "$VNC_SOCK"
     local gpu=(-device virtio-vga-gl)
     case "$display" in
-    egl) gpu+=(-display egl-headless -vnc "unix:$ART/vnc.sock") ;;
+    egl) gpu+=(-display egl-headless -vnc "unix:$VNC_SOCK") ;;
     sdl)
         export SDL_VIDEODRIVER=offscreen
         # shellcheck disable=SC2054  # the comma is QEMU option syntax
         gpu+=(-display sdl,gl=on)
         ;;
-    none) gpu=(-device virtio-vga -display none -vnc "unix:$ART/vnc.sock") ;;
+    none) gpu=(-device virtio-vga -display none -vnc "unix:$VNC_SOCK") ;;
     *)
         echo "TOPAZ_TEST_DISPLAY must be auto, egl, sdl or none" >&2
         return 2
         ;;
     esac
 
+    local name=topaz-test
+    [[ "$TOPAZ_TEST_ID" = 0 ]] || name="topaz-test-$TOPAZ_TEST_ID"
     qemu-system-x86_64 \
-        -name topaz-test -machine q35,accel=kvm -cpu host \
+        -name "$name" -machine q35,accel=kvm -cpu host \
         -smp "${TOPAZ_TEST_CPUS:-4}" -m "${TOPAZ_TEST_RAM:-8G}" \
         -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
-        -drive "if=pflash,format=raw,file=$ART/OVMF_VARS.fd" \
+        -drive "if=pflash,format=raw,file=$RUN_ART/OVMF_VARS.fd" \
         -drive "file=$DISK,if=virtio,format=qcow2,discard=unmap" \
         "${snapshot[@]}" \
         "${gpu[@]}" \
         -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${SSH_PORT}-:22" \
         -device virtio-net-pci,netdev=n0 \
         -qmp "unix:$QMP_SOCK,server,nowait" \
-        -serial "file:$ART/serial.log" \
+        -serial "file:$RUN_ART/serial.log" \
         -pidfile "$PIDFILE" -daemonize
-    echo "VM started (ssh -p $SSH_PORT, qmp $QMP_SOCK)"
+    echo "VM $TOPAZ_TEST_ID started (ssh -p $SSH_PORT, qmp $QMP_SOCK)"
 }
 
 vm_stop() {
@@ -174,7 +196,7 @@ vm_stop() {
 
 vm_status() {
     if vm_running; then
-        echo "running (pid $(cat "$PIDFILE"), ssh -p $SSH_PORT)"
+        echo "running (id $TOPAZ_TEST_ID, pid $(cat "$PIDFILE"), ssh -p $SSH_PORT)"
     else
         echo "not running"
     fi
@@ -182,8 +204,11 @@ vm_status() {
 
 # --- guest access -----------------------------------------------------------
 
+# Key-only, in BatchMode: a probe of a guest whose sshd is up but refuses
+# the key fails instead of falling through to a password prompt (or a GUI
+# askpass on the host, once a second, from a polling loop).
 tssh() {
-    ssh -q -p "$SSH_PORT" -i "$SSH_KEY" \
+    ssh -q -p "$SSH_PORT" -i "$SSH_KEY" -o BatchMode=yes \
         -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -o ConnectTimeout=5 -o LogLevel=ERROR \
         tester@127.0.0.1 "$@"
@@ -200,11 +225,11 @@ png_valid() { # non-empty, PNG signature, complete (IEND trailer present)
 }
 
 screendump() {
-    local out="${1:-$ART/screens/screen-$(date +%Y%m%d-%H%M%S).png}"
+    local out="${1:-$RUN_ART/screens/screen-$(date +%Y%m%d-%H%M%S).png}"
     mkdir -p "$(dirname "$out")"
     out="$(realpath -m "$out")"
-    if [[ -S "$ART/vnc.sock" ]]; then
-        python3 "$TESTS_DIR/screendump.py" "$ART/vnc.sock" "$out" ||
+    if [[ -S "$VNC_SOCK" ]]; then
+        python3 "$TESTS_DIR/screendump.py" "$VNC_SOCK" "$out" ||
             { echo "screendump failed" >&2; return 1; }
     else
         # No VNC listener (sdl display mode): capture inside the guest.

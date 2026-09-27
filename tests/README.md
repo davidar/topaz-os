@@ -17,6 +17,13 @@ everything else is rootless. Artifacts live in `tests/.artifacts/`
 (gitignored): the test disk, per-checkout ssh key, serial log, and
 screendumps.
 
+Several guests can run at once off the one test disk: `TOPAZ_TEST_ID=N`
+(default 0) gives guest N its own ssh port (2233+N), QMP and VNC sockets,
+pidfile, serial log and UEFI variables under `.artifacts/N/` — id 0 keeps
+the original paths — and every `run.sh` command acts on that guest. Each
+guest boots with `-snapshot`, so they never write the shared disk; size
+`TOPAZ_TEST_RAM` (default 8G) to what the host can hold.
+
 Pieces:
 
 - `Containerfile.test` — derived test image, never published: greetd

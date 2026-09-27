@@ -22,6 +22,10 @@ usage() {
 #usage#   suite <name>  run tests/suites/<name>.sh against the running VM
 #usage#                 (a path runs that suite file — companion repos)
 #usage#   screendump [out.png]
+#usage#
+#usage# TOPAZ_TEST_ID=N selects guest N (default 0): ssh port 2233+N, sockets,
+#usage# pidfile and serial log under .artifacts/N/ (id 0: directly under
+#usage# .artifacts/). Guests with different ids run side by side.
 
 cmd="${1:-all}"
 shift || true
