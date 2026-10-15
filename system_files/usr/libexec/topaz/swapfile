@@ -1,0 +1,33 @@
+#!/bin/bash
+# Create the disk swapfile that zswap drains cold pages to (ledger 0042).
+# Run once by topaz-swapfile.service on a machine that has none; the swap
+# unit var-swap-swapfile.swap activates it. Sized to RAM, rounded up to
+# whole GiB and capped at 32 GiB.
+set -euo pipefail
+
+file=/var/swap/swapfile
+dir=${file%/*}
+
+[ -e "$file" ] && exit 0
+
+mem_kib=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+size_gib=$(( (mem_kib + 1048575) / 1048576 ))
+[ "$size_gib" -gt 32 ] && size_gib=32
+[ "$size_gib" -lt 1 ] && size_gib=1
+
+if [ "$(stat -f -c %T "${dir%/*}")" = btrfs ]; then
+    # A swapfile must be nocow, uncompressed and never shared with a
+    # snapshot; mkswapfile sets the file attributes, and its own subvolume
+    # keeps it out of any snapshot taken of /var.
+    [ -d "$dir" ] || btrfs subvolume create "$dir"
+    chmod 0700 "$dir"
+    btrfs filesystem mkswapfile --size "${size_gib}g" "$file.new"
+else
+    mkdir -p -m 0700 "$dir"
+    ( umask 077 && fallocate -l "${size_gib}G" "$file.new" )
+    mkswap "$file.new"
+fi
+# Only a fully formatted file gets the final name; a half-made one is
+# retried on the next boot instead of being activated.
+mv "$file.new" "$file"
+echo "created $file (${size_gib} GiB)"

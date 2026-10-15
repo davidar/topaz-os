@@ -1,0 +1,11 @@
+[Unit]
+Description=Disk swapfile (zswap backing store)
+Documentation=file:///usr/share/topaz-os/ledger/0042-zswap-disk-swap.md
+Requires=topaz-swapfile.service
+After=topaz-swapfile.service
+
+[Swap]
+What=/var/swap/swapfile
+
+[Install]
+WantedBy=swap.target

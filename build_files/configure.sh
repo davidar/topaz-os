@@ -77,6 +77,12 @@ systemctl enable supergfxd.service
 # half an hour before uupd's bootc step (which then no-ops).
 systemctl enable topaz-pull.timer
 
+### Disk swapfile behind zswap (ledger 0042)
+# The image ships no zram device; swap is zswap over a swapfile that
+# topaz-swapfile.service creates on first boot. Preset plus enable, as
+# above, so a disk without preset application still gets its swap.
+systemctl enable var-swap-swapfile.swap
+
 ### KDE Connect firewall ports (ledger 0030)
 # KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
 # recipe; ledger 0026 records the eviction), but the container shares the

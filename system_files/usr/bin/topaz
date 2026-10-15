@@ -82,6 +82,17 @@ cmd_check() {
     chk "systemd-oomd acts on 5s of sustained pressure" \
         grep -qx 'DefaultMemoryPressureDurationSec=5s' \
             /usr/lib/systemd/oomd.conf.d/topaz.conf
+    chk "no zram device: the generator config defines none (ledger 0042)" \
+        bash -c 'test -f /etc/systemd/zram-generator.conf &&
+                 ! grep -q "^\[" /etc/systemd/zram-generator.conf'
+    chk "zswap is enabled with zstd and the LRU shrinker (ledger 0042)" \
+        bash -c 'f=/usr/lib/tmpfiles.d/topaz-zswap.conf &&
+                 grep -q "parameters/compressor - - - - zstd" "$f" &&
+                 grep -q "parameters/shrinker_enabled - - - - Y" "$f" &&
+                 grep -q "parameters/enabled - - - - Y" "$f"'
+    chk "disk swapfile unit is enabled and its creator is executable (ledger 0042)" \
+        bash -c 'ls /etc/systemd/system/swap.target.wants/var-swap-swapfile.swap >/dev/null 2>&1 &&
+                 test -x /usr/libexec/topaz/swapfile'
     chk "GTK4 GL renderer default is present" \
         grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
     chk "Goodix fingerprint TOD driver is installed" \

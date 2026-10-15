@@ -4,3 +4,6 @@ enable supergfxd.service
 # topaz-os: stage updates via parallel partial pulls ahead of uupd
 # (ledger 0032)
 enable topaz-pull.timer
+
+# topaz-os: disk swapfile behind zswap (ledger 0042)
+enable var-swap-swapfile.swap
