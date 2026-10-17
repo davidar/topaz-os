@@ -51,7 +51,8 @@ OVMF_VARS="${OVMF_CODE/CODE/VARS}"
 build_image() {
     local extra="${TOPAZ_TEST_EXTRA:-$ART/extra-empty}"
     [[ -n "${TOPAZ_TEST_EXTRA:-}" ]] || mkdir -p "$extra"
-    podman build --build-arg "BASE=$BASE_IMAGE" -t "$TEST_IMAGE" \
+    podman build --build-arg "BASE=$BASE_IMAGE" \
+        --build-arg "TOPAZ_TEST_SESSION=${TOPAZ_TEST_SESSION:-cosmic-niri}" -t "$TEST_IMAGE" \
         --build-context "extra=$extra" \
         -f "$TESTS_DIR/Containerfile.test" "$TESTS_DIR"
 }
@@ -295,8 +296,15 @@ wait_session_painted() {
     # anything — a screendump taken right away catches a grey void. The
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
-    local deadline=$((SECONDS + ${1:-120}))
-    until tssh 'pgrep -x cosmic-panel >/dev/null && pgrep -x cosmic-bg >/dev/null' 2>/dev/null; do
+    # Which processes depends on the session the test image runs (ledgers
+    # 0035, 0041): the COSMIC shell's panel and wallpaper, or the topaz
+    # session's bar and swaybg.
+    local deadline=$((SECONDS + ${1:-120})) shell
+    case "${TOPAZ_TEST_SESSION:-cosmic-niri}" in
+    topaz-niri) shell='pgrep -x caustics-bar >/dev/null && pgrep -x swaybg >/dev/null' ;;
+    *) shell='pgrep -x cosmic-panel >/dev/null && pgrep -x cosmic-bg >/dev/null' ;;
+    esac
+    until tssh "$shell" 2>/dev/null; do
         ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
         sleep 3
     done

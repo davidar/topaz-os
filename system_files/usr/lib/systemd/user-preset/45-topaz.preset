@@ -1,3 +1,12 @@
 # topaz-os: speech-dispatcher socket activation on by default, so Flatpak
 # browsers (e.g. Firefox) get working text-to-speech without per-user setup
 enable speech-dispatcher.socket
+# niri (topaz) session shell (ledgers 0041, 0044): every unit is gated on
+# XDG_SESSION_DESKTOP=topaz, so enabling them is harmless elsewhere.
+enable caustics-bar.service
+enable topaz-locker.service
+enable topaz-idle.service
+enable topaz-osd.socket
+enable topaz-polkit-agent.service
+enable topaz-background.service
+enable topaz-clipboard.service

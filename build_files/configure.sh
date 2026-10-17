@@ -191,6 +191,20 @@ printf '%s\n' \
     'org.freedesktop.impl.portal.Settings=cosmic;gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
+### niri (topaz) session (ledger 0041)
+# The session's shell is systemd user units wanted by
+# graphical-session.target (niri's own session integration starts it),
+# each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC sessions are
+# untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
+# so the session shares niri-portals.conf above — portal-cosmic's
+# Settings backend reads cosmic-config, keeping the panel's theme and the
+# portals' color-scheme on the same switch. Preset shipped in
+# system_files; enabled here as well.
+systemctl --global enable \
+    caustics-bar.service topaz-locker.service topaz-idle.service \
+    topaz-osd.socket topaz-polkit-agent.service topaz-background.service \
+    topaz-clipboard.service
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

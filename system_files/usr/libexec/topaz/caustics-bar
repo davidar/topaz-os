@@ -1,0 +1,24 @@
+#!/bin/bash
+# Starts the caustics bar for the niri (topaz) session (ledger 0044).
+#
+# On a hybrid laptop the Vulkan loader loads every installed driver and
+# enumerates every device, and enumerating the discrete GPU alone can wake
+# it for the life of the session. The bar prefers a low-power adapter and
+# refuses an NVIDIA one by itself, but by then the loader has done the
+# enumeration. So when an integrated GPU is bound to a render node, pin the
+# loader to its driver and the discrete one is never opened. No integrated
+# GPU (a desktop, the test VM) leaves the loader alone; a VK_DRIVER_FILES
+# already in the environment (a unit drop-in) wins.
+if [ -z "${VK_DRIVER_FILES:-}" ]; then
+    icd=""
+    for driver in /sys/class/drm/renderD*/device/driver; do
+        case "$(basename "$(readlink -f "$driver" 2>/dev/null)")" in
+        amdgpu) icd=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json ;;
+        i915 | xe) icd=/usr/share/vulkan/icd.d/intel_icd.x86_64.json ;;
+        esac
+    done
+    if [ -n "$icd" ] && [ -f "$icd" ]; then
+        export VK_DRIVER_FILES="$icd"
+    fi
+fi
+exec /usr/bin/caustics-bar "$@"

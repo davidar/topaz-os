@@ -1,0 +1,8 @@
+#!/bin/bash
+# Startup shim for the COSMIC-on-niri session (ledger 0035): reports the
+# socket addresses back to cosmic-session over the inherited
+# COSMIC_SESSION_SOCK fd. Spawned from the shared baked niri config, so it
+# must be a no-op in the niri (topaz) session, where cosmic-session does
+# not exist and the fd is absent (ledger 0041).
+[ -n "${COSMIC_SESSION_SOCK:-}" ] || exit 0
+exec /usr/bin/cosmic-ext-alternative-startup "$@"

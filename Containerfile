@@ -162,6 +162,35 @@ RUN git init -q /src && \
     install -Dm0755 /src/target/release/cosmic-applets /out/cosmic-applets && \
     printf 'applets_repo=%s\napplets_ref=%s\n' "$COSMIC_APPLETS_REPO" "$COSMIC_APPLETS_REF" > /out/build-info
 
+# caustics, the bar of the niri (topaz) session (ledger 0044), built at a
+# pinned commit of https://github.com/davidar/caustics. The bar and its ten
+# sidecars are one set, installed under a directory named by the ABI hash
+# the bar prints, as the project's own install script lays them out; the
+# shader sources travel too, for the compiler sidecar. The build script
+# fetches the Slang release the bindings were generated against and checks
+# it against the SHA-256 recorded in the crate, so that download is as
+# pinned as a crate's.
+FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS caustics-build
+ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
+ARG CAUSTICS_REF=c6ca83d9e7cab04b9d6bdc5a070ac2c750615738
+RUN dnf -y install gcc cargo rust git-core pkgconf-pkg-config && dnf clean all
+RUN git init -q /src && \
+    git -C /src fetch --depth=1 "$CAUSTICS_REPO" "$CAUSTICS_REF" && \
+    git -C /src checkout -q FETCH_HEAD && \
+    SOURCE_DATE_EPOCH="$(git -C /src log -1 --format=%ct)" \
+    CARGO_PROFILE_RELEASE_STRIP=true \
+        cargo build --release --workspace --manifest-path=/src/Cargo.toml && \
+    set_hash="$(/src/target/release/caustics-bar --abi-hash)" && \
+    [ "${#set_hash}" -eq 16 ] && \
+    for b in caustics-bar caustics-sysmon caustics-tray caustics-power caustics-audio \
+             caustics-network caustics-bluetooth caustics-notify caustics-apps \
+             caustics-glyphs caustics-reload; do \
+        install -Dm0755 "/src/target/release/$b" "/out/lib/caustics-bar/$set_hash/$b" || exit 1; \
+    done && \
+    mkdir -p /out/share && cp -r /src/caustics /out/share/caustics && \
+    printf 'caustics_repo=%s\ncaustics_ref=%s\ncaustics_set=%s\n' \
+        "$CAUSTICS_REPO" "$CAUSTICS_REF" "$set_hash" > /out/build-info
+
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:37285c460a1648fed27f1265e1658b0285c5c9a1709d3543cd81a935c0f71bdb
 
@@ -194,12 +223,14 @@ RUN --mount=type=bind,from=ctx-greeter,source=/install-greeter.sh,target=/ctx/in
     /ctx/install-greeter.sh
 
 # niri-session binaries from the niri-session-build stage (ledger 0035),
-# the fork-built niri from the niri-build stage (ledger 0037) and the
-# fork-built applets from the cosmic-applets-build stage (ledger 0038)
+# the fork-built niri from the niri-build stage (ledger 0037), the
+# fork-built applets from the cosmic-applets-build stage (ledger 0038) and
+# the caustics bar from the caustics-build stage (ledger 0044)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \
     --mount=type=bind,from=cosmic-applets-build,source=/out,target=/cosmic-applets-build \
+    --mount=type=bind,from=caustics-build,source=/out,target=/caustics-build \
     /ctx/install-niri-session.sh
 
 # topaz system files and configuration on top of the installed set

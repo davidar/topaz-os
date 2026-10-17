@@ -144,7 +144,9 @@ cmd_check() {
                  ! ldd /usr/bin/niri | grep -q "not found"'
     chk "baked niri config is valid and starts the COSMIC shim from the image-owned include" \
         bash -c 'grep -q "^include \"cosmic-shell.kdl\"$" /etc/niri/config.kdl &&
-                 grep -q "^spawn-at-startup \"/usr/bin/cosmic-ext-alternative-startup\"$" /etc/niri/cosmic-shell.kdl &&
+                 grep -q "^spawn-at-startup \"/usr/libexec/topaz/cosmic-shim\"$" /etc/niri/cosmic-shell.kdl &&
+                 grep -q "COSMIC_SESSION_SOCK" /usr/libexec/topaz/cosmic-shim &&
+                 test -x /usr/libexec/topaz/cosmic-shim &&
                  ! grep -q "alternative-startup\|import-environment" /etc/niri/config.kdl &&
                  grep -q "touchpad-swipe" /etc/niri/config.kdl &&
                  grep -q "mask-threshold" /etc/niri/config.kdl &&
@@ -156,6 +158,54 @@ cmd_check() {
     # niri 26.04 skips a startup spawn whose binary is missing without a
     # word (the spawner deadlocks on the exec error), so resolve every
     # target here instead of finding out at login.
+    chk "niri (topaz) session: entry, units, shims and packages are in place (ledger 0041)" \
+        bash -c 'grep -q "^Exec=/usr/bin/niri-session$" /usr/share/wayland-sessions/topaz-niri.desktop &&
+                 grep -q "^DesktopNames=topaz;niri$" /usr/share/wayland-sessions/topaz-niri.desktop &&
+                 test -x /usr/bin/niri-session &&
+                 test -f /usr/lib/systemd/user/niri.service &&
+                 for u in caustics-bar.service topaz-locker.service topaz-idle.service \
+                          topaz-osd.socket topaz-osd.service topaz-polkit-agent.service \
+                          topaz-background.service topaz-clipboard.service; do
+                     test -f /usr/lib/systemd/user/$u || exit 1
+                     grep -q "^ConditionEnvironment=XDG_SESSION_DESKTOP=topaz$" /usr/lib/systemd/user/$u || exit 1
+                 done &&
+                 for u in caustics-bar.service topaz-locker.service topaz-idle.service \
+                          topaz-osd.socket topaz-polkit-agent.service topaz-background.service \
+                          topaz-clipboard.service; do
+                     test -L /etc/systemd/user/graphical-session.target.wants/$u || exit 1
+                 done &&
+                 ! test -e /usr/lib/systemd/user/topaz-notifications.service &&
+                 ! command -v mako > /dev/null &&
+                 test -x /usr/bin/topaz-osd &&
+                 for b in swayidle swaybg wob fuzzel cliphist wl-paste cosmic-greeter cosmic-osd; do
+                     command -v $b > /dev/null || exit 1
+                 done &&
+                 test -f /usr/share/backgrounds/default.jxl &&
+                 test -f /etc/xdg/wob/wob.ini &&
+                 ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
+                 grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
+                 grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
+    chk "caustics bar: one set of eleven binaries, the link into it, the shader sources, the unit and its GPU wrapper (ledger 0044)" \
+        bash -c 'set -o pipefail
+                 sets=(/usr/lib/caustics-bar/*/)
+                 [ "${#sets[@]}" -eq 1 ] || exit 1
+                 set_dir=${sets[0]}; set_hash=$(basename "$set_dir")
+                 [ "$(readlink -f /usr/bin/caustics-bar)" = "${set_dir}caustics-bar" ] &&
+                 [ "$("${set_dir}caustics-bar" --abi-hash)" = "$set_hash" ] &&
+                 [ "$(sed -n "s/^caustics_set=//p" /usr/share/topaz-os/niri-session-build)" = "$set_hash" ] &&
+                 for b in caustics-bar caustics-sysmon caustics-tray caustics-power caustics-audio \
+                          caustics-network caustics-bluetooth caustics-notify caustics-apps \
+                          caustics-glyphs caustics-reload; do
+                     test -x "$set_dir$b" || exit 1
+                     ! ldd "$set_dir$b" | grep -q "not found" || exit 1
+                 done &&
+                 test -f /usr/share/caustics/bar.slang &&
+                 grep -q "^ExecStart=/usr/libexec/topaz/caustics-bar$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -q "^Environment=CAUSTICS_DIR=/usr/share/caustics$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -q "^RestartPreventExitStatus=2 3$" /usr/lib/systemd/user/caustics-bar.service &&
+                 test -x /usr/libexec/topaz/caustics-bar &&
+                 test -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json &&
+                 test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json'
     chk "every spawn-at-startup target in the baked niri config exists" \
         bash -c 'set -o pipefail
                  grep -h "^spawn-at-startup " /etc/niri/*.kdl |

@@ -30,10 +30,18 @@ copy it into every booted guest: stage a directory holding an executable
 build with `TOPAZ_TEST_EXTRA=<dir> tests/run.sh image`, then `tests/run.sh
 disk`. Unset, the image is unchanged.
 
+Which session the autologin runs is baked into the test image too:
+`TOPAZ_TEST_SESSION=topaz-niri tests/run.sh image` selects the niri (topaz)
+session (ledger 0041, the caustics bar and systemd user units) instead of
+the default COSMIC-on-niri one; `boot-verify` reads the choice back from
+the guest and asserts the matching shell. Pass the same variable to every
+later `run.sh` invocation, or the harness rebuilds the image for the
+default session and the disk no longer matches it.
+
 Pieces:
 
 - `Containerfile.test` — derived test image, never published: greetd
-  autologin into the COSMIC-on-niri session, sshd, display manager
+  autologin into the chosen session, sshd, display manager
   flipped to cosmic-greeter (so `topaz check`'s enforced-GDM claim fails
   here by design, matching the greetd trial on hardware).
 - `disk-test.toml.in` — bootc-image-builder config template; the runner

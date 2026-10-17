@@ -1,4 +1,4 @@
-// COSMIC-on-niri session plumbing (ledgers 0035, 0036, 0039).
+// COSMIC-on-niri session plumbing (ledgers 0035, 0036, 0039, 0041).
 //
 // Everything that turns a niri instance started by cosmic-session into a
 // working COSMIC session lives here, and only here: the environment
@@ -29,8 +29,10 @@ spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY
 // and niri socket addresses back to cosmic-session over the
 // COSMIC_SESSION_SOCK file descriptor, and cosmic-session then brings up
 // the COSMIC shell (panel, launcher, notifications, background, ...)
-// against this compositor instead of cosmic-comp.
-spawn-at-startup "/usr/bin/cosmic-ext-alternative-startup"
+// against this compositor instead of cosmic-comp. The wrapper exits at
+// once when that fd is absent — the niri (topaz) session (ledger 0041)
+// shares this config and runs its shell from systemd user units instead.
+spawn-at-startup "/usr/libexec/topaz/cosmic-shim"
 
 // Portal dialogs (file chooser, access prompts, print) are transient
 // dialogs from another process, so niri can't tie them to their parent

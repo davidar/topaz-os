@@ -1,0 +1,12 @@
+[Unit]
+Description=On-screen display (wob) for the niri (topaz) session
+ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
+PartOf=graphical-session.target
+After=graphical-session.target
+Requires=topaz-osd.socket
+
+[Service]
+ExecStart=/usr/bin/wob
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal

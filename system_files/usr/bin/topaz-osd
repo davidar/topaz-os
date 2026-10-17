@@ -1,0 +1,50 @@
+#!/bin/bash
+# Volume and brightness keys for the niri (topaz) session: apply the
+# change and show the result on the on-screen display (wob, fed through
+# the topaz-osd.socket FIFO). Usable from any niri bind:
+#   topaz-osd volume up|down|mute
+#   topaz-osd mic mute
+#   topaz-osd brightness up|down
+# Step sizes: TOPAZ_OSD_VOLUME_STEP (default 10%), TOPAZ_OSD_BRIGHTNESS_STEP
+# (default 10%). Without the socket (other sessions) the change still
+# applies, silently.
+set -u
+vstep=${TOPAZ_OSD_VOLUME_STEP:-10}
+bstep=${TOPAZ_OSD_BRIGHTNESS_STEP:-10}
+sock=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/topaz-osd.sock
+
+show() {
+    [ -p "$sock" ] && printf '%s\n' "$1" > "$sock"
+}
+
+volume_percent() {
+    # "Volume: 0.45 [MUTED]" → 45, or 0 when muted
+    local line
+    line=$(wpctl get-volume "$1")
+    case $line in
+    *MUTED*) echo 0 ;;
+    *) awk '{printf "%d", $2 * 100 + 0.5}' <<<"$line" ;;
+    esac
+}
+
+case "${1:-} ${2:-}" in
+"volume up")    wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "${vstep}%+" ;;
+"volume down")  wpctl set-volume @DEFAULT_AUDIO_SINK@ "${vstep}%-" ;;
+"volume mute")  wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+"mic mute")     wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+"brightness up")   brightnessctl -q --class=backlight set "+${bstep}%" ;;
+"brightness down") brightnessctl -q --class=backlight set "${bstep}%-" ;;
+*)
+    echo "usage: topaz-osd volume up|down|mute | mic mute | brightness up|down" >&2
+    exit 2
+    ;;
+esac
+
+case $1 in
+volume) show "$(volume_percent @DEFAULT_AUDIO_SINK@)" ;;
+mic)    show "$(volume_percent @DEFAULT_AUDIO_SOURCE@)" ;;
+brightness)
+    # brightnessctl -m: device,class,current,percent,max
+    show "$(brightnessctl -m --class=backlight get | awk -F, '{sub(/%/,"",$4); print $4}')"
+    ;;
+esac

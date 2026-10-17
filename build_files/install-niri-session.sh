@@ -4,8 +4,9 @@
 # beyond its packaged parts, keyed on the niri-session-build stage's
 # output (pinned by COSMIC_ALT_STARTUP_REF and COSMIC_IDLE_REF in the
 # Containerfile), plus the fork-built niri from the niri-build stage
-# (NIRI_REF) and cosmic-applets from the cosmic-applets-build stage
-# (COSMIC_APPLETS_REF).
+# (NIRI_REF), cosmic-applets from the cosmic-applets-build stage
+# (COSMIC_APPLETS_REF) and the caustics bar from the caustics-build stage
+# (CAUSTICS_REF).
 
 set -ouex pipefail
 
@@ -65,7 +66,22 @@ fi
 test -L /usr/bin/cosmic-app-list
 install -m0755 /cosmic-applets-build/cosmic-applets /usr/bin/cosmic-applets
 
+### caustics bar (ledger 0044)
+# One set: the eleven binaries under /usr/lib/caustics-bar/<abi-hash>/ and
+# /usr/bin/caustics-bar a symlink into it. The bar resolves its own path
+# and starts the sidecars beside it, so the link is what makes the set a
+# set. The shader sources go to /usr/share/caustics for the compiler
+# sidecar (the unit points CAUSTICS_DIR at them).
+caustics_set=$(sed -n 's/^caustics_set=//p' /caustics-build/build-info)
+test -d "/caustics-build/lib/caustics-bar/$caustics_set"
+mkdir -p /usr/lib/caustics-bar /usr/share
+cp -r "/caustics-build/lib/caustics-bar/$caustics_set" /usr/lib/caustics-bar/
+cp -r /caustics-build/share/caustics /usr/share/caustics
+ln -s "/usr/lib/caustics-bar/$caustics_set/caustics-bar" /usr/bin/caustics-bar
+[ "$(/usr/bin/caustics-bar --abi-hash)" = "$caustics_set" ]
+
 { cat /niri-session/build-info; echo "idle_base=$idle_base_version";
   cat /niri-build/build-info; echo "niri_base=$niri_base_version";
-  cat /cosmic-applets-build/build-info; echo "applets_base=$applets_base_version"; } \
+  cat /cosmic-applets-build/build-info; echo "applets_base=$applets_base_version";
+  cat /caustics-build/build-info; } \
     > /usr/share/topaz-os/niri-session-build
