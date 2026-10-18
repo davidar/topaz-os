@@ -18,7 +18,8 @@ layout, text and drawing run in Slang compute shaders on the GPU, with a
 small bar process owning the Wayland surface and a set of sidecar
 processes talking to the rest of the system. It provides the dock with
 window previews, the system tray, charts, a clock and calendar, the
-notification daemon, and menus for power, audio, network and Bluetooth.
+notification daemon, the volume and brightness toasts, and menus for
+power, audio, network and Bluetooth.
 No distribution packages it, so the image builds it (Containerfile
 `caustics-build` stage) at a pinned commit.
 

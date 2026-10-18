@@ -202,7 +202,7 @@ printf '%s\n' \
 # system_files; enabled here as well.
 systemctl --global enable \
     caustics-bar.service topaz-locker.service topaz-idle.service \
-    topaz-osd.socket topaz-polkit-agent.service topaz-background.service \
+    topaz-polkit-agent.service topaz-background.service \
     topaz-clipboard.service
 
 ### Empty /var (ledger 0024)

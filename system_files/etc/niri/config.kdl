@@ -417,8 +417,8 @@ binds {
     // The allow-when-locked=true property makes them work even when the session is locked.
     // Using spawn-sh allows to pass multiple arguments together with the command.
     // "-l 1.0" limits the volume to 100%.
-    // topaz-osd applies the change and shows it on the on-screen display
-    // of the niri (topaz) session (ledger 0041); elsewhere it just applies.
+    // topaz-osd applies the change; in the niri (topaz) session the bar
+    // notices it and shows the toast (ledger 0041).
     XF86AudioRaiseVolume allow-when-locked=true { spawn "topaz-osd" "volume" "up"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "topaz-osd" "volume" "down"; }
     XF86AudioMute        allow-when-locked=true { spawn "topaz-osd" "volume" "mute"; }
@@ -432,7 +432,7 @@ binds {
     XF86AudioNext        allow-when-locked=true { spawn-sh "playerctl next"; }
 
     // Brightness keys: topaz-osd steps the backlight through logind
-    // (no brightnessctl in the image) and shows the result on the OSD.
+    // (no brightnessctl in the image); the bar shows the toast.
     XF86MonBrightnessUp allow-when-locked=true { spawn "topaz-osd" "brightness" "up"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "topaz-osd" "brightness" "down"; }
 

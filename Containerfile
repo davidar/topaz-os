@@ -172,7 +172,7 @@ RUN git init -q /src && \
 # pinned as a crate's.
 FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
-ARG CAUSTICS_REF=c6ca83d9e7cab04b9d6bdc5a070ac2c750615738
+ARG CAUSTICS_REF=e730226b0e008b3282456a52135218154c8eb6bb
 RUN dnf -y install gcc cargo rust git-core pkgconf-pkg-config && dnf clean all
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$CAUSTICS_REPO" "$CAUSTICS_REF" && \

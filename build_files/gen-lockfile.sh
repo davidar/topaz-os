@@ -81,7 +81,6 @@ podman run --rm "$base" bash -euo pipefail -c '
         dnf5 -y install --setopt=install_weak_deps=False \
             swayidle \
             swaybg \
-            wob \
             fuzzel \
             cliphist
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9

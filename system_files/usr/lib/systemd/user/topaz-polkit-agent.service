@@ -2,8 +2,8 @@
 Description=PolicyKit authentication agent (cosmic-osd) for the niri (topaz) session
 # cosmic-osd carries COSMIC's polkit agent; it needs nothing from
 # cosmic-session, and its on-screen display half only reacts to
-# cosmic-settings-daemon events, which this session does not generate —
-# wob (topaz-osd) draws the OSD instead.
+# cosmic-settings-daemon events, which this session does not generate;
+# the bar draws the volume and brightness toasts instead.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
 After=graphical-session.target

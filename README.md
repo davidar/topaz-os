@@ -35,7 +35,7 @@ In broad strokes:
   masked by each surface's own shape, and the panel's applets trusted so the dock works.
 - **niri (topaz) session** — niri's own systemd session with the
   [caustics](https://github.com/davidar/caustics) bar (panel, dock, tray, notifications,
-  all drawn on the GPU) and toolkit-free packaged tools (swayidle, wob, fuzzel,
+  all drawn on the GPU) and toolkit-free packaged tools (swayidle, fuzzel,
   swaybg) for the rest; no COSMIC shell process. The COSMIC sessions stay as fallbacks.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix

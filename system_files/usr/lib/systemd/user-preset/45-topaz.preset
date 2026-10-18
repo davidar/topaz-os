@@ -6,7 +6,6 @@ enable speech-dispatcher.socket
 enable caustics-bar.service
 enable topaz-locker.service
 enable topaz-idle.service
-enable topaz-osd.socket
 enable topaz-polkit-agent.service
 enable topaz-background.service
 enable topaz-clipboard.service

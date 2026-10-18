@@ -56,16 +56,15 @@ if [ "$session" = topaz-niri ]; then
         tssh systemctl --user is-active niri.service
     check "session shell units active" \
         tssh 'systemctl --user is-active caustics-bar.service topaz-locker.service \
-            topaz-idle.service topaz-osd.socket topaz-polkit-agent.service \
+            topaz-idle.service topaz-polkit-agent.service \
             topaz-background.service topaz-clipboard.service'
     check "caustics bar runs from the installed set" \
         tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
-    check "notification daemon on the bus is the bar'"'"'s (caustics-notify)" \
+    check "notification daemon on the bus is caustics-notify" \
         tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'
     check_not "cosmic-panel absent" tssh pgrep -x cosmic-panel
     check_not "cosmic-notifications absent" tssh pgrep -x cosmic-notifications
-    check "on-screen display: a value on the FIFO starts wob" \
-        tssh 'echo 50 > /run/user/1000/topaz-osd.sock && sleep 2 && systemctl --user is-active topaz-osd.service'
+    check_not "wob absent (the bar draws the OSD)" tssh command -v wob
     check_not "cosmic-session absent" tssh pgrep -x cosmic-session
 else
     check "cosmic-session running" tssh pgrep -x cosmic-session

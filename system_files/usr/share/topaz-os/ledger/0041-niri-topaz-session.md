@@ -7,15 +7,12 @@ paths:
   - /usr/lib/systemd/user/caustics-bar.service
   - /usr/lib/systemd/user/topaz-locker.service
   - /usr/lib/systemd/user/topaz-idle.service
-  - /usr/lib/systemd/user/topaz-osd.socket
-  - /usr/lib/systemd/user/topaz-osd.service
   - /usr/lib/systemd/user/topaz-polkit-agent.service
   - /usr/lib/systemd/user/topaz-background.service
   - /usr/lib/systemd/user/topaz-clipboard.service
   - /usr/lib/systemd/user-preset/45-topaz.preset
   - /usr/libexec/topaz/cosmic-shim
   - /usr/bin/topaz-osd
-  - /etc/xdg/wob/wob.ini
   - /etc/niri/config.kdl
   - /etc/niri/cosmic-shell.kdl
 ---
@@ -52,7 +49,7 @@ sessions are untouched:
 | workspaces overview | shim | the bar's overview button, through niri's IPC |
 | locker | cosmic-greeter, restarted by cosmic-session | cosmic-greeter, `topaz-locker.service` (Restart=on-failure, ledger 0034) |
 | idle → lock → blank → suspend | cosmic-idle (fork) | swayidle, `topaz-idle.service` (drop-in to retune) |
-| on-screen display | cosmic-osd | wob via `topaz-osd.socket`, fed by `topaz-osd` from the volume/brightness binds (brightness through logind's `SetBrightness`; no brightnessctl, no udev rule) |
+| on-screen display | cosmic-osd | the bar's own toasts: its audio and power sidecars watch PipeWire and the backlight; `topaz-osd` applies the key presses (brightness through logind's `SetBrightness`, no brightnessctl, no udev rule) |
 | polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon) |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
 | wallpaper | cosmic-bg | swaybg, `topaz-background.service` (base artwork; a per-user override replaces it) |
