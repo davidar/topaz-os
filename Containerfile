@@ -28,7 +28,7 @@ COPY system_files /system_files
 # build rather than the login.
 FROM registry.fedoraproject.org/fedora:44@sha256:e9a013b99bbbe0b21c42e029ec7811ef5c8ea5fbdaf78575f7cd482cf4d21b90 AS comp-build
 ARG COSMIC_COMP_REPO=https://github.com/davidar/cosmic-comp.git
-ARG COSMIC_COMP_REF=15ba5884ffd6e58c5b8ea46934b6f08ec15af278
+ARG COSMIC_COMP_REF=61e8f91b581cebe823b7f0ffe4ed55475575d0ac
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     libseat-devel libinput-devel systemd-devel mesa-libgbm-devel \
     libxkbcommon-devel pixman-devel wayland-devel libglvnd-devel \
@@ -54,7 +54,7 @@ RUN git init -q /src && \
 # the binary links a glibc the image does not ship.
 FROM registry.fedoraproject.org/fedora:44@sha256:e9a013b99bbbe0b21c42e029ec7811ef5c8ea5fbdaf78575f7cd482cf4d21b90 AS greeter-build
 ARG COSMIC_GREETER_REPO=https://github.com/davidar/cosmic-greeter.git
-ARG COSMIC_GREETER_REF=fb97e5437b930ae24096711dd4466d9e59c40c9c
+ARG COSMIC_GREETER_REF=d66384bd17036e0aaa82632e87044b04081108d4
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     pam-devel clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
@@ -85,7 +85,7 @@ FROM registry.fedoraproject.org/fedora:44@sha256:e9a013b99bbbe0b21c42e029ec7811e
 ARG COSMIC_ALT_STARTUP_REPO=https://github.com/Drakulix/cosmic-ext-alternative-startup.git
 ARG COSMIC_ALT_STARTUP_REF=8ceda00197c7ec0905cf1dccdc2d67d738e45417
 ARG COSMIC_IDLE_REPO=https://github.com/davidar/cosmic-idle.git
-ARG COSMIC_IDLE_REF=6e0e1c50fb3bc4e45fc8c998dc9c00772fed8435
+ARG COSMIC_IDLE_REF=b928a1d4297f78da0e14c0b6899009968d9740e6
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
@@ -147,7 +147,7 @@ RUN git init -q /src && \
 # under cosmic-comp the original path runs unchanged.
 FROM registry.fedoraproject.org/fedora:44@sha256:e9a013b99bbbe0b21c42e029ec7811ef5c8ea5fbdaf78575f7cd482cf4d21b90 AS cosmic-applets-build
 ARG COSMIC_APPLETS_REPO=https://github.com/davidar/cosmic-applets.git
-ARG COSMIC_APPLETS_REF=cb45cffc3f0a3063550d86533131a7fff3d66044
+ARG COSMIC_APPLETS_REF=f3a2762fdbf4ecaf9399f7bbf36e3fc4fe499c5d
 RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
     git-core just libxkbcommon-devel wayland-devel mesa-libEGL-devel \
     mesa-libGL-devel fontconfig-devel freetype-devel dbus-devel \

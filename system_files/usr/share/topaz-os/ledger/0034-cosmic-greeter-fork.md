@@ -10,8 +10,8 @@ paths:
 
 The greeter/lock-screen binary is not Fedora's: it is compiled in the
 image build (Containerfile `greeter-build` stage) from a pinned commit of
-<https://github.com/davidar/cosmic-greeter>, branch `auth-rearm`, which
-carries three small patches on top of the packaged 1.6.0 (the fork's
+<https://github.com/davidar/cosmic-greeter>, branch `auth-rearm-1.10.0`, which
+carries three small patches on top of the packaged 1.10.0 (the fork's
 JPEG XL wallpaper decoding patch was dropped at the 1.6.0 rebase:
 upstream now registers the same jxl-oxide hook itself):
 
