@@ -38,7 +38,7 @@ jobs:
     name: Build disk images
     # Only an explicit arm64 dispatch gets the ARM runner; pull requests have no
     # platform input and must build the amd64 image on an amd64 machine.
-    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-26.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +78,18 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Unload the bwrap AppArmor profile
+        # Ubuntu's bwrap-userns-restrict profile attaches by executable
+        # path to every /usr/bin/bwrap exec, even inside the unconfined
+        # privileged builder container, and its unpriv_bwrap child profile
+        # denies chown and sys_admin, which is how osbuild runs its stages.
+        # The 26.04 runner image enforces it (run 39098996641; probe
+        # 39100359279 named it, run 39103374038 built a disk without it).
+        run: |
+          if [ -f /etc/apparmor.d/bwrap-userns-restrict ]; then
+            sudo apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
+          fi
 
       - name: Build disk images
         id: build
