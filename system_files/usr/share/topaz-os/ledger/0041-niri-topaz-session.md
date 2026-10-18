@@ -10,6 +10,7 @@ paths:
   - /usr/lib/systemd/user/topaz-polkit-agent.service
   - /usr/lib/systemd/user/topaz-background.service
   - /usr/lib/systemd/user/topaz-clipboard.service
+  - /usr/libexec/topaz/locker
   - /etc/swaylock/config
   - /etc/pam.d/swaylock
   - /usr/lib/systemd/user-preset/45-topaz.preset
@@ -50,7 +51,7 @@ list ends the session command) so the COSMIC sessions are untouched:
 | bar, dock, tray, charts, clock | cosmic-panel + applets | caustics-bar (`caustics-bar.service`, ledger 0044) |
 | notifications | cosmic-notifications + panel applet | the bar's own daemon (its `caustics-notify` sidecar) |
 | workspaces overview | shim | the bar's overview button, through niri's IPC |
-| locker | cosmic-greeter, resident, restarted by cosmic-session | swaylock, `topaz-locker.service`: swayidle starts it on logind's Lock signal, it exits on unlock, so the unit is active exactly while locked (Restart=on-failure for a locker that dies while locked); password only — its PAM stack is `password-auth`, without the 5 s fingerprint wait `login` carries |
+| locker | cosmic-greeter, resident, restarted by cosmic-session | swaylock, `topaz-locker.service`: swayidle starts it on logind's Lock signal and before sleep; it exits on unlock, so the unit is active exactly while locked (Restart=on-failure for a locker that dies while locked). The unit is `Type=notify` through `/usr/libexec/topaz/locker`, which forwards swaylock's lock-held notification (`--ready-fd`), so swayidle's before-sleep holds the suspend until the screen is locked. Password only — its PAM stack is `password-auth`, without the 5 s fingerprint wait `login` carries |
 | idle → lock → blank → suspend | cosmic-idle (fork) | swayidle, `topaz-idle.service` (drop-in to retune) |
 | on-screen display | cosmic-osd | the bar's own toasts: its audio and power sidecars watch PipeWire and the backlight; `topaz-osd` applies the key presses (brightness through logind's `SetBrightness`, no brightnessctl, no udev rule) |
 | polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon; it panics once the compositor is gone at logout, after the session is over) |

@@ -174,10 +174,14 @@ cmd_check() {
                           topaz-clipboard.service; do
                      test -L /etc/systemd/user/graphical-session.target.wants/$u || exit 1
                  done &&
-                 grep -q "^ExecStart=/usr/bin/swaylock$" /usr/lib/systemd/user/topaz-locker.service &&
+                 grep -q "^ExecStart=/usr/libexec/topaz/locker$" /usr/lib/systemd/user/topaz-locker.service &&
+                 grep -q "^Type=notify$" /usr/lib/systemd/user/topaz-locker.service &&
+                 test -x /usr/libexec/topaz/locker &&
+                 grep -q "swaylock --ready-fd" /usr/libexec/topaz/locker &&
                  ! grep -q "^\[Install\]" /usr/lib/systemd/user/topaz-locker.service &&
                  ! test -e /etc/systemd/user/graphical-session.target.wants/topaz-locker.service &&
                  grep -q "lock .systemctl --user start topaz-locker.service" /usr/lib/systemd/user/topaz-idle.service &&
+                 grep -q "before-sleep .systemctl --user start topaz-locker.service" /usr/lib/systemd/user/topaz-idle.service &&
                  test -f /etc/swaylock/config &&
                  grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/swaylock &&
                  ! grep -q pam_fprintd /etc/pam.d/password-auth &&
