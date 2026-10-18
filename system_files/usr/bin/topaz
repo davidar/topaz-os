@@ -189,7 +189,7 @@ cmd_check() {
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
-    chk "caustics bar: one set of eleven binaries, the link into it, the shader sources, the unit and its GPU wrapper (ledger 0044)" \
+    chk "caustics bar: one set of eleven binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)
                  [ "${#sets[@]}" -eq 1 ] || exit 1
@@ -203,9 +203,9 @@ cmd_check() {
                      test -x "$set_dir$b" || exit 1
                      ! ldd "$set_dir$b" | grep -q "not found" || exit 1
                  done &&
-                 test -f /usr/share/caustics/bar.slang &&
                  grep -q "^ExecStart=/usr/libexec/topaz/caustics-bar$" /usr/lib/systemd/user/caustics-bar.service &&
-                 grep -q "^Environment=CAUSTICS_DIR=/usr/share/caustics$" /usr/lib/systemd/user/caustics-bar.service &&
+                 ! grep -q "CAUSTICS_DIR=" /usr/lib/systemd/user/caustics-bar.service &&
+                 ! test -e /usr/share/caustics &&
                  grep -q "^RestartPreventExitStatus=2 3$" /usr/lib/systemd/user/caustics-bar.service &&
                  test -x /usr/libexec/topaz/caustics-bar &&
                  test -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json &&

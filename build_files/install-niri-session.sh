@@ -70,13 +70,12 @@ install -m0755 /cosmic-applets-build/cosmic-applets /usr/bin/cosmic-applets
 # One set: the eleven binaries under /usr/lib/caustics-bar/<abi-hash>/ and
 # /usr/bin/caustics-bar a symlink into it. The bar resolves its own path
 # and starts the sidecars beside it, so the link is what makes the set a
-# set. The shader sources go to /usr/share/caustics for the compiler
-# sidecar (the unit points CAUSTICS_DIR at them).
+# set. The shaders are compiled in; no sources ship (the reload sidecar
+# idles without a directory to watch).
 caustics_set=$(sed -n 's/^caustics_set=//p' /caustics-build/build-info)
 test -d "/caustics-build/lib/caustics-bar/$caustics_set"
-mkdir -p /usr/lib/caustics-bar /usr/share
+mkdir -p /usr/lib/caustics-bar
 cp -r "/caustics-build/lib/caustics-bar/$caustics_set" /usr/lib/caustics-bar/
-cp -r /caustics-build/share/caustics /usr/share/caustics
 ln -s "/usr/lib/caustics-bar/$caustics_set/caustics-bar" /usr/bin/caustics-bar
 [ "$(/usr/bin/caustics-bar --abi-hash)" = "$caustics_set" ]
 

@@ -19,9 +19,8 @@ StartLimitBurst=10
 # hybrid laptop, then runs /usr/bin/caustics-bar.
 ExecStart=/usr/libexec/topaz/caustics-bar
 Environment=RUST_LOG=info
-# The shader sources the compiler sidecar hot-reloads from; a user who
-# points this at a writable copy can edit the bar while it runs.
-Environment=CAUSTICS_DIR=/usr/share/caustics
+# No CAUSTICS_DIR: the baked bar runs its compiled-in shaders and the
+# reload sidecar idles; a checkout's own unit sets it for live editing.
 StandardOutput=journal
 StandardError=journal
 Restart=always

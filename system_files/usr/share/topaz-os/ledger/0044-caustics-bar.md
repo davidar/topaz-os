@@ -5,7 +5,6 @@ status: active
 paths:
   - /usr/lib/caustics-bar
   - /usr/bin/caustics-bar
-  - /usr/share/caustics
   - /usr/lib/systemd/user/caustics-bar.service
   - /usr/libexec/topaz/caustics-bar
   - /usr/share/topaz-os/niri-session-build
@@ -30,9 +29,10 @@ between them that the bar prints with `--abi-hash`, and
 `/usr/bin/caustics-bar` is a symlink into that directory. The bar
 resolves its own path and starts the sidecars beside it, and refuses a
 sidecar from another set, so there is no way to run half a set. The
-shader sources go to `/usr/share/caustics`; the unit points
-`CAUSTICS_DIR` at them for the compiler sidecar, and a user who points
-that variable at a writable copy edits the bar while it runs.
+shaders are compiled into the binaries; the image ships no sources and
+the unit sets no `CAUSTICS_DIR`, so the reload sidecar idles. A checkout
+installed under `~/.local` brings its own unit, which replaces this one
+by name and points the variable at the working tree.
 
 Build inputs: Rust crates by `Cargo.lock`, git dependencies by commit,
 and the Slang release the bindings were generated against, which the
@@ -57,6 +57,6 @@ exit 3 (the GPU device gone), which trying again would not improve.
 the set's hash. `topaz check` asserts exactly one set is installed, the
 link resolves into it, the bar's `--abi-hash` matches the directory and
 the record, all eleven binaries are present with their libraries
-resolving, the shader sources are there, the unit carries the wrapper,
-`CAUSTICS_DIR` and the exit-status rule, and the integrated-GPU and
+resolving, no shader directory or `CAUSTICS_DIR` is shipped, the unit
+carries the wrapper and the exit-status rule, and the integrated-GPU and
 lavapipe drivers the wrapper and the VM depend on are installed.
