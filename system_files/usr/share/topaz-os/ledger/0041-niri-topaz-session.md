@@ -52,7 +52,7 @@ sessions are untouched:
 | workspaces overview | shim | the bar's overview button, through niri's IPC |
 | locker | cosmic-greeter, restarted by cosmic-session | cosmic-greeter, `topaz-locker.service` (Restart=on-failure, ledger 0034) |
 | idle → lock → blank → suspend | cosmic-idle (fork) | swayidle, `topaz-idle.service` (drop-in to retune) |
-| on-screen display | cosmic-osd | wob via `topaz-osd.socket`, fed by `topaz-osd` from the volume/brightness binds |
+| on-screen display | cosmic-osd | wob via `topaz-osd.socket`, fed by `topaz-osd` from the volume/brightness binds (brightness through logind's `SetBrightness`; no brightnessctl, no udev rule) |
 | polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon) |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
 | wallpaper | cosmic-bg | swaybg, `topaz-background.service` (base artwork; a per-user override replaces it) |

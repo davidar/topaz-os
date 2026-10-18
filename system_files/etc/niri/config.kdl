@@ -431,9 +431,8 @@ binds {
     XF86AudioPrev        allow-when-locked=true { spawn-sh "playerctl previous"; }
     XF86AudioNext        allow-when-locked=true { spawn-sh "playerctl next"; }
 
-    // Example brightness key mappings for brightnessctl.
-    // You can use regular spawn with multiple arguments too (to avoid going through "sh"),
-    // but you need to manually put each argument in separate "" quotes.
+    // Brightness keys: topaz-osd steps the backlight through logind
+    // (no brightnessctl in the image) and shows the result on the OSD.
     XF86MonBrightnessUp allow-when-locked=true { spawn "topaz-osd" "brightness" "up"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "topaz-osd" "brightness" "down"; }
 

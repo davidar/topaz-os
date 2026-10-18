@@ -177,7 +177,9 @@ cmd_check() {
                  ! test -e /usr/lib/systemd/user/topaz-notifications.service &&
                  ! command -v mako > /dev/null &&
                  test -x /usr/bin/topaz-osd &&
-                 for b in swayidle swaybg wob fuzzel cliphist wl-paste cosmic-greeter cosmic-osd; do
+                 ! { grep -hvE "^\s*(#|//)" /usr/bin/topaz-osd /etc/niri/config.kdl | grep -q brightnessctl; } &&
+                 grep -q "login1.Session SetBrightness" /usr/bin/topaz-osd &&
+                 for b in swayidle swaybg wob fuzzel cliphist wl-paste cosmic-greeter cosmic-osd busctl; do
                      command -v $b > /dev/null || exit 1
                  done &&
                  test -f /usr/share/backgrounds/default.jxl &&

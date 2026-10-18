@@ -8,13 +8,54 @@
 # Step sizes: TOPAZ_OSD_VOLUME_STEP (default 10%), TOPAZ_OSD_BRIGHTNESS_STEP
 # (default 10%). Without the socket (other sessions) the change still
 # applies, silently.
+#
+# Brightness goes through logind (org.freedesktop.login1.Session
+# SetBrightness), which lets the session's owner set a backlight without
+# a udev rule or group membership; the kernel still emits the backlight
+# "change" uevent that the bar's power sidecar listens for. The device is
+# the backlight with the largest range, like brightnessctl's default. The
+# floor is 1% so a key press can never black the panel.
 set -u
 vstep=${TOPAZ_OSD_VOLUME_STEP:-10}
 bstep=${TOPAZ_OSD_BRIGHTNESS_STEP:-10}
 sock=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/topaz-osd.sock
 
 show() {
-    [ -p "$sock" ] && printf '%s\n' "$1" > "$sock"
+    [ -p "$sock" ] || return 0
+    printf '%s\n' "$1" > "$sock"
+}
+
+backlight() {
+    # Name of the /sys/class/backlight device with the largest range.
+    local d best='' bestmax=-1
+    for d in /sys/class/backlight/*/; do
+        [ -r "$d/max_brightness" ] || continue
+        if [ "$(< "$d/max_brightness")" -gt "$bestmax" ]; then
+            bestmax=$(< "$d/max_brightness") best=${d%/}
+        fi
+    done
+    [ -n "$best" ] && echo "${best##*/}"
+}
+
+# brightness up|down: step the backlight by bstep percent of its range and
+# print the resulting percentage.
+brightness() {
+    local dev max cur step new
+    dev=$(backlight) || { echo "topaz-osd: no backlight device" >&2; return 1; }
+    max=$(< "/sys/class/backlight/$dev/max_brightness")
+    cur=$(< "/sys/class/backlight/$dev/brightness")
+    step=$(( max * bstep / 100 ))
+    [ "$step" -ge 1 ] || step=1
+    case $1 in
+    up)   new=$(( cur + step )) ;;
+    down) new=$(( cur - step )) ;;
+    esac
+    [ "$new" -le "$max" ] || new=$max
+    [ "$new" -ge $(( max / 100 )) ] || new=$(( max / 100 ))
+    [ "$new" -ge 1 ] || new=1
+    busctl --system call org.freedesktop.login1 /org/freedesktop/login1/session/auto \
+        org.freedesktop.login1.Session SetBrightness ssu backlight "$dev" "$new" || return 1
+    echo $(( new * 100 / max ))
 }
 
 volume_percent() {
@@ -32,8 +73,7 @@ case "${1:-} ${2:-}" in
 "volume down")  wpctl set-volume @DEFAULT_AUDIO_SINK@ "${vstep}%-" ;;
 "volume mute")  wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
 "mic mute")     wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
-"brightness up")   brightnessctl -q --class=backlight set "+${bstep}%" ;;
-"brightness down") brightnessctl -q --class=backlight set "${bstep}%-" ;;
+"brightness up" | "brightness down") percent=$(brightness "$2") || exit 1 ;;
 *)
     echo "usage: topaz-osd volume up|down|mute | mic mute | brightness up|down" >&2
     exit 2
@@ -43,8 +83,5 @@ esac
 case $1 in
 volume) show "$(volume_percent @DEFAULT_AUDIO_SINK@)" ;;
 mic)    show "$(volume_percent @DEFAULT_AUDIO_SOURCE@)" ;;
-brightness)
-    # brightnessctl -m: device,class,current,percent,max
-    show "$(brightnessctl -m --class=backlight get | awk -F, '{sub(/%/,"",$4); print $4}')"
-    ;;
+brightness) show "$percent" ;;
 esac
