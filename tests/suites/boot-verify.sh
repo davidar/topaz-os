@@ -28,7 +28,7 @@ check "DISPLAY imported (xwayland-satellite up)" \
 
 # Failed units expected only in the VM: the guest has none of the
 # laptop's NVIDIA hardware and QEMU's CPU exposes no MCE banks.
-vm_allowed='^(nvidia-cdi-refresh\.(path|service)|mcelog\.service) '
+vm_allowed='^(nvidia-cdi-refresh\.(path|service)|nvidia-persistenced\.service|mcelog\.service) '
 check "no unexpected failed system units" \
     is_empty tssh "systemctl --failed --no-legend --plain | grep -vE '$vm_allowed'"
 check "no unexpected failed user units" \
