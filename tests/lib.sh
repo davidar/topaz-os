@@ -450,6 +450,15 @@ check_not() { # check_not <description> <command that must fail>
     fi
 }
 
+# systemctl is-active exits 0 when any one of several units is active, so a
+# check of a unit list through its exit code passes with units down or
+# missing. Read its answer instead: one line per unit, every one "active".
+units_active() { # units_active <user unit...>
+    local out
+    out="$(tssh systemctl --user is-active "$@" 2>/dev/null)"
+    [[ -n "$out" ]] && ! printf '%s\n' "$out" | grep -qvx active
+}
+
 is_empty() { [[ -z "$("$@" 2>/dev/null | tr -d '[:space:]')" ]]; }
 
 contains() { printf '%s' "$1" | grep -qF "$2"; }
