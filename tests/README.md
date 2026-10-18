@@ -53,9 +53,11 @@ Pieces:
 - `suites/boot-verify.sh` — first suite: a healthy first boot into the
   autologin session.
 - `suites/lock-unlock.sh` — locks the session through logind, types a
-  wrong and then the right password at the lock screen, and asserts
-  LockedHint, the locker's lockfile, and that the locker process
-  survives the cycle.
+  wrong and then the right password at the lock screen, and asserts the
+  lock holds and clears as seen from outside: in niri (topaz) the
+  swaylock unit active exactly while locked and idle again afterwards
+  with no restarts; in COSMIC on niri LockedHint, the resident locker's
+  lockfile, and the same locker process at the end.
 - `suites/relogin-cycle.sh` — logs out through niri and back in at
   cosmic-greeter: the session teardown (ledger 0036), the greeter coming
   up, and a real greeter login of the session under test (identity

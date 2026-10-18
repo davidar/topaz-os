@@ -77,9 +77,11 @@ podman run --rm "$base" bash -euo pipefail -c '
         # The "niri (topaz)" session (ledger 0041): the systemd session that
         # ships with niri, the caustics bar (built from source, ledger 0044)
         # and standalone pieces for everything cosmic-session used to
-        # supervise; notifications come from the bar.
+        # supervise; notifications come from the bar, the lock screen is
+        # swaylock.
         dnf5 -y install --setopt=install_weak_deps=False \
             swayidle \
+            swaylock \
             swaybg \
             fuzzel \
             cliphist

@@ -1,17 +1,16 @@
 [Unit]
-Description=Screen locker (cosmic-greeter, ext-session-lock) for the niri (topaz) session
-# Inside a session cosmic-greeter runs as the locker: it takes the logind
-# Lock signal and ext-session-lock. The topaz fork exits non-zero after an
-# abandoned lock so that a supervisor restarts it (ledger 0034) — that is
-# Restart=on-failure here, as it was under cosmic-session.
+Description=Screen locker (swaylock, ext-session-lock) for the niri (topaz) session
+# Started by topaz-idle.service's swayidle when logind signals Lock (idle
+# timeout, lid, before sleep, `loginctl lock-session`). swaylock takes the
+# session lock and exits once the password is accepted, so the unit is
+# active exactly while the screen is locked. A locker that dies while
+# locked leaves the compositor locked with no client to unlock it, hence
+# Restart=on-failure. Nothing starts it at login: no [Install] section.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/cosmic-greeter
+ExecStart=/usr/bin/swaylock
 Restart=on-failure
 RestartSec=1
-
-[Install]
-WantedBy=graphical-session.target

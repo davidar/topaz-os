@@ -40,7 +40,7 @@ check "DISPLAY imported (xwayland-satellite up)" \
 
 # Failed units expected only in the VM: the guest has none of the
 # laptop's NVIDIA hardware and QEMU's CPU exposes no MCE banks.
-vm_allowed='^(nvidia-cdi-refresh\.(path|service)|mcelog\.service) '
+vm_allowed='^(nvidia-cdi-refresh\.(path|service)|nvidia-persistenced\.service|mcelog\.service) '
 check "no unexpected failed system units" \
     is_empty tssh "systemctl --failed --no-legend --plain | grep -vE '$vm_allowed'"
 check "no unexpected failed user units" \
@@ -55,9 +55,12 @@ if [ "$session" = topaz-niri ]; then
     check "niri.service active (niri's own session integration)" \
         tssh systemctl --user is-active niri.service
     check "session shell units active" \
-        units_active caustics-bar.service topaz-locker.service \
+        units_active caustics-bar.service \
             topaz-idle.service topaz-polkit-agent.service \
             topaz-background.service topaz-clipboard.service
+    # The locker unit is swayidle's to start on a lock; at login it must
+    # be neither running nor failed.
+    check "topaz-locker.service idle until a lock" locker_idle
     check "caustics bar runs from the installed set" \
         tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
     check "notification daemon on the bus is caustics-notify" \

@@ -459,6 +459,12 @@ units_active() { # units_active <user unit...>
     [[ -n "$out" ]] && ! printf '%s\n' "$out" | grep -qvx active
 }
 
+# The niri (topaz) locker unit (swaylock) is started by swayidle on a lock
+# and exits on unlock: outside a lock it is inactive, and never failed.
+locker_idle() {
+    [[ "$(tssh systemctl --user show topaz-locker.service -p ActiveState -p Result)" == $'ActiveState=inactive\nResult=success' ]]
+}
+
 is_empty() { [[ -z "$("$@" 2>/dev/null | tr -d '[:space:]')" ]]; }
 
 contains() { printf '%s' "$1" | grep -qF "$2"; }

@@ -169,11 +169,18 @@ cmd_check() {
                      test -f /usr/lib/systemd/user/$u || exit 1
                      grep -q "^ConditionEnvironment=XDG_SESSION_DESKTOP=topaz$" /usr/lib/systemd/user/$u || exit 1
                  done &&
-                 for u in caustics-bar.service topaz-locker.service topaz-idle.service \
+                 for u in caustics-bar.service topaz-idle.service \
                           topaz-polkit-agent.service topaz-background.service \
                           topaz-clipboard.service; do
                      test -L /etc/systemd/user/graphical-session.target.wants/$u || exit 1
                  done &&
+                 grep -q "^ExecStart=/usr/bin/swaylock$" /usr/lib/systemd/user/topaz-locker.service &&
+                 ! grep -q "^\[Install\]" /usr/lib/systemd/user/topaz-locker.service &&
+                 ! test -e /etc/systemd/user/graphical-session.target.wants/topaz-locker.service &&
+                 grep -q "lock .systemctl --user start topaz-locker.service" /usr/lib/systemd/user/topaz-idle.service &&
+                 test -f /etc/swaylock/config &&
+                 grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/swaylock &&
+                 ! grep -q pam_fprintd /etc/pam.d/password-auth &&
                  ! test -e /usr/lib/systemd/user/topaz-notifications.service &&
                  ! command -v mako > /dev/null &&
                  ! test -e /usr/lib/systemd/user/topaz-osd.socket &&
@@ -182,7 +189,7 @@ cmd_check() {
                  test -x /usr/bin/topaz-osd &&
                  ! { grep -hvE "^\s*(#|//)" /usr/bin/topaz-osd /etc/niri/config.kdl | grep -q brightnessctl; } &&
                  grep -q "login1.Session SetBrightness" /usr/bin/topaz-osd &&
-                 for b in swayidle swaybg fuzzel cliphist wl-paste cosmic-greeter cosmic-osd busctl; do
+                 for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-greeter cosmic-osd busctl; do
                      command -v $b > /dev/null || exit 1
                  done &&
                  test -f /usr/share/backgrounds/default.jxl &&

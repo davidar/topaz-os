@@ -1,0 +1,7 @@
+# Lock screen defaults for the niri (topaz) session (ledger 0041).
+# swaylock reads the first config it finds: a ~/.config/swaylock/config
+# replaces this file entirely rather than extending it.
+color=101010
+show-failed-attempts
+indicator-caps-lock
+ignore-empty-password

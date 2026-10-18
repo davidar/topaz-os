@@ -10,6 +10,8 @@ paths:
   - /usr/lib/systemd/user/topaz-polkit-agent.service
   - /usr/lib/systemd/user/topaz-background.service
   - /usr/lib/systemd/user/topaz-clipboard.service
+  - /etc/swaylock/config
+  - /etc/pam.d/swaylock
   - /usr/lib/systemd/user-preset/45-topaz.preset
   - /usr/libexec/topaz/cosmic-shim
   - /usr/bin/topaz-osd
@@ -48,10 +50,10 @@ list ends the session command) so the COSMIC sessions are untouched:
 | bar, dock, tray, charts, clock | cosmic-panel + applets | caustics-bar (`caustics-bar.service`, ledger 0044) |
 | notifications | cosmic-notifications + panel applet | the bar's own daemon (its `caustics-notify` sidecar) |
 | workspaces overview | shim | the bar's overview button, through niri's IPC |
-| locker | cosmic-greeter, restarted by cosmic-session | cosmic-greeter, `topaz-locker.service` (Restart=on-failure, ledger 0034) |
+| locker | cosmic-greeter, resident, restarted by cosmic-session | swaylock, `topaz-locker.service`: swayidle starts it on logind's Lock signal, it exits on unlock, so the unit is active exactly while locked (Restart=on-failure for a locker that dies while locked); password only — its PAM stack is `password-auth`, without the 5 s fingerprint wait `login` carries |
 | idle → lock → blank → suspend | cosmic-idle (fork) | swayidle, `topaz-idle.service` (drop-in to retune) |
 | on-screen display | cosmic-osd | the bar's own toasts: its audio and power sidecars watch PipeWire and the backlight; `topaz-osd` applies the key presses (brightness through logind's `SetBrightness`, no brightnessctl, no udev rule) |
-| polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon) |
+| polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon; it panics once the compositor is gone at logout, after the session is over) |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
 | wallpaper | cosmic-bg | swaybg, `topaz-background.service` (base artwork; a per-user override replaces it) |
 | dark/light for portals | portal-cosmic Settings (reads cosmic-config) | unchanged |
@@ -64,8 +66,14 @@ through `/usr/libexec/topaz/cosmic-shim`, which exits at once when
 Portals: `niri --session` resets `XDG_CURRENT_DESKTOP` to `niri`, so the
 session shares the COSMIC-on-niri routing (ledger 0039) unchanged.
 
+A lock screen that exists only while locked has no state to wedge: the
+failure modes ledger 0034 patches in the resident COSMIC locker (an
+abandoned lock leaving it deaf, a session lookup that fails under a
+service manager) do not arise. The cost is fingerprint unlock, which
+swaylock does not offer.
+
 Still COSMIC in this session, deliberately and for now: the greeter as
-display manager and locker (ledger 0034; its login screen still runs on
+display manager (ledger 0034; its login screen still runs on
 cosmic-comp), cosmic-osd as the polkit agent (no toolkit-free agent
 exists), and the COSMIC file dialog and screenshot portals (ledger
 0039). Every other piece is toolkit-free: no GTK or Qt joins the
@@ -73,9 +81,12 @@ session. The COSMIC packages the session no longer needs stay installed
 while the fallback sessions exist; their removal follows once this
 session has been lived in.
 
-Check: the session entry, every unit (present, gated, enabled), the
-shim, the packages (and that mako is gone), the portal routing and the
-baked binds. Post-boot: the VM harness boots the session with
+Check: the session entry, every unit (present, gated, enabled; the
+locker present, started by swayidle and not enabled), swaylock's config
+and PAM stack, the shim, the packages (and that mako is gone), the
+portal routing and the baked binds. Post-boot: the VM harness boots the session with
 `TOPAZ_TEST_SESSION=topaz-niri` and asserts the bar runs from its
-installed set and owns the notification name; lock/unlock, suspend, the
-OSD and the polkit prompt are hardware checks.
+installed set and owns the notification name, locks and unlocks it at
+the console (the lock-unlock suite), and logs out and back in through
+the greeter (relogin-cycle); suspend, the OSD and the polkit prompt are
+hardware checks.

@@ -3,8 +3,8 @@
 enable speech-dispatcher.socket
 # niri (topaz) session shell (ledgers 0041, 0044): every unit is gated on
 # XDG_SESSION_DESKTOP=topaz, so enabling them is harmless elsewhere.
+# (topaz-locker.service is not among them: swayidle starts it on a lock.)
 enable caustics-bar.service
-enable topaz-locker.service
 enable topaz-idle.service
 enable topaz-polkit-agent.service
 enable topaz-background.service
