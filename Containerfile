@@ -170,7 +170,7 @@ RUN git init -q /src && \
 # fetches the Slang release the bindings were generated against and checks
 # it against the SHA-256 recorded in the crate, so that download is as
 # pinned as a crate's.
-FROM registry.fedoraproject.org/fedora:44@sha256:754c6d7d5767750e57caf10376a72eb347ce5721a4310334aaeedb09ba80e05f AS caustics-build
+FROM registry.fedoraproject.org/fedora:44@sha256:e9a013b99bbbe0b21c42e029ec7811ef5c8ea5fbdaf78575f7cd482cf4d21b90 AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
 ARG CAUSTICS_REF=b065dee61bec553eaf4222dbd571f1e6962a1938
 RUN dnf -y install gcc cargo rust git-core pkgconf-pkg-config && dnf clean all
