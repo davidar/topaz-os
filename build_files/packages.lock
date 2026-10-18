@@ -1,4 +1,5 @@
 +acpid-0:2.0.34-16.fc44.x86_64 acpid-2.0.34-16.fc44.src.rpm
++cliphist-0:0.7.0-1.fc44.x86_64 cliphist-0.7.0-1.fc44.src.rpm
 +cosmic-app-library-0:1.10.0-2.fc44.x86_64 cosmic-app-library-1.10.0-2.fc44.src.rpm
 +cosmic-applets-0:1.10.0-2.fc44.x86_64 cosmic-applets-1.10.0-2.fc44.src.rpm
 +cosmic-bg-0:1.10.0-2.fc44.x86_64 cosmic-bg-1.10.0-2.fc44.src.rpm
@@ -23,7 +24,9 @@
 +cosmic-term-0:1.10.0-2.fc44.x86_64 cosmic-term-1.10.0-2.fc44.src.rpm
 +cosmic-workspaces-0:1.10.0-2.fc44.x86_64 cosmic-workspaces-1.10.0-2.fc44.src.rpm
 +desktop-backgrounds-compat-0:44.0.0-2.fc44.noarch desktop-backgrounds-44.0.0-2.fc44.src.rpm
++fcft-0:3.3.3-2.fc44.x86_64 fcft-3.3.3-2.fc44.src.rpm
 +fd-find-0:10.4.2-4.fc44.x86_64 rust-fd-find-10.4.2-4.fc44.src.rpm
++fuzzel-0:1.14.0-1.fc44.x86_64 fuzzel-1.14.0-1.fc44.src.rpm
 +gnome-icon-theme-0:3.12.0-27.fc44.noarch gnome-icon-theme-3.12.0-27.fc44.src.rpm
 +greetd-0:0.10.3-6.fc44.x86_64 greetd-0.10.3-6.fc44.src.rpm
 +greetd-selinux-0:0.10.3-6.fc44.noarch greetd-0.10.3-6.fc44.src.rpm
@@ -33,6 +36,7 @@
 +libfprint-tod-goodix-0:0.0.9-1.fc44.x86_64 libfprint-tod-goodix-0.0.9-1.fc44.src.rpm
 +libqalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
 +libseat-0:0.9.3-1.fc44.x86_64 seatd-0.9.3-1.fc44.src.rpm
++nanosvg-0:20221221-11.fc44.x86_64 nanosvg-20221221-11.fc44.src.rpm
 +nethogs-0:0.8.8-4.fc44.x86_64 nethogs-0.8.8-4.fc44.src.rpm
 +niri-0:26.04-1.fc44.x86_64 niri-26.04-1.fc44.src.rpm
 +playerctl-0:2.4.1-12.fc44.x86_64 playerctl-2.4.1-12.fc44.src.rpm
@@ -40,6 +44,8 @@
 +pop-icon-theme-0:3.5.0-5.fc44.noarch pop-icon-theme-3.5.0-5.fc44.src.rpm
 +pop-launcher-1:1.10.0-2.fc44.x86_64 pop-launcher-1.10.0-2.fc44.src.rpm
 +qalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
++swaybg-0:1.2.2-1.fc44.x86_64 swaybg-1.2.2-1.fc44.src.rpm
++swayidle-0:1.9.0-2.fc44.x86_64 swayidle-1.9.0-2.fc44.src.rpm
 +xdg-desktop-portal-cosmic-0:1.10.0-2.fc44.x86_64 xdg-desktop-portal-cosmic-1.10.0-2.fc44.src.rpm
 +xwayland-satellite-0:0.8.2-1.fc44.x86_64 xwayland-satellite-0.8.2-1.fc44.src.rpm
 -libfprint-0:1.94.100-1.fc44.x86_64 libfprint-1.94.100-1.fc44.src.rpm
