@@ -35,11 +35,9 @@ env:
 jobs:
   verify-vm:
     name: Boot and verify in QEMU
-    # 24.04, not 26.04 like build.yml: on 26.04 osbuild's container-deploy
-    # stage is denied its containers-storage mount inside the privileged
-    # builder container (run 33230063872); the rootful bootc-image-builder
-    # path is proven on 24.04 (ublue's disk builds, same invocation).
-    runs-on: ubuntu-24.04
+    # Same runner as build.yml. The rootful bootc-image-builder path needs
+    # the AppArmor step below on this image.
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
 
     steps:
@@ -80,6 +78,18 @@ jobs:
         run: |
           sudo podman pull "$TEST_IMAGE"
           sudo podman tag "$TEST_IMAGE" localhost/topaz-os:test
+
+      - name: Unload the bwrap AppArmor profile
+        # Ubuntu's bwrap-userns-restrict profile attaches by executable
+        # path to every /usr/bin/bwrap exec, even inside the unconfined
+        # privileged builder container, and its unpriv_bwrap child profile
+        # denies chown and sys_admin, which is how osbuild runs its stages.
+        # The 26.04 runner image enforces it (run 39098996641; probe
+        # 39100359279 named it, run 39103374038 built a disk without it).
+        run: |
+          if [ -f /etc/apparmor.d/bwrap-userns-restrict ]; then
+            sudo apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
+          fi
 
       - name: Boot and verify
         run: sudo bash tests/run.sh all
