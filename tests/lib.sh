@@ -311,6 +311,106 @@ wait_session_painted() {
     sleep "${TOPAZ_TEST_PAINT_SETTLE:-10}"
 }
 
+# --- console input and login helpers -----------------------------------------
+
+# Bounded wait: run a command until it succeeds or the deadline passes. Every
+# wait in a suite goes through a deadline, so a regression shows up as a
+# failed check with what was seen, never as a hung run.
+wait_for() { # wait_for <seconds> <command...>
+    local deadline=$((SECONDS + $1))
+    shift
+    until "$@" >/dev/null 2>&1; do
+        ((SECONDS < deadline)) || return 1
+        sleep 0.5
+    done
+}
+
+# The graphical login is the tester's session on seat0; ssh logins are
+# seat-less, and the greeter's own session (user cosmic-greeter) shares
+# seat0 between logins. Session ids change with every login, so look the
+# id up instead of assuming one. Prints nothing when there is none.
+seat0_session() {
+    tssh "loginctl list-sessions --no-legend | awk '\$3 == \"tester\" && \$4 == \"seat0\" { print \$1; exit }'"
+}
+
+# The tester user is created without a password (disk-test.toml): the
+# autologin and ssh need none. Suites that type at the lock screen or the
+# greeter set one first; PAM then accepts it there (the VM has no
+# fingerprint reader). Letters and digits only — see type_keys.
+TEST_PASSWORD="${TOPAZ_TEST_PASSWORD:-topaztest}"
+set_test_password() {
+    tssh "echo 'tester:$TEST_PASSWORD' | sudo chpasswd"
+}
+
+# Keystrokes go in through QMP, as a keyboard attached to the VM's console
+# would deliver them — the only input path that reaches the lock screen and
+# the greeter, which no ssh-side tool can type into. One send-key per
+# character, paced so the guest sees discrete presses. Supports letters
+# (upper case via shift) and digits; anything else is refused rather than
+# guessed at, since qcode names for punctuation follow the US layout.
+press_key() { # press_key <qcode> [<qcode>...]  (several = one chord)
+    local keys="" k
+    for k in "$@"; do
+        keys+="${keys:+,}{\"type\":\"qcode\",\"data\":\"$k\"}"
+    done
+    qmp send-key "{\"keys\":[$keys]}" >/dev/null
+}
+
+type_keys() { # type_keys <string of letters and digits>
+    local s="$1" c i
+    for ((i = 0; i < ${#s}; i++)); do
+        c="${s:i:1}"
+        case "$c" in
+        [a-z0-9]) press_key "$c" ;;
+        [A-Z]) press_key shift "${c,,}" ;;
+        *)
+            echo "type_keys: unsupported character '$c'" >&2
+            return 2
+            ;;
+        esac || return 1
+        sleep 0.15
+    done
+}
+
+press_enter() { press_key ret; }
+
+# The session entry's Name for a test-session value (tests/files/
+# topaz-test-session) — what cosmic-greeter shows and remembers.
+session_entry_name() {
+    case "$1" in
+    topaz-niri) echo "niri (topaz)" ;;
+    *) echo "COSMIC on niri" ;;
+    esac
+}
+
+# cosmic-greeter preselects the user and session it last logged in; with no
+# record it offers the alphabetically first entry (the stock COSMIC session),
+# not the one under test. Write its per-user state as a previous login of
+# that session would have left it. The greeter reads this when it starts,
+# so seed before the logout that brings it up.
+seed_greeter_session() { # seed_greeter_session <session entry Name>
+    local dir=/var/lib/cosmic-greeter/.config/cosmic/com.system76.CosmicGreeter/v1
+    tssh "sudo sh -euc '
+        mkdir -p $dir
+        printf \"%s\" \"{1000: (uid: 1000, last_session: Some(\\\"$1\\\"))}\" > $dir/users
+        printf \"%s\" \"Some(1000)\" > $dir/last_user
+        chown -R cosmic-greeter:cosmic-greeter /var/lib/cosmic-greeter/.config
+    '"
+}
+
+# Screendumps of the lock screen and the greeter need the console's view.
+# The hypervisor-side capture (VNC socket, egl display mode) has it; the
+# guest-side fallback (sdl mode, CI) asks the logged-in session's
+# compositor, which shows neither. Take the stage's screendump as a check
+# where the console view exists, and say so where it does not.
+console_screendump() { # console_screendump <suite> <stage>
+    if [[ -S "$VNC_SOCK" ]]; then
+        check "screendump: $1-$2.png" screendump "$RUN_ART/screens/$1-$2.png"
+    else
+        echo "[skip] screendump $1-$2.png: no hypervisor-side view in this display mode"
+    fi
+}
+
 run_suite() {
     # A bare name resolves under tests/suites/; a path to a suite file is
     # run as-is, so a companion repo can ride this harness with its own
