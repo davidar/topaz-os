@@ -88,7 +88,9 @@ jobs:
           image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ matrix.disk-type }}
-          additional-args: --use-librepo=True
+          # The image carries no bootc install config naming a root filesystem,
+          # so bib must be told (as tests/lib.sh does); btrfs matches disk.toml.
+          additional-args: --use-librepo=True --rootfs=btrfs
 
       - name: Upload disk images and Checksum to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
