@@ -52,9 +52,29 @@ Pieces:
   suites use.
 - `suites/boot-verify.sh` — first suite: a healthy first boot into the
   autologin session.
+- `suites/lock-unlock.sh` — locks the session through logind, types a
+  wrong and then the right password at the lock screen, and asserts
+  LockedHint, the locker's lockfile, and that the locker process
+  survives the cycle.
+- `suites/relogin-cycle.sh` — logs out through niri and back in at
+  cosmic-greeter: the session teardown (ledger 0036), the greeter coming
+  up, and a real greeter login of the session under test (identity
+  variables, display import, shell units, no failed units or coredumps).
 
-Planned suites: `relogin-cycle` (session teardown, ledger 0036) and
-`lock-chain` (lock/suspend/wake races driven by QMP timing).
+The two console suites type into the guest over QMP and set a password
+for `tester` at their start (the disk ships it without one); input is
+letters and digits only. Run them against a running guest, or have the
+harness boot one:
+
+    bash tests/run.sh suite lock-unlock        # guest already started
+    bash tests/run.sh all relogin-cycle
+
+Each changes session state, so start each from a fresh boot (`run.sh
+stop`, then `start`). Their lock-screen and greeter screendumps need the
+hypervisor-side view (the VNC socket of the egl display mode); in sdl
+mode they skip those captures and say so.
+
+Planned: `lock-chain` (lock/suspend/wake races driven by QMP timing).
 
 The guest needs working GL (virgl) or the session itself misbehaves; on
 a GPU-less host — CI runners — the harness detects the missing render
