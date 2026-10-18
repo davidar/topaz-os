@@ -39,7 +39,7 @@ jobs:
     # stage is denied its containers-storage mount inside the privileged
     # builder container (run 33230063872); the rootful bootc-image-builder
     # path is proven on 24.04 (ublue's disk builds, same invocation).
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
 
     steps:
