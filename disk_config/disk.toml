@@ -1,3 +1,8 @@
 [[customizations.filesystem]]
 mountpoint = "/"
-minsize = "20 GiB"
+# Deploying the chunked image (~400 layers, ~13 GB) onto a 20 GiB btrfs
+# root trips ostree's min-free-space guard ("min-free-space-percent '3%'
+# would be exceeded") — the btrfs free-space misreporting class,
+# ostreedev/ostree#1688. The qcow2 is sparse, so the slack costs nothing;
+# the VM harness disk (tests/disk-test.toml.in) uses the same size.
+minsize = "40 GiB"
