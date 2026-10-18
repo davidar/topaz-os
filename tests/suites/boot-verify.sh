@@ -55,9 +55,9 @@ if [ "$session" = topaz-niri ]; then
     check "niri.service active (niri's own session integration)" \
         tssh systemctl --user is-active niri.service
     check "session shell units active" \
-        tssh 'systemctl --user is-active caustics-bar.service topaz-locker.service \
+        units_active caustics-bar.service topaz-locker.service \
             topaz-idle.service topaz-polkit-agent.service \
-            topaz-background.service topaz-clipboard.service'
+            topaz-background.service topaz-clipboard.service
     check "caustics bar runs from the installed set" \
         tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
     check "notification daemon on the bus is caustics-notify" \
