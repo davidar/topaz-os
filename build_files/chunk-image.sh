@@ -28,7 +28,7 @@ case "$image" in
 esac
 
 # Pinned tool; Renovate tracks the digest (.github/renovate.json5).
-chunkah_image="quay.io/coreos/chunkah:latest@sha256:0da1fa543fafe92468ad667d00580aea544a384198f668f1499675c241642e11"
+chunkah_image="quay.io/coreos/chunkah:latest@sha256:a2c6ef1cbf47f0c2360fd3c8e580ada5c809f17b2ffc4b0bff9fa5083b980769"
 
 # Scratch space next to the output, not /tmp: the compressed layers are
 # ~5 GiB, which a tmpfs /tmp would swallow into RAM.
