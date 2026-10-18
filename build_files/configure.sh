@@ -191,6 +191,36 @@ printf '%s\n' \
     'org.freedesktop.impl.portal.Settings=cosmic;gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
+### niri (topaz) session (ledger 0041)
+# The session's shell is systemd user units wanted by
+# graphical-session.target (niri's own session integration starts it),
+# each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC sessions are
+# untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
+# so the session shares niri-portals.conf above — portal-cosmic's
+# Settings backend reads cosmic-config, keeping the panel's theme and the
+# portals' color-scheme on the same switch. Preset shipped in
+# system_files; enabled here as well. topaz-locker.service is not
+# enabled: swayidle starts it on logind's Lock signal.
+systemctl --global enable \
+    caustics-bar.service topaz-idle.service \
+    topaz-polkit-agent.service topaz-background.service \
+    topaz-clipboard.service
+
+### swaylock's PAM stack (ledger 0041)
+# Fedora's file includes `login`, whose system-auth stack runs pam_fprintd
+# (5 s timeout) before the password module: every unlock would wait those
+# 5 s with no fingerprint prompt on screen. password-auth is the same
+# stack without the fingerprint module.
+grep -qE '^auth\s+include\s+login$' /etc/pam.d/swaylock
+grep -qE '^auth\s+sufficient\s+pam_unix\.so' /etc/pam.d/password-auth
+if grep -q pam_fprintd /etc/pam.d/password-auth; then
+    echo "password-auth now carries pam_fprintd; swaylock's stack needs another base" >&2
+    exit 1
+fi
+printf '%s\n' '#%PAM-1.0' \
+    '# topaz-os: password-auth rather than login, so no fingerprint wait (ledger 0041)' \
+    'auth       include      password-auth' > /etc/pam.d/swaylock
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

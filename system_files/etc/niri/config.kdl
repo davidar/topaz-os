@@ -397,7 +397,10 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
-    Mod+D hotkey-overlay-title="Run an Application: cosmic-launcher" { spawn "cosmic-launcher"; }
+    // fuzzel serves both sessions (ledger 0041); cosmic-launcher is
+    // cosmic-session's daemon and has nothing to answer in the niri
+    // (topaz) session.
+    Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     // Lock through logind: cosmic-session already runs the locker (cosmic-greeter)
     // as a resident process that reacts to the session's Lock signal, the same
     // path cosmic-idle uses. Spawning a second cosmic-greeter here takes the
@@ -414,10 +417,12 @@ binds {
     // The allow-when-locked=true property makes them work even when the session is locked.
     // Using spawn-sh allows to pass multiple arguments together with the command.
     // "-l 1.0" limits the volume to 100%.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
-    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
-    XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+    // topaz-osd applies the change; in the niri (topaz) session the bar
+    // notices it and shows the toast (ledger 0041).
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "topaz-osd" "volume" "up"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "topaz-osd" "volume" "down"; }
+    XF86AudioMute        allow-when-locked=true { spawn "topaz-osd" "volume" "mute"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn "topaz-osd" "mic" "mute"; }
 
     // Example media keys mapping using playerctl.
     // This will work with any MPRIS-enabled media player.
@@ -426,11 +431,10 @@ binds {
     XF86AudioPrev        allow-when-locked=true { spawn-sh "playerctl previous"; }
     XF86AudioNext        allow-when-locked=true { spawn-sh "playerctl next"; }
 
-    // Example brightness key mappings for brightnessctl.
-    // You can use regular spawn with multiple arguments too (to avoid going through "sh"),
-    // but you need to manually put each argument in separate "" quotes.
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
+    // Brightness keys: topaz-osd steps the backlight through logind
+    // (no brightnessctl in the image); the bar shows the toast.
+    XF86MonBrightnessUp allow-when-locked=true { spawn "topaz-osd" "brightness" "up"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "topaz-osd" "brightness" "down"; }
 
     // Open/close the Overview: a zoomed-out view of workspaces and windows.
     // You can also move the mouse into the top-left hot corner,

@@ -1,0 +1,62 @@
+#!/bin/bash
+# Volume and brightness keys for the niri (topaz) session (ledger 0041):
+# apply the change. The bar's own sidecars notice it (PipeWire events,
+# the backlight change uevent) and draw the toast; in other sessions the
+# change simply applies. Usable from any niri bind:
+#   topaz-osd volume up|down|mute
+#   topaz-osd mic mute
+#   topaz-osd brightness up|down
+# Step sizes: TOPAZ_OSD_VOLUME_STEP (default 10%), TOPAZ_OSD_BRIGHTNESS_STEP
+# (default 10%).
+#
+# Brightness goes through logind (org.freedesktop.login1.Session
+# SetBrightness), which lets the session's owner set a backlight without
+# a udev rule or group membership. The device is the backlight with the
+# largest range, like brightnessctl's default. The floor is 1% so a key
+# press can never black the panel.
+set -u
+vstep=${TOPAZ_OSD_VOLUME_STEP:-10}
+bstep=${TOPAZ_OSD_BRIGHTNESS_STEP:-10}
+backlight() {
+    # Name of the /sys/class/backlight device with the largest range.
+    local d best='' bestmax=-1
+    for d in /sys/class/backlight/*/; do
+        [ -r "$d/max_brightness" ] || continue
+        if [ "$(< "$d/max_brightness")" -gt "$bestmax" ]; then
+            bestmax=$(< "$d/max_brightness") best=${d%/}
+        fi
+    done
+    [ -n "$best" ] && echo "${best##*/}"
+}
+
+# brightness up|down: step the backlight by bstep percent of its range.
+brightness() {
+    local dev max cur step new
+    dev=$(backlight) || { echo "topaz-osd: no backlight device" >&2; return 1; }
+    max=$(< "/sys/class/backlight/$dev/max_brightness")
+    cur=$(< "/sys/class/backlight/$dev/brightness")
+    step=$(( max * bstep / 100 ))
+    [ "$step" -ge 1 ] || step=1
+    case $1 in
+    up)   new=$(( cur + step )) ;;
+    down) new=$(( cur - step )) ;;
+    esac
+    [ "$new" -le "$max" ] || new=$max
+    [ "$new" -ge $(( max / 100 )) ] || new=$(( max / 100 ))
+    [ "$new" -ge 1 ] || new=1
+    busctl --system call org.freedesktop.login1 /org/freedesktop/login1/session/auto \
+        org.freedesktop.login1.Session SetBrightness ssu backlight "$dev" "$new"
+}
+
+case "${1:-} ${2:-}" in
+"volume up")    wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "${vstep}%+" ;;
+"volume down")  wpctl set-volume @DEFAULT_AUDIO_SINK@ "${vstep}%-" ;;
+"volume mute")  wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+"mic mute")     wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+"brightness up" | "brightness down") brightness "$2" ;;
+*)
+    echo "usage: topaz-osd volume up|down|mute | mic mute | brightness up|down" >&2
+    exit 2
+    ;;
+esac
+

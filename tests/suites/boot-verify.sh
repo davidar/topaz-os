@@ -13,10 +13,22 @@ wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
 
+# Which session the test image autologs into (tests/Containerfile.test,
+# TOPAZ_TEST_SESSION): cosmic-niri (ledger 0035) or topaz-niri (0041).
+session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
+echo "session under test: $session"
+# niri --session resets XDG_CURRENT_DESKTOP to niri in both; the topaz
+# session is told apart by XDG_SESSION_DESKTOP (the entry's DesktopNames).
+expected_desktop=niri
+
 # Session identity: the autologin wrapper must have preserved the values
 # a real cosmic-greeter login sets from the session's .desktop file.
-check "XDG_CURRENT_DESKTOP=niri session-wide" \
-    tssh 'systemctl --user show-environment | grep -qx XDG_CURRENT_DESKTOP=niri'
+check "XDG_CURRENT_DESKTOP=$expected_desktop session-wide" \
+    tssh "systemctl --user show-environment | grep -qx XDG_CURRENT_DESKTOP=$expected_desktop"
+if [ "$session" = topaz-niri ]; then
+    check "XDG_SESSION_DESKTOP=topaz in the user manager (unit gate)" \
+        tssh 'systemctl --user show-environment | grep -q ^XDG_SESSION_DESKTOP=topaz'
+fi
 
 # The session-env import (ledger 0036): without it portals have no display.
 check "WAYLAND_DISPLAY imported into the user manager" \
@@ -28,7 +40,7 @@ check "DISPLAY imported (xwayland-satellite up)" \
 
 # Failed units expected only in the VM: the guest has none of the
 # laptop's NVIDIA hardware and QEMU's CPU exposes no MCE banks.
-vm_allowed='^(nvidia-cdi-refresh\.(path|service)|mcelog\.service) '
+vm_allowed='^(nvidia-cdi-refresh\.(path|service)|nvidia-persistenced\.service|mcelog\.service) '
 check "no unexpected failed system units" \
     is_empty tssh "systemctl --failed --no-legend --plain | grep -vE '$vm_allowed'"
 check "no unexpected failed user units" \
@@ -39,14 +51,39 @@ check_not "no coredumps this boot" tssh coredumpctl -q --no-pager list
 # shellcheck disable=SC2016  # $(...) expands in the guest shell, deliberately
 check "niri answers IPC" \
     tssh 'NIRI_SOCKET=$(systemctl --user show-environment | sed -n "s/^NIRI_SOCKET=//p") niri msg version'
-check "cosmic-session running" tssh pgrep -x cosmic-session
-check "cosmic-panel running" tssh pgrep -x cosmic-panel
+if [ "$session" = topaz-niri ]; then
+    check "niri.service active (niri's own session integration)" \
+        tssh systemctl --user is-active niri.service
+    check "session shell units active" \
+        units_active caustics-bar.service \
+            topaz-idle.service topaz-polkit-agent.service \
+            topaz-background.service topaz-clipboard.service
+    # The locker unit is swayidle's to start on a lock; at login it must
+    # be neither running nor failed.
+    check "topaz-locker.service idle until a lock" locker_idle
+    check "caustics bar runs from the installed set" \
+        tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
+    check "notification daemon on the bus is caustics-notify" \
+        tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'
+    check_not "cosmic-panel absent" tssh pgrep -x cosmic-panel
+    check_not "cosmic-notifications absent" tssh pgrep -x cosmic-notifications
+    check_not "wob absent (the bar draws the OSD)" tssh command -v wob
+    check_not "cosmic-session absent" tssh pgrep -x cosmic-session
+else
+    check "cosmic-session running" tssh pgrep -x cosmic-session
+fi
+if [ "$session" != topaz-niri ]; then
+    check "cosmic-panel running" tssh pgrep -x cosmic-panel
+fi
 
 # Portal wiring (ledger 0039): niri registers the Mutter ScreenCast API,
 # portal-gnome consumes it; gtk backs FileChooser; the Settings route
 # answers end to end.
 check "niri owns org.gnome.Mutter.ScreenCast" \
     tssh 'busctl --user status org.gnome.Mutter.ScreenCast'
+# The frontend is D-Bus-activated on first use; nothing in the topaz
+# session asks for a portal before an app does, so wake it explicitly.
+tssh 'busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.DBus.Peer Ping >/dev/null 2>&1; sleep 2' || true
 check "xdg-desktop-portal frontend on the bus" \
     tssh 'busctl --user status org.freedesktop.portal.Desktop'
 check "gtk portal backend on the bus" \

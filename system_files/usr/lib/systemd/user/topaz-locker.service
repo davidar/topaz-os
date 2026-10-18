@@ -1,0 +1,23 @@
+[Unit]
+Description=Screen locker (swaylock, ext-session-lock) for the niri (topaz) session
+# Started by topaz-idle.service's swayidle: on logind's Lock signal (idle
+# timeout, `loginctl lock-session`, the Super+Alt+L bind) and directly
+# before sleep. swaylock takes the session lock and exits once the
+# password is accepted, so the unit is active exactly while the screen is
+# locked. The ExecStart wrapper turns swaylock's "lock held" notification
+# into the unit's readiness (Type=notify), so a `systemctl start` returns
+# once the screen is actually locked: swayidle's before-sleep holds the
+# suspend until then. A locker that dies while locked leaves the
+# compositor locked with no client to unlock it, hence Restart=on-failure.
+# Nothing starts it at login: no [Install] section.
+ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+ExecStart=/usr/libexec/topaz/locker
+TimeoutStartSec=25
+Restart=on-failure
+RestartSec=1

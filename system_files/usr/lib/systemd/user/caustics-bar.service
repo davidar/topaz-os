@@ -1,0 +1,37 @@
+[Unit]
+Description=caustics bar for the niri (topaz) session
+# The bar is the session's panel, dock, tray, charts, clock, notification
+# daemon and power/audio/network/Bluetooth menus (ledger 0044). Gated like
+# the rest of the session (ledger 0041) so the COSMIC sessions, which run
+# cosmic-panel and cosmic-notifications, are untouched. A unit of the same
+# name under ~/.config/systemd/user replaces this one wholesale, which is
+# how a checkout of the project installs itself.
+ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
+PartOf=graphical-session.target
+After=graphical-session.target
+# Ten restarts a minute, then systemd gives up: a bar that cannot start
+# does not spin.
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+# The wrapper pins the Vulkan loader to the integrated GPU's driver on a
+# hybrid laptop, then runs /usr/bin/caustics-bar.
+ExecStart=/usr/libexec/topaz/caustics-bar
+Environment=RUST_LOG=info
+# No CAUSTICS_DIR: the baked bar runs its compiled-in shaders and the
+# reload sidecar idles; a checkout's own unit sets it for live editing.
+StandardOutput=journal
+StandardError=journal
+Restart=always
+RestartSec=1
+# A backstop, not a budget: the bar sits near 60 MB and one Slang compile in
+# the reload sidecar peaks near 400 MB; anything near this is a leak.
+MemoryMax=1G
+# Exit 2 is the bar refusing to run (only a discrete NVIDIA adapter, another
+# bar on this edge); exit 3 is the GPU device gone. Neither improves by
+# trying again within the second.
+RestartPreventExitStatus=2 3
+
+[Install]
+WantedBy=graphical-session.target
