@@ -160,7 +160,7 @@ cmd_check() {
     # target here instead of finding out at login.
     chk "niri (topaz) session: entry, units, shims and packages are in place (ledger 0041)" \
         bash -c 'grep -q "^Exec=/usr/bin/niri-session$" /usr/share/wayland-sessions/topaz-niri.desktop &&
-                 grep -q "^DesktopNames=topaz;niri$" /usr/share/wayland-sessions/topaz-niri.desktop &&
+                 grep -q "^DesktopNames=topaz$" /usr/share/wayland-sessions/topaz-niri.desktop &&
                  test -x /usr/bin/niri-session &&
                  test -f /usr/lib/systemd/user/niri.service &&
                  for u in caustics-bar.service topaz-locker.service topaz-idle.service \

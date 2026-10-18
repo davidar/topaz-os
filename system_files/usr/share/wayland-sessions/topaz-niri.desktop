@@ -3,7 +3,9 @@ Name=niri (topaz)
 Comment=niri's own systemd session with the COSMIC panel as its bar
 Exec=/usr/bin/niri-session
 Type=Application
-# cosmic-greeter sets XDG_SESSION_DESKTOP from the first name; the session's
+# cosmic-greeter sets XDG_SESSION_DESKTOP from this value; the session's
 # units are gated on it (niri --session itself resets XDG_CURRENT_DESKTOP
-# to niri, which keeps the niri portal routing).
-DesktopNames=topaz;niri
+# to niri, which keeps the niri portal routing). One name, no list: the
+# greeter passes the raw value through greetd's `sh -c`, where a `;`
+# would end the session command and the session would exit at once.
+DesktopNames=topaz

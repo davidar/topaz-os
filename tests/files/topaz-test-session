@@ -9,8 +9,9 @@
 export XDG_SESSION_TYPE=wayland
 case "$(cat /etc/topaz/test-session 2>/dev/null)" in
 topaz-niri)
-    # As cosmic-greeter derives them from DesktopNames=topaz;niri.
-    export XDG_CURRENT_DESKTOP=topaz:niri
+    # As cosmic-greeter derives them from DesktopNames=topaz (niri
+    # --session then resets XDG_CURRENT_DESKTOP to niri).
+    export XDG_CURRENT_DESKTOP=topaz
     export XDG_SESSION_DESKTOP=topaz
     exec /usr/bin/niri-session
     ;;

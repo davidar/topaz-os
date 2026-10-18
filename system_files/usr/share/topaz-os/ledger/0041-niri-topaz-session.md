@@ -37,9 +37,10 @@ tool does (dock with window previews, charts, tray), now has a
 toolkit-free replacement of its own.
 
 What runs, as user units wanted by `graphical-session.target` and gated
-on `ConditionEnvironment=XDG_SESSION_DESKTOP=topaz` (the first of the
-entry's `DesktopNames`, as cosmic-greeter sets it) so the COSMIC
-sessions are untouched:
+on `ConditionEnvironment=XDG_SESSION_DESKTOP=topaz` (the entry's
+`DesktopNames`, as cosmic-greeter sets it; a single name, because the
+greeter passes the value through greetd's shell, where a `;`-separated
+list ends the session command) so the COSMIC sessions are untouched:
 
 | Role | Was | Now |
 |---|---|---|

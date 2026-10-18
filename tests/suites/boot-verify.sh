@@ -18,7 +18,7 @@ wait_user_graphical 180 || exit 1
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
 echo "session under test: $session"
 # niri --session resets XDG_CURRENT_DESKTOP to niri in both; the topaz
-# session is told apart by XDG_SESSION_DESKTOP (first DesktopNames entry).
+# session is told apart by XDG_SESSION_DESKTOP (the entry's DesktopNames).
 expected_desktop=niri
 
 # Session identity: the autologin wrapper must have preserved the values
