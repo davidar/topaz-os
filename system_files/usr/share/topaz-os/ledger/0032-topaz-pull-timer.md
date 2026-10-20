@@ -26,5 +26,12 @@ booted, so the daily fire is idempotent.
 
 Both timers are `Persistent`, so a boot after downtime can queue both
 at once; the service orders itself `Before=uupd.service` for exactly
-that collision. This unit retires when bootc learns parallel partial
+that collision. The same persistence fires the missed 03:30 run at
+the next resume from suspend, typically seconds before wifi is back:
+`network-online.target` was reached at boot and does not re-gate on
+resume, so the registry ping failed on name resolution (observed
+2026-10-19 and 2026-10-20). The service therefore retries with
+`Restart=on-failure` every two minutes, capped at five starts per hour
+(`StartLimitBurst`), after which it stays failed so a real outage is
+still loud. This unit retires when bootc learns parallel partial
 pulls natively ([bootc#20](https://github.com/bootc-dev/bootc/issues/20)).

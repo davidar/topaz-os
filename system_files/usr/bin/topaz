@@ -310,6 +310,9 @@ cmd_check() {
         grep -qx 'enable_partial_images = "true"' /usr/share/containers/storage.conf
     chk "topaz-pull.timer stages updates ahead of uupd (ledger 0032)" \
         bash -c 'ls /etc/systemd/system/timers.target.wants/topaz-pull.timer >/dev/null 2>&1'
+    chk "topaz-pull.service retries a pull that fires into a resume (ledger 0032)" \
+        bash -c 'grep -qx "Restart=on-failure" /usr/lib/systemd/system/topaz-pull.service &&
+                 grep -qx "StartLimitBurst=5" /usr/lib/systemd/system/topaz-pull.service'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
                  for p in cosmic-session nethogs; do
