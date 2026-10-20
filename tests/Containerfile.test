@@ -18,10 +18,12 @@ ARG TOPAZ_TEST_SESSION=cosmic-niri
 # directory named by TOPAZ_TEST_EXTRA as the `extra` build context (an empty
 # one when unset), and its install.sh is run as root from inside it — a
 # non-empty context without one fails the build rather than baking nothing.
-# `z` relabels it for SELinux: an additional context outside this directory
-# is otherwise unreadable here and would look empty. Without one this is
-# exactly the image it was.
-RUN --mount=type=bind,source=files,target=/run/test-files \
+# `z` relabels both mounts for SELinux: a context outside the one
+# directory podman labelled for the build (an additional one, or this
+# repository checked out as a second worktree) is otherwise unreadable
+# here and looks empty. Without an extra context this is exactly the
+# image it was.
+RUN --mount=type=bind,source=files,target=/run/test-files,z \
     --mount=type=bind,from=extra,target=/run/test-extra,z \
     install -m 0755 /run/test-files/topaz-test-session /usr/bin/topaz-test-session && \
     # The shipped greetd config (ledger 0045) plus an initial_session, so
