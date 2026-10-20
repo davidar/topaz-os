@@ -242,6 +242,22 @@ if systemctl is-enabled cosmic-greeter.service > /dev/null 2>&1; then
     exit 1
 fi
 
+### greetd's PAM stack: password only (ledger 0045)
+# Fedora's file substacks system-auth, whose pam_fprintd (5 s timeout)
+# runs ahead of the password module; tuigreet runs the conversation in
+# order, so every login would wait those 5 s before the password prompt,
+# for a fingerprint that cannot unlock the keyring anyway. password-auth
+# is the same stack without the fingerprint module (as for swaylock
+# above). The session half keeps system-auth and the keyring module, so
+# the typed password unlocks the keyring. Guards as for swaylock.
+grep -qE '^auth\s+substack\s+system-auth$' /etc/pam.d/greetd
+sed -i -E 's/^(auth\s+substack\s+)system-auth$/\1password-auth/' /etc/pam.d/greetd
+grep -qE '^auth\s+substack\s+password-auth$' /etc/pam.d/greetd
+if grep -qE '^auth\s+.*system-auth' /etc/pam.d/greetd; then
+    echo "greetd's auth stack still reaches system-auth (pam_fprintd)" >&2
+    exit 1
+fi
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

@@ -5,6 +5,7 @@ status: active
 paths:
   - /etc/systemd/system/display-manager.service
   - /etc/greetd/config.toml
+  - /etc/pam.d/greetd
   - /usr/lib/tmpfiles.d/topaz-greetd-home.conf
   - /usr/share/wayland-sessions/topaz.desktop
 ---
@@ -48,12 +49,16 @@ stays `topaz`, so either greeter starts the same units). The COSMIC on
 niri entry arrives as `cosmic-niri` rather than `niri`; nothing gates on
 that value.
 
-Fingerprint. greetd's PAM stack substacks `system-auth`, which carries
-`pam_fprintd.so timeout=5` (ledger 0006) ahead of the password module,
-and tuigreet runs that conversation in order: after the user name the
-reader is armed for 5 s, then the password prompt appears. A finger
-within those 5 s logs in; otherwise the wait is the cost. GDM and
-cosmic-greeter ran the two in parallel.
+Password only. Fedora's `/etc/pam.d/greetd` substacks `system-auth`,
+which carries `pam_fprintd.so timeout=5` (ledger 0006) ahead of the
+password module, and tuigreet runs that conversation in order: every
+login would wait 5 s before the password prompt, for a fingerprint that
+cannot unlock the keyring anyway (GDM and cosmic-greeter ran the two in
+parallel). The auth stack substacks `password-auth` instead — the same
+stack without the fingerprint module, as swaylock's does (ledger 0041);
+the session stack keeps `system-auth` and `pam_gnome_keyring`, so the
+typed password unlocks the keyring. Fingerprint stays for unlocking,
+once the session has a locker that offers it.
 
 What stays. The `cosmic-greeter` package remains (a hard dependency of
 `cosmic-session`) as the lock screen of the COSMIC fallback sessions,
@@ -68,7 +73,8 @@ image's choice, and `topaz check` reports the mismatch until then.
 
 Check: the alias resolves to greetd, GDM and cosmic-greeter are
 disabled, the greetd config runs tuigreet on VT 1 as the greetd user
-with both remember flags, the binary and the home rule exist, and the
+with both remember flags, the binary and the home rule exist, greetd's
+auth stack is `password-auth` with no path to `system-auth`, and the
 session entry is `topaz.desktop`. Post-boot: the VM harness logs out
 and back in at tuigreet (relogin-cycle) with a seeded remembered user,
 waiting for the password prompt on the console before typing, and

@@ -54,9 +54,9 @@ done
 check "greeter up (tuigreet on VT 1)" wait_for 20 greeter_up
 # --- login at the greeter ---
 # With a remembered user tuigreet opens the PAM conversation for them at
-# once; the password prompt follows once pam_fprintd has yielded (at once
-# here: the VM has no reader; 5 s on hardware). Wait for it before typing
-# — an Enter into an empty prompt would submit an empty password.
+# once and the password prompt follows (the stack is password only). Wait
+# for it before typing — an Enter into an empty prompt would submit an
+# empty password.
 check "greeter shows the remembered user" wait_for 20 vt1_shows tester
 check "password prompt on the console" wait_for 20 vt1_shows "Password"
 console_screendump relogin-cycle 1-greeter
