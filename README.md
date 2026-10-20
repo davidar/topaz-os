@@ -23,7 +23,8 @@ $ topaz check                         # verify the deviations actually hold
 In broad strokes:
 
 - **COSMIC desktop** (Fedora packages) alongside the base image's GNOME — pick your
-  session at the GDM login screen. cosmic-comp comes from the
+  session at the login screen (greetd running tuigreet on the console;
+  ledger 0045). cosmic-comp comes from the
   [topaz fork](https://github.com/davidar/cosmic-comp): hot-reloadable workspace-gesture
   and physics config, pending upstream. cosmic-greeter comes from
   [its fork](https://github.com/davidar/cosmic-greeter): JXL wallpapers on the lock

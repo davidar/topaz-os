@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 # Session entry for the harness's greetd autologin. A real login goes
-# through cosmic-greeter, which sets the session identity variables from
-# the chosen session's .desktop file; greetd's initial_session sets none
-# of them, so mirror the values here. /etc/topaz/test-session (baked into
-# the test image from TOPAZ_TEST_SESSION) selects which session to run:
-#   cosmic-niri  "COSMIC on niri" (ledger 0035) — the default
-#   topaz-niri   "niri (topaz)"   (ledger 0041)
+# through tuigreet (ledger 0045), which sets the session identity
+# variables from the chosen session's .desktop file: XDG_SESSION_DESKTOP
+# from the file's name, XDG_CURRENT_DESKTOP from its DesktopNames.
+# greetd's initial_session sets none of them, so mirror the values here.
+# /etc/topaz/test-session (baked into the test image from
+# TOPAZ_TEST_SESSION) selects which session to run:
+#   cosmic-niri  "COSMIC on niri" (ledger 0035, cosmic-niri.desktop) — the default
+#   topaz-niri   "niri (topaz)"   (ledger 0041, topaz.desktop)
 export XDG_SESSION_TYPE=wayland
 case "$(cat /etc/topaz/test-session 2>/dev/null)" in
 topaz-niri)
-    # As cosmic-greeter derives them from DesktopNames=topaz (niri
-    # --session then resets XDG_CURRENT_DESKTOP to niri).
+    # niri --session then resets XDG_CURRENT_DESKTOP to niri.
     export XDG_CURRENT_DESKTOP=topaz
     export XDG_SESSION_DESKTOP=topaz
     exec /usr/bin/niri-session
     ;;
 *)
     export XDG_CURRENT_DESKTOP=niri
-    export XDG_SESSION_DESKTOP=niri
+    export XDG_SESSION_DESKTOP=cosmic-niri
     exec /usr/bin/start-cosmic-niri
     ;;
 esac

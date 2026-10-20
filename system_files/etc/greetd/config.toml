@@ -1,0 +1,12 @@
+# topaz-os: greetd runs tuigreet on VT 1 as the display manager (ledger
+# 0045). Sessions come from /usr/share/wayland-sessions and xsessions;
+# F3 picks a session, F12 the power menu. The last user and that user's
+# last session are remembered in the greeter's home, /var/lib/greetd
+# (Fedora's build keeps them there as tuigreet-* files; tmpfiles.d gives
+# the greeter user the directory).
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --remember --remember-user-session --asterisks"
+user = "greetd"

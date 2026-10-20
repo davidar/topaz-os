@@ -3,7 +3,7 @@ title: niri (topaz) session — no COSMIC shell
 date: 2026-10-17
 status: active
 paths:
-  - /usr/share/wayland-sessions/topaz-niri.desktop
+  - /usr/share/wayland-sessions/topaz.desktop
   - /usr/lib/systemd/user/caustics-bar.service
   - /usr/lib/systemd/user/topaz-locker.service
   - /usr/lib/systemd/user/topaz-idle.service
@@ -73,12 +73,11 @@ abandoned lock leaving it deaf, a session lookup that fails under a
 service manager) do not arise. The cost is fingerprint unlock, which
 swaylock does not offer.
 
-Still COSMIC in this session, deliberately and for now: the greeter as
-display manager (ledger 0034; its login screen still runs on
-cosmic-comp), cosmic-osd as the polkit agent (no toolkit-free agent
-exists), and the COSMIC file dialog and screenshot portals (ledger
-0039). Every other piece is toolkit-free: no GTK or Qt joins the
-session. The COSMIC packages the session no longer needs stay installed
+Still COSMIC in this session, deliberately and for now: cosmic-osd as
+the polkit agent (no toolkit-free agent exists) and the COSMIC file
+dialog and screenshot portals (ledger 0039). The login screen left too:
+greetd runs tuigreet on the console (ledger 0045). Every other piece is
+toolkit-free: no GTK or Qt joins the session. The COSMIC packages the session no longer needs stay installed
 while the fallback sessions exist; their removal follows once this
 session has been lived in.
 

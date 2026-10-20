@@ -40,10 +40,9 @@ default session and the disk no longer matches it.
 
 Pieces:
 
-- `Containerfile.test` — derived test image, never published: greetd
-  autologin into the chosen session, sshd, display manager
-  flipped to cosmic-greeter (so `topaz check`'s enforced-GDM claim fails
-  here by design, matching the greetd trial on hardware).
+- `Containerfile.test` — derived test image, never published: a greetd
+  `initial_session` appended to the shipped config (autologin into the
+  chosen session on the first boot), sshd, passwordless sudo.
 - `disk-test.toml.in` — bootc-image-builder config template; the runner
   injects the ssh public key and a `tester` login user at disk-build
   time so the image layer ships no users and `/var` stays empty.
@@ -59,9 +58,10 @@ Pieces:
   with no restarts; in COSMIC on niri LockedHint, the resident locker's
   lockfile, and the same locker process at the end.
 - `suites/relogin-cycle.sh` — logs out through niri and back in at
-  cosmic-greeter: the session teardown (ledger 0036), the greeter coming
-  up, and a real greeter login of the session under test (identity
-  variables, display import, shell units, no failed units or coredumps).
+  tuigreet (ledger 0045): the session teardown (ledger 0036), the greeter
+  coming up with the remembered user, and a real greeter login of the
+  session under test (identity variables, display import, shell units,
+  no failed units or coredumps, the greeter's cache rewritten).
 
 The two console suites type into the guest over QMP and set a password
 for `tester` at their start (the disk ships it without one); input is

@@ -326,7 +326,7 @@ wait_for() { # wait_for <seconds> <command...>
 }
 
 # The graphical login is the tester's session on seat0; ssh logins are
-# seat-less, and the greeter's own session (user cosmic-greeter) shares
+# seat-less, and the greeter's own session (user greetd) shares
 # seat0 between logins. Session ids change with every login, so look the
 # id up instead of assuming one. Prints nothing when there is none.
 seat0_session() {
@@ -374,29 +374,40 @@ type_keys() { # type_keys <string of letters and digits>
 
 press_enter() { press_key ret; }
 
-# The session entry's Name for a test-session value (tests/files/
-# topaz-test-session) — what cosmic-greeter shows and remembers.
-session_entry_name() {
+# The session entry file for a test-session value (tests/files/
+# topaz-test-session): what tuigreet lists and remembers, and the source
+# of XDG_SESSION_DESKTOP (the file's stem).
+session_entry_path() {
     case "$1" in
-    topaz-niri) echo "niri (topaz)" ;;
-    *) echo "COSMIC on niri" ;;
+    topaz-niri) echo /usr/share/wayland-sessions/topaz.desktop ;;
+    *) echo /usr/share/wayland-sessions/cosmic-niri.desktop ;;
     esac
 }
 
-# cosmic-greeter preselects the user and session it last logged in; with no
-# record it offers the alphabetically first entry (the stock COSMIC session),
-# not the one under test. Write its per-user state as a previous login of
-# that session would have left it. The greeter reads this when it starts,
-# so seed before the logout that brings it up.
-seed_greeter_session() { # seed_greeter_session <session entry Name>
-    local dir=/var/lib/cosmic-greeter/.config/cosmic/com.system76.CosmicGreeter/v1
+# tuigreet (--remember --remember-user-session, ledger 0045) prefills the
+# last user and preselects that user's last session; with no record it
+# offers the first entry of its list, not the one under test. Write its
+# records as a previous login of that session would have left them:
+# Fedora's build keeps them in the greeter's home as tuigreet-* files.
+# The greeter reads them when it starts, so seed before the logout that
+# brings it up. The home is tmpfiles-made at boot, owned by greetd.
+TUIGREET_LASTUSER=/var/lib/greetd/tuigreet-lastuser
+TUIGREET_LASTSESSION=/var/lib/greetd/tuigreet-lastsession-path-tester
+seed_greeter_session() { # seed_greeter_session <session entry path>
     tssh "sudo sh -euc '
-        mkdir -p $dir
-        printf \"%s\" \"{1000: (uid: 1000, last_session: Some(\\\"$1\\\"))}\" > $dir/users
-        printf \"%s\" \"Some(1000)\" > $dir/last_user
-        chown -R cosmic-greeter:cosmic-greeter /var/lib/cosmic-greeter/.config
+        test -d /var/lib/greetd
+        printf tester > $TUIGREET_LASTUSER
+        printf \"%s\" \"$1\" > $TUIGREET_LASTSESSION
+        chown greetd:greetd $TUIGREET_LASTUSER $TUIGREET_LASTSESSION
     '"
 }
+
+# The text on VT 1 — tuigreet's screen — read back through the console's
+# character buffer. The only view of the greeter the guest itself offers
+# (the hypervisor-side screendump is pixels), and the way to wait for a
+# prompt instead of typing into the void.
+vt1_text() { tssh 'sudo cat /dev/vcs1 | tr -s " "'; }
+vt1_shows() { vt1_text | grep -q -- "$1"; }
 
 # Screendumps of the lock screen and the greeter need the console's view.
 # The hypervisor-side capture (VNC socket, egl display mode) has it; the

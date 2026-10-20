@@ -99,15 +99,14 @@ check "Settings portal answers color-scheme" \
 check_not "no stale greeter lockfile" \
     tssh 'ls /run/user/1000/cosmic-greeter-*.lock'
 
-# topaz check as root. The only expected failure is the enforced-GDM
-# claim — the test image flips the DM to cosmic-greeter, which is also
-# the greetd-trial state on hardware. Its presence proves the check ran.
+# topaz check as root: every claim must hold in the booted test image
+# (its layer adds the autologin, sshd and sudo, deviating from nothing
+# the check asserts).
 tc_out="$(tssh sudo topaz check 2>/dev/null || true)"
-unexpected="$(printf '%s\n' "$tc_out" | grep '^\[FAIL\]' | grep -vF 'GDM remains the display manager' || true)"
-check "topaz check: no unexpected failures" test -z "$unexpected"
-check "topaz check: GDM flip is the one expected failure" \
-    contains "$tc_out" '[FAIL] GDM remains the display manager'
-[[ -n "$unexpected" ]] && printf '%s\n' "$unexpected"
+fails="$(printf '%s\n' "$tc_out" | grep '^\[FAIL\]' || true)"
+check "topaz check ran" test -n "$tc_out"
+check "topaz check: no failures" test -z "$fails"
+[[ -n "$fails" ]] && printf '%s\n' "$fails"
 
 # The screendump is evidence, not decoration: a failed or invalid
 # capture fails the suite instead of shipping a broken artifact.
