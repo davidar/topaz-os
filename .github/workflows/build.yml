@@ -54,9 +54,13 @@ jobs:
 
     outputs:
       # The image the verify job boots: a pull request's own build, or
-      # the digest a main push just published. Empty when nothing was
-      # pushed (the scheduled rebuild), which skips the verify job.
+      # the identity digest a main push just pushed. Empty when nothing
+      # was pushed (the scheduled rebuild), which skips the verify job.
       image: ${{ steps.image-under-test.outputs.image }}
+      # For the release job: what to alias once the boot passes.
+      image_name: ${{ steps.image-under-test.outputs.image_name }}
+      digest: ${{ steps.push-image.outputs.digest }}
+      alias_tags: ${{ steps.gen-build-tags.outputs.alias_tags }}
 
     steps:
       # These stage versions are pinned by https://github.com/renovatebot/renovate
@@ -269,19 +273,19 @@ jobs:
       # uploaded. --dest-force-compress-format is load-bearing: without
       # it skopeo happily reuses the registry's same-digest gzip blobs
       # instead of converting (the first zstd push shipped 395 of 400
-      # layers still gzip that way). Only the first tag is a real copy;
-      # the other alias tags are manifest PUTs of the same bytes
-      # (alias-tags.sh). Signing happens after, against the pushed
-      # digest — sign what you publish. quay is the canonical target
-      # (ledger 0033): it serves the multi-range requests partial pulls
-      # need; the GHCR mirror step below is best-effort.
+      # layers still gzip that way). Only the identity tag is pushed
+      # here; :latest and any other alias are manifest PUTs of the same
+      # bytes made by the release job, after the verify job has booted
+      # this digest. Machines follow :latest, so a build that fails to
+      # boot never reaches one. Signing happens after, against the
+      # pushed digest — sign what you publish. quay is the canonical
+      # target (ledger 0033): it serves the multi-range requests partial
+      # pulls need; the GHCR mirror step below is best-effort.
       - name: Push To Quay
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
         env:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
-          QUAY_USER: ${{ secrets.QUAY_ROBOT_USER }}
-          QUAY_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
         run: |
           set -euox pipefail
           # Released skopeo from its official image (version tag,
@@ -316,11 +320,16 @@ jobs:
             ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:latest ${cache_dir} \
             || echo "::warning::ghcr blob-cache seeding failed; the mirror re-uploads every layer"
 
-          # One real copy, to the first tag: conversion, blob uploads,
-          # digestfile.
+          # One real copy, to the identity tag: conversion, blob uploads,
+          # digestfile. The tag list is identity first, then aliases
+          # (generate-build-tags); a list without an identity tag would
+          # push straight to :latest and bypass the boot gate, so refuse.
           set -- ${ALIAS_TAGS}
           first_tag=$1
-          shift
+          if [ "${first_tag}" = "${DEFAULT_TAG}" ]; then
+            echo "::error::no identity tag; refusing to push ${DEFAULT_TAG} unverified"
+            exit 1
+          fi
           sudo podman run --rm \
             -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
             -v /tmp/push-out:/out \
@@ -332,26 +341,18 @@ jobs:
             --dest-compress-format zstd:chunked --dest-force-compress-format \
             oci:/oci docker://${PUBLISH_REGISTRY}/${IMAGE_NAME}:${first_tag}
 
-          digest=$(< /tmp/push-out/digestfile)
-
-          # The subshell drops xtrace: the bearer token alias-tags.sh
-          # acquires is not a masked secret, and set -x would print the
-          # credentials into the public log.
-          ( set +x
-            export ALIAS_CREDS="${QUAY_USER}:${QUAY_TOKEN}"
-            bash build_files/alias-tags.sh quay.io \
-              "${PUBLISH_REGISTRY#quay.io/}/${IMAGE_NAME}" "${digest}" "$@" )
-
-          echo "digest=${digest}" >> $GITHUB_OUTPUT
+          echo "digest=$(< /tmp/push-out/digestfile)" >> $GITHUB_OUTPUT
 
       # Which image the verify job boots, by digest so it is exactly the
-      # pushed bytes: the PR tag above, or the canonical quay publish.
+      # pushed bytes: the PR tag above, or the canonical quay identity
+      # tag whose aliases wait on the boot.
       - name: Image under test
         id: image-under-test
         env:
           PR_DIGEST: ${{ steps.push-pr-image.outputs.digest }}
           PUBLISHED_DIGEST: ${{ steps.push-image.outputs.digest }}
         run: |
+          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
           if [ -n "${PR_DIGEST}" ]; then
             echo "image=${IMAGE_REGISTRY}/${IMAGE_NAME}@${PR_DIGEST}" >> $GITHUB_OUTPUT
           elif [ -n "${PUBLISHED_DIGEST}" ]; then
@@ -386,19 +387,19 @@ jobs:
 
       # Best-effort copy of the same bytes to GHCR, for registry
       # diversity and anything still pointed at the old address. Runs
-      # after the canonical publish is signed, and never blocks it:
+      # after the canonical push is signed, and never blocks it:
       # continue-on-error keeps a GHCR outage or quota hiccup from
       # failing a release that quay already serves. The digest assertion
       # is the point of the mirror — if the copy did not reproduce the
       # canonical manifest byte-for-byte, fail this step rather than
       # publish a divergent twin. The mirror is not separately signed;
-      # cosign signatures live with the canonical quay image.
+      # cosign signatures live with the canonical quay image. Identity
+      # tag only, like the quay push: the release job aliases it.
       - name: Mirror To GHCR
         if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         continue-on-error: true
         env:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIGEST: ${{ steps.push-image.outputs.digest }}
         run: |
           set -euox pipefail
@@ -406,7 +407,6 @@ jobs:
           cache_dir=${RUNNER_TEMP}/blob-cache
           set -- ${ALIAS_TAGS}
           first_tag=$1
-          shift
           sudo podman run --rm \
             -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
             -v /tmp/push-out:/out \
@@ -421,10 +421,6 @@ jobs:
             echo "::error::mirror digest diverges from canonical ${DIGEST}"
             exit 1
           }
-          ( set +x
-            export ALIAS_CREDS="${GITHUB_ACTOR}:${GITHUB_TOKEN}"
-            bash build_files/alias-tags.sh ghcr.io \
-              "${IMAGE_REGISTRY#ghcr.io/}/${IMAGE_NAME}" "${DIGEST}" "$@" )
 
       # Populate the registry layer cache. Last, after the image is
       # published and signed: the cache is an optimization, and when this
@@ -466,9 +462,10 @@ jobs:
           echo "--- kernel OOM events (empty is good) ---"
           sudo dmesg | grep -iE 'out of memory|oom[-_ ]kill' | tail -20 || true
 
-  # Boot what this run built or published (verify-vm.yml): the PR's own
-  # image on pull requests, the just-published digest on main pushes.
-  # Skipped when nothing was pushed (the scheduled rebuild).
+  # Boot what this run built (verify-vm.yml): the PR's own image on
+  # pull requests, the signed identity tag on main pushes — whose
+  # aliases wait on this job. Skipped when nothing was pushed (the
+  # scheduled rebuild).
   verify:
     name: Verify
     needs: build_push
@@ -478,3 +475,56 @@ jobs:
     uses: ./.github/workflows/verify-vm.yml
     with:
       image: ${{ needs.build_push.outputs.image }}
+
+  # Move the tags machines follow onto the booted digest. The real copy
+  # went to the identity tag only; :latest (and any other alias) is a
+  # manifest PUT of the same bytes (alias-tags.sh), made here and only
+  # after the VM booted it. A failed boot leaves a signed identity tag
+  # that nothing pulls, and "re-run failed jobs" boots and aliases again
+  # without rebuilding. The blob-cache seeding already copes with a run
+  # that stops between the identity push and the alias.
+  release:
+    name: Publish verified tags
+    needs: [build_push, verify]
+    if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: ${{ needs.build_push.outputs.image_name }}
+      DIGEST: ${{ needs.build_push.outputs.digest }}
+      ALIAS_TAGS: ${{ needs.build_push.outputs.alias_tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # No xtrace in these steps: the bearer token alias-tags.sh acquires
+      # is not a masked secret and would land in the public log.
+      - name: Alias tags on Quay
+        env:
+          QUAY_USER: ${{ secrets.QUAY_ROBOT_USER }}
+          QUAY_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          set -- ${ALIAS_TAGS}
+          shift   # the identity tag already holds the manifest
+          echo "aliasing ${DIGEST} as: $*"
+          export ALIAS_CREDS="${QUAY_USER}:${QUAY_TOKEN}"
+          bash build_files/alias-tags.sh quay.io \
+            "${PUBLISH_REGISTRY#quay.io/}/${IMAGE_NAME}" "${DIGEST}" "$@"
+
+      # Best-effort, like the mirror copy it completes.
+      - name: Alias tags on GHCR
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          set -- ${ALIAS_TAGS}
+          shift
+          registry="${IMAGE_REGISTRY,,}"
+          export ALIAS_CREDS="${GITHUB_ACTOR}:${GITHUB_TOKEN}"
+          bash build_files/alias-tags.sh ghcr.io \
+            "${registry#ghcr.io/}/${IMAGE_NAME}" "${DIGEST}" "$@"

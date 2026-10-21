@@ -5,11 +5,13 @@ name: Verify VM boot
 # session state (tests/README.md). Called from build.yml after every
 # image build: a pull request's run boots the image that PR built
 # (pushed to a pr-<N> tag on the GHCR mirror for the purpose), and a
-# main push boots the digest it just published. The harness therefore
-# always meets the image tree it was changed alongside — a harness
-# change that depended on an image change in the same PR used to fail
-# here until the image was published (PR #50). Dispatch it by hand to
-# boot any image.
+# main push boots the signed identity tag it just pushed — :latest is
+# aliased onto that digest only after this passes, so an image that
+# does not boot never reaches a machine. The harness therefore always
+# meets the image tree it was changed alongside — a harness change that
+# depended on an image change in the same PR used to fail here until
+# the image was published (PR #50). Dispatch it by hand to boot any
+# image.
 #
 # The runner has no GPU, so the harness hosts the guest's GL on llvmpipe
 # via SDL's offscreen driver; KVM is available on standard GitHub
