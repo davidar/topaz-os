@@ -52,6 +52,12 @@ jobs:
       packages: write
       id-token: write
 
+    outputs:
+      # The image the verify job boots: a pull request's own build, or
+      # the digest a main push just published. Empty when nothing was
+      # pushed (the scheduled rebuild), which skips the verify job.
+      image: ${{ steps.image-under-test.outputs.image }}
+
     steps:
       # These stage versions are pinned by https://github.com/renovatebot/renovate
       - name: Checkout
@@ -211,6 +217,42 @@ jobs:
             exit 1
           fi
 
+      # Pull requests publish nothing — except this: their chunked image
+      # goes to a pr-<N> tag on the GHCR mirror so the verify job below
+      # boots the image the PR actually built, not the published one (a
+      # harness change that depended on an image change in the same PR
+      # was red until merge otherwise, PR #50). The tag is unsigned,
+      # never aliased to :latest, and overwritten by every push to the
+      # PR. The blob cache is seeded the same way as the release push:
+      # from the previous pr-<N> push and the recent identity tags, so
+      # only the PR's real delta is compressed and uploaded. Fork PRs
+      # get a read-only token and skip this step, and with it the
+      # verify job.
+      - name: Push PR image for VM verification
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        id: push-pr-image
+        env:
+          PR_TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euox pipefail
+          skopeo_image="quay.io/skopeo/stable:v1.22.3"
+          mkdir -p /tmp/push-out
+          cache_dir=${RUNNER_TEMP}/blob-cache
+          sudo bash build_files/seed-blob-cache.sh \
+            ${RUNNER_TEMP}/chunked-oci ${IMAGE_REGISTRY}/${IMAGE_NAME}:${PR_TAG} ${cache_dir} \
+            || echo "::warning::ghcr blob-cache seeding failed; this push recompresses every layer"
+          sudo podman run --rm \
+            -v ${RUNNER_TEMP}/chunked-oci:/oci:ro \
+            -v /tmp/push-out:/out \
+            -v ${cache_dir}:/var/lib/containers/cache \
+            -v "${HOME}/.docker/config.json:/auth.json:ro" \
+            -e REGISTRY_AUTH_FILE=/auth.json \
+            "${skopeo_image}" \
+            copy --digestfile=/out/pr-digestfile --image-parallel-copies 16 \
+            --dest-compress-format zstd:chunked --dest-force-compress-format \
+            oci:/oci docker://${IMAGE_REGISTRY}/${IMAGE_NAME}:${PR_TAG}
+          echo "digest=$(< /tmp/push-out/pr-digestfile)" >> $GITHUB_OUTPUT
+
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
       #
@@ -301,6 +343,22 @@ jobs:
               "${PUBLISH_REGISTRY#quay.io/}/${IMAGE_NAME}" "${digest}" "$@" )
 
           echo "digest=${digest}" >> $GITHUB_OUTPUT
+
+      # Which image the verify job boots, by digest so it is exactly the
+      # pushed bytes: the PR tag above, or the canonical quay publish.
+      - name: Image under test
+        id: image-under-test
+        env:
+          PR_DIGEST: ${{ steps.push-pr-image.outputs.digest }}
+          PUBLISHED_DIGEST: ${{ steps.push-image.outputs.digest }}
+        run: |
+          if [ -n "${PR_DIGEST}" ]; then
+            echo "image=${IMAGE_REGISTRY}/${IMAGE_NAME}@${PR_DIGEST}" >> $GITHUB_OUTPUT
+          elif [ -n "${PUBLISHED_DIGEST}" ]; then
+            echo "image=${PUBLISH_REGISTRY}/${IMAGE_NAME}@${PUBLISHED_DIGEST}" >> $GITHUB_OUTPUT
+          else
+            echo "image=" >> $GITHUB_OUTPUT
+          fi
 
       # This section is optional and only needs to be enabled if you plan on distributing
       # your project for others to consume. You will need to create a public and private key
@@ -408,3 +466,15 @@ jobs:
           echo "--- kernel OOM events (empty is good) ---"
           sudo dmesg | grep -iE 'out of memory|oom[-_ ]kill' | tail -20 || true
 
+  # Boot what this run built or published (verify-vm.yml): the PR's own
+  # image on pull requests, the just-published digest on main pushes.
+  # Skipped when nothing was pushed (the scheduled rebuild).
+  verify:
+    name: Verify
+    needs: build_push
+    if: needs.build_push.outputs.image != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/verify-vm.yml
+    with:
+      image: ${{ needs.build_push.outputs.image }}
