@@ -180,8 +180,9 @@ cmd_check() {
                  grep -q "swaylock --ready-fd" /usr/libexec/topaz/locker &&
                  ! grep -q "^\[Install\]" /usr/lib/systemd/user/topaz-locker.service &&
                  ! test -e /etc/systemd/user/graphical-session.target.wants/topaz-locker.service &&
-                 grep -q "lock .systemctl --user start topaz-locker.service" /usr/lib/systemd/user/topaz-idle.service &&
-                 grep -q "before-sleep .systemctl --user start topaz-locker.service" /usr/lib/systemd/user/topaz-idle.service &&
+                 i=$(/usr/libexec/topaz/idle --print | tr "\n" " ") &&
+                 [[ "$i" == *" lock systemctl --user start topaz-locker.service "* ]] &&
+                 [[ "$i" == *" before-sleep systemctl --user start topaz-locker.service "* ]] &&
                  test -f /etc/swaylock/config &&
                  grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/swaylock &&
                  ! grep -q pam_fprintd /etc/pam.d/password-auth &&
@@ -200,6 +201,29 @@ cmd_check() {
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
+    chk "idle stages from one knob file, with a fade before the lock (ledger 0046)" \
+        bash -c 'test -x /usr/bin/chayang &&
+                 ! rpm -q chayang >/dev/null 2>&1 &&
+                 grep -q "^chayang_ref=[0-9a-f]\{40\}$" /usr/share/topaz-os/niri-session-build &&
+                 test -x /usr/libexec/topaz/idle &&
+                 grep -q "^EnvironmentFile=-%h/.config/topaz/session.conf$" /usr/lib/systemd/user/topaz-idle.service &&
+                 grep -q "^ExecStart=/usr/libexec/topaz/idle$" /usr/lib/systemd/user/topaz-idle.service &&
+                 test -f /usr/share/topaz-os/session.conf &&
+                 for k in $(grep -o "TOPAZ_IDLE_[A-Z]*" /usr/libexec/topaz/idle | sort -u); do
+                     grep -q "^#$k=[0-9]" /usr/share/topaz-os/session.conf || exit 1
+                 done &&
+                 d=$(/usr/libexec/topaz/idle --print | tr "\n" " ") &&
+                 [[ "$d" == "swayidle -w lock "* ]] &&
+                 [[ "$d" == *" timeout 270 chayang -d 30 || [ \$? -ne 2 ] && loginctl lock-session "* ]] &&
+                 [[ "$d" == *" timeout 600 niri msg action power-off-monitors resume niri msg action power-on-monitors "* ]] &&
+                 [[ "$d" == *" timeout 1800 systemctl suspend "* ]] &&
+                 n=$(TOPAZ_IDLE_WARN=0 TOPAZ_IDLE_SUSPEND=0 /usr/libexec/topaz/idle --print | tr "\n" " ") &&
+                 [[ "$n" == *" timeout 300 loginctl lock-session "* ]] &&
+                 [[ "$n" != *chayang* && "$n" != *suspend* ]] &&
+                 o=$(TOPAZ_IDLE_LOCK=0 TOPAZ_IDLE_BLANK=0 TOPAZ_IDLE_SUSPEND=0 /usr/libexec/topaz/idle --print | tr "\n" " ") &&
+                 [[ "$o" != *timeout* ]] &&
+                 b=$(TOPAZ_IDLE_LOCK=soon /usr/libexec/topaz/idle --print 2>/dev/null | tr "\n" " ") &&
+                 [[ "$b" == *" timeout 270 chayang"* ]]'
     chk "caustics bar: one set of eleven binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)

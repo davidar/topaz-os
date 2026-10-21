@@ -1,0 +1,58 @@
+#!/bin/bash
+# topaz-idle.service's ExecStart (ledger 0046): swayidle, with its stages
+# assembled from the session knobs so that the lock, the fade that warns
+# of it, the screen blank and the suspend are each one number in
+# ~/.config/topaz/session.conf (the unit reads it as an EnvironmentFile;
+# /usr/share/topaz-os/session.conf lists the knobs and defaults) rather
+# than a copied ExecStart in a drop-in. 0 switches a stage off. With
+# --print the assembled command line is printed one word per line
+# instead of run — the build-time check reads it.
+set -eu
+
+# knob <name> <default>: the knob's value, a whole number of seconds; a
+# malformed value is reported to the journal and the default used, so a
+# typo never leaves the session without idle handling.
+knob() {
+    local name=$1 default=$2 value=${!1:-}
+    if [ -z "$value" ]; then
+        echo "$default"
+    elif [[ "$value" =~ ^[0-9]+$ ]]; then
+        echo "$value"
+    else
+        echo "topaz-idle: $name='$value' is not a whole number of seconds; using $default" >&2
+        echo "$default"
+    fi
+}
+
+lock=$(knob TOPAZ_IDLE_LOCK 300)
+warn=$(knob TOPAZ_IDLE_WARN 30)
+blank=$(knob TOPAZ_IDLE_BLANK 600)
+suspend=$(knob TOPAZ_IDLE_SUSPEND 1800)
+
+locker='systemctl --user start topaz-locker.service'
+args=(-w lock "$locker" before-sleep "$locker")
+
+if ((lock > 0)); then
+    if ((warn > 0 && warn < lock)); then
+        # chayang fades every output to black over the warning period:
+        # exit 0 when the fade completed undisturbed, 2 when input
+        # cancelled it (the lock is skipped and the idle period starts
+        # over), 1 when it could not run at all — then lock anyway, so a
+        # broken fade fails toward a locked screen, never an open one.
+        args+=(timeout $((lock - warn)) "chayang -d $warn || [ \$? -ne 2 ] && loginctl lock-session")
+    else
+        args+=(timeout "$lock" 'loginctl lock-session')
+    fi
+fi
+if ((blank > 0)); then
+    args+=(timeout "$blank" 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors')
+fi
+if ((suspend > 0)); then
+    args+=(timeout "$suspend" 'systemctl suspend')
+fi
+
+if [ "${1:-}" = --print ]; then
+    printf '%s\n' swayidle "${args[@]}"
+    exit 0
+fi
+exec /usr/bin/swayidle "${args[@]}"

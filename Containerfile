@@ -14,6 +14,7 @@ COPY build_files/install-greeter.sh /
 
 FROM scratch AS ctx-niri-session
 COPY build_files/install-niri-session.sh /
+COPY build_files/patches /patches
 
 FROM scratch AS ctx-files
 COPY build_files/configure.sh /
@@ -86,10 +87,13 @@ ARG COSMIC_ALT_STARTUP_REPO=https://github.com/Drakulix/cosmic-ext-alternative-s
 ARG COSMIC_ALT_STARTUP_REF=8ceda00197c7ec0905cf1dccdc2d67d738e45417
 ARG COSMIC_IDLE_REPO=https://github.com/davidar/cosmic-idle.git
 ARG COSMIC_IDLE_REF=b928a1d4297f78da0e14c0b6899009968d9740e6
+ARG CHAYANG_REPO=https://gitlab.freedesktop.org/emersion/chayang.git
+ARG CHAYANG_REF=fc98f97db88c890fb4589f3d2a090f3b0ce81f62
 RUN dnf -y install gcc cargo rust pkgconf-pkg-config git-core \
     clang clang-devel systemd-devel mesa-libgbm-devel \
     libinput-devel libxkbcommon-devel wayland-devel libglvnd-devel \
-    fontconfig-devel clang-libs && dnf clean all
+    fontconfig-devel clang-libs meson ninja-build wayland-protocols-devel && \
+    dnf clean all
 # SOURCE_DATE_EPOCH = commit time on both builds, for the same reason as
 # the stages above: nothing here may bake a checkout-time stamp into a
 # binary and churn the layer on an otherwise no-op rebuild.
@@ -110,6 +114,23 @@ RUN git init -q /src-idle && \
         "$COSMIC_ALT_STARTUP_REPO" "$COSMIC_ALT_STARTUP_REF" \
         "$COSMIC_IDLE_REPO" "$COSMIC_IDLE_REF" \
         > /out/build-info
+# chayang, the fade before the idle lock of the niri (topaz) session
+# (ledger 0046), at the upstream commit Fedora packages as 0.1.0, with one
+# patch from build_files/patches/: it draws its overlay from a
+# single-pixel buffer, a protocol niri does not export, so unpatched it
+# exits before drawing anything (the gap the cosmic-idle fork above closes
+# the same way). The patch falls back to a 1x1 wl_shm buffer. Nothing in
+# the build embeds a timestamp or a path.
+RUN --mount=type=bind,from=ctx-niri-session,source=/patches/chayang-shm-fallback.patch,target=/ctx/chayang-shm-fallback.patch \
+    git init -q /src-chayang && \
+    git -C /src-chayang fetch --depth=1 "$CHAYANG_REPO" "$CHAYANG_REF" && \
+    git -C /src-chayang checkout -q FETCH_HEAD && \
+    git -C /src-chayang apply /ctx/chayang-shm-fallback.patch && \
+    meson setup --buildtype=release /src-chayang/build /src-chayang && \
+    ninja -C /src-chayang/build && \
+    install -Dm0755 /src-chayang/build/chayang /out/chayang && \
+    printf 'chayang_repo=%s\nchayang_ref=%s\n' "$CHAYANG_REPO" "$CHAYANG_REF" \
+        >> /out/build-info
 
 # niri itself, built from the topaz fork at a pinned commit on top of the
 # upstream release Fedora packages (ledger 0037): hardcoded gesture,

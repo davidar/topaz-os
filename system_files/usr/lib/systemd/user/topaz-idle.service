@@ -1,24 +1,23 @@
 [Unit]
 Description=Idle handling (swayidle) for the niri (topaz) session
-# Lock, then blank, then suspend; lock before any sleep. The idle lock
-# goes through logind (`loginctl lock-session`, also what the Super+Alt+L
-# bind does), and logind's Lock signal starts the locker unit. Before
-# sleep (lid, idle, `systemctl suspend`) swayidle starts the locker unit
-# itself and, with -w, holds the suspend until that start returns — which
-# the unit (Type=notify) does only once the screen is locked. Timeouts
-# are the session defaults — override with a drop-in (systemctl --user
-# edit).
+# Fade, lock, blank, suspend; lock before any sleep. The stages are
+# assembled by /usr/libexec/topaz/idle from the knobs in
+# ~/.config/topaz/session.conf (ledger 0046; /usr/share/topaz-os/
+# session.conf lists them with their defaults) — no drop-in needed to
+# retune or switch one off. The idle lock goes through logind
+# (`loginctl lock-session`, also what the Super+Alt+L bind does), after
+# chayang has faded the screen as the warning; logind's Lock signal
+# starts the locker unit. Before sleep (lid, idle, `systemctl suspend`)
+# swayidle starts the locker unit itself and, with -w, holds the suspend
+# until that start returns — which the unit (Type=notify) does only once
+# the screen is locked.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/swayidle -w \
-    lock 'systemctl --user start topaz-locker.service' \
-    timeout 300 'loginctl lock-session' \
-    timeout 600 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors' \
-    timeout 1800 'systemctl suspend' \
-    before-sleep 'systemctl --user start topaz-locker.service'
+EnvironmentFile=-%h/.config/topaz/session.conf
+ExecStart=/usr/libexec/topaz/idle
 Restart=on-failure
 RestartSec=1
 

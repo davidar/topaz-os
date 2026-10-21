@@ -47,9 +47,9 @@ Pieces:
 - `disk-test.toml.in` — bootc-image-builder config template; the runner
   injects the ssh public key and a `tester` login user at disk-build
   time so the image layer ships no users and `/var` stays empty.
-- `run.sh`, `lib.sh`, `qmp.py`, `screendump.py` — VM lifecycle, ssh
-  plumbing, QMP control, VNC frame capture, and the assertion helpers
-  suites use.
+- `run.sh`, `lib.sh`, `qmp.py`, `screendump.py`, `png_mean.py` — VM
+  lifecycle, ssh plumbing, QMP control, VNC frame capture, a screenshot
+  brightness probe, and the assertion helpers suites use.
 - `suites/boot-verify.sh` — first suite: a healthy first boot into the
   autologin session.
 - `suites/lock-unlock.sh` — locks the session through logind, types a
@@ -58,6 +58,11 @@ Pieces:
   swaylock unit active exactly while locked and idle again afterwards
   with no restarts; in COSMIC on niri LockedHint, the resident locker's
   lockfile, and the same locker process at the end.
+- `suites/idle-fade.sh` — niri (topaz) only: writes the test user's
+  `~/.config/topaz/session.conf` to run the idle stages in seconds, asserts
+  swayidle picked them up, measures the screen darkening mid-fade
+  (`png_mean.py`), cancels one fade with a keypress and lets the next end
+  in the lock, then clears it with the password and removes the file.
 - `suites/relogin-cycle.sh` — logs out through niri and back in at
   cosmic-greeter: the session teardown (ledger 0036), the greeter coming
   up, and a real greeter login of the session under test (identity
