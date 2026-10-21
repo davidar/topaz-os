@@ -5,5 +5,9 @@ enable supergfxd.service
 # (ledger 0032)
 enable topaz-pull.timer
 
+# topaz-os: greetd with tuigreet is the display manager (ledger 0045)
+disable gdm.service
+enable greetd.service
+
 # topaz-os: disk swapfile behind zswap (ledger 0042)
 enable var-swap-swapfile.swap

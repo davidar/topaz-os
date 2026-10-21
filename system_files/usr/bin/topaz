@@ -159,8 +159,9 @@ cmd_check() {
     # word (the spawner deadlocks on the exec error), so resolve every
     # target here instead of finding out at login.
     chk "niri (topaz) session: entry, units, shims and packages are in place (ledger 0041)" \
-        bash -c 'grep -q "^Exec=/usr/bin/niri-session$" /usr/share/wayland-sessions/topaz-niri.desktop &&
-                 grep -q "^DesktopNames=topaz$" /usr/share/wayland-sessions/topaz-niri.desktop &&
+        bash -c 'grep -q "^Exec=/usr/bin/niri-session$" /usr/share/wayland-sessions/topaz.desktop &&
+                 grep -q "^DesktopNames=topaz$" /usr/share/wayland-sessions/topaz.desktop &&
+                 ! test -e /usr/share/wayland-sessions/topaz-niri.desktop &&
                  test -x /usr/bin/niri-session &&
                  test -f /usr/lib/systemd/user/niri.service &&
                  for u in caustics-bar.service topaz-locker.service topaz-idle.service \
@@ -264,8 +265,17 @@ cmd_check() {
                      grep -q topaz-session-shutdown.target "$f" || exit 1
                      ! grep -qE "^ *exec .*cosmic-session" "$f" || exit 1
                  done'
-    chk "GDM remains the display manager" \
-        bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = gdm.service ]'
+    chk "greetd with tuigreet is the display manager (ledger 0045)" \
+        bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
+                 ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&
+                 ! systemctl is-enabled cosmic-greeter.service > /dev/null 2>&1 &&
+                 grep -q "^vt = 1$" /etc/greetd/config.toml &&
+                 grep -q "^command = \"tuigreet .*--remember --remember-user-session" /etc/greetd/config.toml &&
+                 grep -q "^user = \"greetd\"$" /etc/greetd/config.toml &&
+                 test -x /usr/bin/tuigreet &&
+                 grep -q "^d /var/lib/greetd 0755 greetd greetd" /usr/lib/tmpfiles.d/topaz-greetd-home.conf &&
+                 grep -qE "^auth\s+substack\s+password-auth$" /etc/pam.d/greetd &&
+                 ! grep -qE "^auth\s+.*system-auth" /etc/pam.d/greetd'
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
     chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \

@@ -2,9 +2,10 @@
 # Suite: log out of the graphical session and back in through the greeter,
 # the way a user does. The autologin only ever exercises the first login of
 # a boot; this covers the teardown (ledger 0036: the session's display
-# variables must leave the user manager with it) and a real cosmic-greeter
-# login, which launches the session from its .desktop entry — a broken
-# entry fails here, not at the console of the next person to log in.
+# variables must leave the user manager with it) and a real tuigreet
+# login (ledger 0045), which launches the session from its .desktop entry
+# — a broken entry fails here, not at the console of the next person to
+# log in.
 set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,22 +18,25 @@ echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
 
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
-entry=$(session_entry_name "$session")
+entry=$(session_entry_path "$session")
 echo "session under test: $session ($entry)"
 sid=$(seat0_session)
 check "graphical session on seat0" test -n "$sid"
 [[ -n "$sid" ]] || { suite_verdict relogin-cycle; exit 1; }
 t0=$(tssh date +%s)
 check "test password set" set_test_password
-# Without a record the greeter offers the stock COSMIC session; this
+# Without a record the greeter offers the first session in its list; this
 # makes the login below start the session under test.
-check "greeter will preselect \"$entry\"" seed_greeter_session "$entry"
+check "greeter will preselect $entry" seed_greeter_session "$entry"
+# The login must rewrite the records: a marker younger than the seed
+# tells the greeter's own write from the seeded content (identical bytes).
+tssh 'sudo touch /run/relogin-cycle-seeded'
 
 graphical_active() { [[ "$(tssh systemctl --user is-active graphical-session.target)" == active ]]; }
 graphical_inactive() { ! graphical_active; }
 no_seat0_session() { [[ -z "$(seat0_session)" ]]; }
 env_has() { tssh "systemctl --user show-environment | grep -q '^$1='"; }
-greeter_up() { tssh 'pgrep -u cosmic-greeter -x cosmic-greeter && pgrep -u cosmic-greeter -x cosmic-comp'; }
+greeter_up() { tssh 'pgrep -u greetd -x tuigreet'; }
 greetd_log() { tssh "sudo journalctl -t greetd --since @$t0 --no-pager"; }
 
 # --- logout ---
@@ -47,13 +51,15 @@ check "graphical-session.target stopped" wait_for 10 graphical_inactive
 for var in WAYLAND_DISPLAY NIRI_SOCKET DISPLAY; do
     check_not "$var unset in the user manager after logout" env_has "$var"
 done
-check "greeter up (cosmic-greeter on cosmic-comp)" wait_for 20 greeter_up
-# The greeter draws a beat after its process starts.
-sleep 3
-console_screendump relogin-cycle 1-greeter
-
+check "greeter up (tuigreet on VT 1)" wait_for 20 greeter_up
 # --- login at the greeter ---
-# It preselects the seeded user and focuses the password field itself.
+# With a remembered user tuigreet opens the PAM conversation for them at
+# once and the password prompt follows (the stack is password only). Wait
+# for it before typing — an Enter into an empty prompt would submit an
+# empty password.
+check "greeter shows the remembered user" wait_for 20 vt1_shows tester
+check "password prompt on the console" wait_for 20 vt1_shows "Password"
+console_screendump relogin-cycle 1-greeter
 type_keys "$TEST_PASSWORD" && press_enter
 if wait_for 30 graphical_active; then
     check "graphical-session.target active within 30 s of the login" true
@@ -73,8 +79,8 @@ newsid=$(seat0_session)
 check "new seat0 session (was $sid, now ${newsid:-none})" \
     test -n "$newsid" -a "$newsid" != "$sid"
 
-# Session identity, as cosmic-greeter sets it from the entry's
-# DesktopNames (niri --session then resets XDG_CURRENT_DESKTOP to niri).
+# Session identity, as tuigreet sets it from the entry (niri --session
+# then resets XDG_CURRENT_DESKTOP to niri).
 check "XDG_CURRENT_DESKTOP=niri session-wide" \
     wait_for 20 tssh 'systemctl --user show-environment | grep -qx XDG_CURRENT_DESKTOP=niri'
 if [[ "$session" = topaz-niri ]]; then
@@ -111,6 +117,16 @@ check "no coredumps during the cycle (the polkit agent's logout panic aside)" \
     is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null | grep -v ' /usr/bin/cosmic-osd '"
 check_not "no stale greeter lockfile" \
     tssh 'ls /run/user/1000/cosmic-greeter-*.lock'
+# The greeter rewrote its records on login (the write is silent when it
+# fails — an unwritable home or a policy denial would surface only as a
+# forgotten user at the next login).
+check "tuigreet remembered the login (records rewritten after the seed)" \
+    tssh "sudo sh -euc '
+        test $TUIGREET_LASTUSER -nt /run/relogin-cycle-seeded
+        test $TUIGREET_LASTSESSION -nt /run/relogin-cycle-seeded
+        grep -qx tester $TUIGREET_LASTUSER
+        grep -qx $entry $TUIGREET_LASTSESSION
+    '"
 console_screendump relogin-cycle 2-relogged-in
 
 suite_verdict relogin-cycle

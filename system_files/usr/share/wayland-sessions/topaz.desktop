@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=niri (topaz)
+Comment=niri's own systemd session with the caustics bar
+Exec=/usr/bin/niri-session
+Type=Application
+# The session's units are gated on XDG_SESSION_DESKTOP=topaz. tuigreet
+# (ledger 0045) sets that variable from this file's name, so the file is
+# topaz.desktop; cosmic-greeter set it from DesktopNames, hence the same
+# single name there (niri --session itself resets XDG_CURRENT_DESKTOP to
+# niri, which keeps the niri portal routing).
+DesktopNames=topaz

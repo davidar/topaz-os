@@ -85,6 +85,9 @@ podman run --rm "$base" bash -euo pipefail -c '
             swaybg \
             fuzzel \
             cliphist
+        # The greeter of the display manager (ledger 0045); greetd itself
+        # is already in the closure as a dependency of cosmic-greeter.
+        dnf5 -y install --setopt=install_weak_deps=False tuigreet
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9

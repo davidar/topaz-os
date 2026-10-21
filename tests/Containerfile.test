@@ -1,8 +1,8 @@
 # Derived VM-test image — never published. Adds only what the harness
-# needs to drive the image unattended: greetd autologin into the
-# COSMIC-on-niri session, sshd as the assertion channel, and the display
-# manager flipped to cosmic-greeter to match the greetd trial on
-# hardware (topaz check's enforced-GDM claim fails here by design).
+# needs to drive the image unattended: a greetd initial_session (autologin
+# into the chosen session on the first boot; later logins go through
+# tuigreet as shipped), sshd as the assertion channel, and passwordless
+# sudo for the tester.
 ARG BASE=localhost/topaz-os:test
 FROM $BASE
 # Which session the autologin runs: cosmic-niri (default) or topaz-niri.
@@ -18,16 +18,22 @@ ARG TOPAZ_TEST_SESSION=cosmic-niri
 # directory named by TOPAZ_TEST_EXTRA as the `extra` build context (an empty
 # one when unset), and its install.sh is run as root from inside it — a
 # non-empty context without one fails the build rather than baking nothing.
-# `z` relabels it for SELinux: an additional context outside this directory
-# is otherwise unreadable here and would look empty. Without one this is
-# exactly the image it was.
-RUN --mount=type=bind,source=files,target=/run/test-files \
+# `z` relabels both mounts for SELinux: a context outside the one
+# directory podman labelled for the build (an additional one, or this
+# repository checked out as a second worktree) is otherwise unreadable
+# here and looks empty. Without an extra context this is exactly the
+# image it was.
+RUN --mount=type=bind,source=files,target=/run/test-files,z \
     --mount=type=bind,from=extra,target=/run/test-extra,z \
     install -m 0755 /run/test-files/topaz-test-session /usr/bin/topaz-test-session && \
-    install -m 0644 /run/test-files/cosmic-greeter-test.toml /etc/greetd/cosmic-greeter.toml && \
+    # The shipped greetd config (ledger 0045) plus an initial_session, so
+    # the first boot lands in the session under test with no one at the
+    # console; the grep proves the shipped half is the one being extended.
+    grep -q '^command = "tuigreet ' /etc/greetd/config.toml && \
+    printf '\n[initial_session]\ncommand = "/usr/bin/topaz-test-session"\nuser = "tester"\n' \
+        >> /etc/greetd/config.toml && \
     mkdir -p /etc/topaz && echo "$TOPAZ_TEST_SESSION" > /etc/topaz/test-session && \
-    systemctl disable gdm.service && \
-    systemctl enable cosmic-greeter.service sshd.service && \
+    systemctl enable sshd.service && \
     # niri's first-launch "Important Hotkeys" overlay would sit over
     # every screendump; uncomment the baked config's opt-out. The grep
     # proves the edit landed (and fails loudly if the config drifts).

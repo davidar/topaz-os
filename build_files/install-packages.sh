@@ -44,10 +44,10 @@ locked_install /ctx/packages.lock --exclude=cosmic-wallpapers
 
 dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 
-# COSMIC installs alongside the base image's GNOME; selectable from the GDM
-# session picker. cosmic-greeter comes along as a hard dependency of
-# cosmic-session but is not enabled: GDM remains the display manager
-# (verified by `topaz check`).
+# COSMIC installs alongside the base image's GNOME; both are selectable at
+# the login screen. cosmic-greeter comes along as a hard dependency of
+# cosmic-session but is not enabled: the display manager is greetd with
+# tuigreet (configure.sh, ledger 0045), verified by `topaz check`.
 
 ### Trimmed app suite (ledger 0025)
 # cosmic-session hard-Requires cosmic-initial-setup, so the transaction
