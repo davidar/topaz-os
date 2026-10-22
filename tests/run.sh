@@ -13,8 +13,9 @@ usage() {
 }
 
 #usage# Usage: tests/run.sh <command>
-#usage#   all [suite]   build what's missing, boot, run the suite, shut down
-#usage#                 (default suite: boot-verify; disk build needs sudo)
+#usage#   all [suite...]  build what's missing, boot, run the suites in turn
+#usage#                 in that one guest, shut down; exits non-zero if any
+#usage#                 failed (default: boot-verify; disk build needs sudo)
 #usage#   image         build the derived test image (rootless podman)
 #usage#   disk          build the test qcow2 via bootc-image-builder (sudo)
 #usage#   start | stop | status
@@ -46,7 +47,11 @@ all)
     fi
     vm_start
     trap vm_stop EXIT
-    run_suite "${1:-boot-verify}"
+    rc=0
+    for s in "${@:-boot-verify}"; do
+        run_suite "$s" || rc=1
+    done
+    exit "$rc"
     ;;
 *)
     usage

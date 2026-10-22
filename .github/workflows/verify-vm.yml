@@ -1,9 +1,9 @@
 ---
 name: Verify VM boot
 
-# Boots an image in QEMU on the runner and machine-checks the post-boot
-# session state (tests/README.md). Called from build.yml after every
-# image build: a pull request's run boots the image that PR built
+# Boots an image in QEMU on the runner, logs into the niri (topaz)
+# session and runs every suite (tests/README.md). Called from build.yml
+# after every image build: a pull request's run boots the image that PR built
 # (pushed to a pr-<N> tag on the GHCR mirror for the purpose), and a
 # main push boots the signed identity tag it just pushed — :latest is
 # aliased onto that digest only after this passes, so an image that
@@ -99,7 +99,15 @@ jobs:
           fi
 
       - name: Boot and verify
-        run: sudo bash tests/run.sh all
+        # The niri (topaz) session, the one machines run (ledger 0041),
+        # and every suite in one booted guest: the post-boot state, a
+        # lock and unlock, the fade before the idle lock with its knob
+        # file, then a logout and login. relogin-cycle goes last because
+        # it churns the session the others measure. sudo resets the
+        # environment, so the session choice rides on env.
+        run: >
+          sudo env TOPAZ_TEST_SESSION=topaz-niri
+          bash tests/run.sh all boot-verify lock-unlock idle-fade relogin-cycle
 
       - name: Kernel denials (debug)
         if: failure()

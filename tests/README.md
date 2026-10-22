@@ -36,7 +36,10 @@ session (ledger 0041, the caustics bar and systemd user units) instead of
 the default COSMIC-on-niri one; `boot-verify` reads the choice back from
 the guest and asserts the matching shell. Pass the same variable to every
 later `run.sh` invocation, or the harness rebuilds the image for the
-default session and the disk no longer matches it.
+default session and the disk no longer matches it. CI's Verify job boots
+the niri (topaz) session and runs every suite in that one guest
+(`run.sh all boot-verify lock-unlock idle-fade relogin-cycle`); the
+COSMIC-on-niri default is exercised only by hand.
 
 Pieces:
 
