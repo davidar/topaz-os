@@ -122,7 +122,7 @@ jobs:
       # skopeo under sudo do not inherit them (sudo resets HOME) and must
       # point REGISTRY_AUTH_FILE at that file explicitly.
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -132,7 +132,7 @@ jobs:
       # REGISTRY_AUTH_FILE mount below authenticates the canonical quay
       # push and the GHCR mirror alike.
       - name: Login to Quay
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_ROBOT_USER }}
