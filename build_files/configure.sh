@@ -102,30 +102,6 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
-### COSMIC on niri session launcher (ledger 0035)
-# The alternative session wants everything the COSMIC session's startup
-# script does — the failed-unit reset, the login-shell environment, the
-# Qt theme and keyring plumbing — and differs only in which compositor
-# cosmic-session is told to launch (it takes that from its argument
-# alone; there is no environment variable for it). Derive the launcher
-# from the packaged script instead of shipping a second copy, so upstream
-# changes to the session environment reach both sessions. The session
-# file sets XDG_CURRENT_DESKTOP=niri, which the script only defaults.
-# The compositor is launched through /usr/libexec/topaz/niri-journal,
-# which sends niri's log to the journal (cosmic-session discards the
-# compositor's stderr), and a directory of session-only shims is put on
-# PATH ahead of the packaged binaries (the panel's Workspaces button is
-# routed to niri's own overview). Guards: fail the build if either exec
-# line or the run marker moves or changes shape.
-[ "$(grep -c '/usr/bin/cosmic-session$' /usr/bin/start-cosmic)" = 2 ]
-[ "$(grep -c '^# Run cosmic-session$' /usr/bin/start-cosmic)" = 1 ]
-sed -e 's|/usr/bin/cosmic-session$|/usr/bin/cosmic-session /usr/libexec/topaz/niri-journal|' \
-    -e 's|^# Run cosmic-session$|export PATH=/usr/libexec/topaz/niri-session:$PATH\n\n&|' \
-    /usr/bin/start-cosmic > /usr/bin/start-cosmic-niri
-chmod 0755 /usr/bin/start-cosmic-niri
-test -x /usr/libexec/topaz/niri-journal
-test -x /usr/libexec/topaz/niri-session/cosmic-workspaces
-
 ### Session teardown stops graphical-session.target (ledger 0036)
 # start-cosmic execs cosmic-session and never stops graphical-session.target
 # when the session ends: xdg-desktop-portal's Requisite= on that target
@@ -135,13 +111,13 @@ test -x /usr/libexec/topaz/niri-session/cosmic-workspaces
 # wired to the previous compositor. Run cosmic-session as a child instead
 # and, once it exits, force the target down through a Conflicts= target
 # and unset the session variables: the teardown niri-session and
-# gnome-session already perform. Both launchers, so switching between the
-# sessions is clean in either direction.
+# gnome-session already perform, so switching between the sessions is
+# clean in either direction.
 # Guard: fail the build if the exec lines move or change shape.
-for launcher in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
-    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( /usr/libexec/topaz/niri-journal)?$' \
+for launcher in /usr/bin/start-cosmic; do
+    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session$' \
         "$launcher")" = 2 ]
-    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session( /usr/libexec/topaz/niri-journal)?)$#    \1 || rc=$?#' \
+    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session)$#    \1 || rc=$?#' \
         "$launcher"
     cat >> "$launcher" <<'TEARDOWN'
 
@@ -168,8 +144,8 @@ done
 # when not on GNOME — so upstream's gnome-first default sends FileChooser
 # (and everything else both files declare) into "no such interface" with
 # no fallback. Put gtk, which exports what it declares, first; route
-# ScreenCast explicitly to gnome (its backend consumes the Mutter API the
-# baked niri config registers); route Settings to portal-cosmic, which
+# ScreenCast explicitly to gnome (its backend consumes the Mutter API
+# `niri --session` registers); route Settings to portal-cosmic, which
 # reads the session's theme from cosmic-config directly and runs fine
 # under niri — portal-gnome's gsettings-backed Settings would miss a
 # COSMIC dark/light toggle. FileChooser also goes to portal-cosmic: its
@@ -194,7 +170,7 @@ printf '%s\n' \
 ### niri (topaz) session (ledger 0041)
 # The session's shell is systemd user units wanted by
 # graphical-session.target (niri's own session integration starts it),
-# each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC sessions are
+# each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC session is
 # untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
 # so the session shares niri-portals.conf above — portal-cosmic's
 # Settings backend reads cosmic-config, keeping the panel's theme and the

@@ -279,12 +279,18 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
-// Everything that makes this a COSMIC session — the environment import,
-// the cosmic-session startup shim, the portal-dialog float rule and the
-// D-Bus registration for screen sharing — is image-owned plumbing in one
-// include file, so a personal config can pull it in with a single line
-// instead of carrying copies that rot (see the header of that file).
-include "cosmic-shell.kdl"
+// Portal dialogs (file chooser, access prompts, print) are transient
+// dialogs from another process, so niri can't tie them to their parent
+// window and would tile them; float them instead (ledger 0039).
+// CosmicFilesDialog = COSMIC Files in dialog mode, spawned by
+// portal-cosmic's FileChooser; CosmicPortal = its other dialogs;
+// the gtk id covers everything portal-gtk serves.
+window-rule {
+    match app-id=r#"^com\.system76\.CosmicFilesDialog$"#
+    match app-id=r#"^com\.system76\.CosmicPortal$"#
+    match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
+    open-floating true
+}
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
@@ -401,11 +407,11 @@ binds {
     // cosmic-session's daemon and has nothing to answer in the niri
     // (topaz) session.
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-    // Lock through logind: cosmic-session already runs the locker (cosmic-greeter)
-    // as a resident process that reacts to the session's Lock signal, the same
-    // path cosmic-idle uses. Spawning a second cosmic-greeter here takes the
-    // session lock and then exits (no logind session for a PID 1 child),
-    // leaving niri locked with nothing to unlock it.
+    // Lock through logind: the session's locker (swayidle starting
+    // topaz-locker.service in niri (topaz), ledger 0041) answers the
+    // session's Lock signal. Spawning a locker directly here would take
+    // the session lock outside that path and leave niri locked with
+    // nothing to unlock it.
     Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn "loginctl" "lock-session"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
@@ -709,17 +715,6 @@ layer-rule {
     background-effect {
         xray false
     }
-}
-
-// COSMIC's panel hands its applets a wp_security_context socket rather
-// than the session socket, and niri restricts every security-context
-// client to the unprivileged protocol set — which hides the window list
-// from the dock and the workspace list from the workspaces applet. The
-// topaz build of niri (ledger 0037) can trust a sandbox engine by name;
-// only unrestricted clients can create security contexts, so nothing
-// sandboxed can claim this label for itself (ledger 0038).
-security-context {
-    trust-sandbox-engine "com.system76.CosmicPanel"
 }
 
 // topaz build of niri (ledger 0037): gesture, overview, window-switcher and

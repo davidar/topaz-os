@@ -45,9 +45,7 @@ file's name (its stem), where cosmic-greeter used the entry's first
 `DesktopNames` value and GDM the stem as well. The niri (topaz) session's
 units are gated on `XDG_SESSION_DESKTOP=topaz` (ledger 0041), so its
 entry is now `topaz.desktop` (was `topaz-niri.desktop`; `DesktopNames`
-stays `topaz`, so either greeter starts the same units). The COSMIC on
-niri entry arrives as `cosmic-niri` rather than `niri`; nothing gates on
-that value.
+stays `topaz`, so either greeter starts the same units).
 
 Password only. Fedora's `/etc/pam.d/greetd` substacks `system-auth`,
 which carries `pam_fprintd.so timeout=5` (ledger 0006) ahead of the

@@ -1,7 +1,7 @@
 ---
 title: cosmic-applets rebuilt so the dock works on niri
 date: 2026-08-22
-status: active
+status: superseded
 paths:
   - /usr/bin/cosmic-applets
   - /usr/share/topaz-os/niri-session-build
@@ -59,3 +59,10 @@ loudly — rebase the fork and move `COSMIC_APPLETS_REF`. `topaz check`
 asserts the installed binary differs from the package's, the version
 still matches the fork base, the wlr fallback is present, the applet
 symlinks resolve into it, and its libraries resolve.
+
+**Superseded 2026-10-25 (ledger 0047).** The image ships Fedora's
+cosmic-applets again, and the baked niri config no longer trusts the
+panel's sandbox engine. The fork existed for the COSMIC-on-niri
+session's dock (ledger 0035), which is removed; the niri (topaz)
+session's dock is the caustics bar (ledger 0044). The patches stay on
+the fork branch.

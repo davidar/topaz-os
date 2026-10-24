@@ -17,12 +17,8 @@ wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
 
-session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
+session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"
-if [[ "$session" != topaz-niri ]]; then
-    echo "idle-fade: topaz-idle.service runs only in niri (topaz); nothing to test in $session"
-    exit 0
-fi
 wait_session_painted
 t0=$(tssh date +%s)
 check "test password set" set_test_password

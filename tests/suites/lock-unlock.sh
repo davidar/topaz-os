@@ -15,7 +15,7 @@ wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
 
-session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
+session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"
 sid=$(seat0_session)
 check "graphical session on seat0" test -n "$sid"
@@ -23,33 +23,18 @@ check "graphical session on seat0" test -n "$sid"
 t0=$(tssh date +%s)
 check "test password set" set_test_password
 
-# What a working lock looks like from outside, per session. niri (topaz)
-# (ledger 0041): swayidle answers logind's Lock signal by starting
-# topaz-locker.service — swaylock in the foreground, which exits once the
-# password is accepted — so the unit is active exactly while the screen
-# is locked. COSMIC on niri (0035): cosmic-greeter, resident under
-# cosmic-session, sets logind's LockedHint on the session and keeps a
-# lockfile in the runtime dir for as long as the lock holds.
-if [[ "$session" = topaz-niri ]]; then
-    locker_active() { [[ "$(tssh systemctl --user is-active topaz-locker.service 2>/dev/null)" == active ]]; }
-    swaylock_running() { tssh pgrep -u tester -x swaylock > /dev/null; }
-    locked() { locker_active && swaylock_running; }
-    unlocked() { ! locker_active && ! swaylock_running; }
-    # Before: never started. After: exited cleanly on unlock, no restarts.
-    locker_state() { tssh systemctl --user show topaz-locker.service -p ActiveState -p Result -p NRestarts; }
-    locker_idle=$'ActiveState=inactive\nResult=success\nNRestarts=0'
-    check "topaz-locker.service idle before the test" test "$(locker_state)" = "$locker_idle"
-else
-    lockfile="/run/user/1000/cosmic-greeter-$sid.lock"
-    locked_hint() { [[ "$(tssh loginctl show-session "$sid" -p LockedHint --value)" == "$1" ]]; }
-    lockfile_present() { tssh test -e "$lockfile"; }
-    locked() { locked_hint yes && lockfile_present; }
-    unlocked() { locked_hint no && ! lockfile_present; }
-    # The resident locker's identity before and after the cycle tells
-    # "unlocked" apart from "crashed and respawned".
-    locker_state() { tssh pgrep -u tester -x cosmic-greeter; }
-    check "cosmic-greeter locker running before the test" test -n "$(locker_state)"
-fi
+# What a working lock looks like from outside (ledger 0041): swayidle
+# answers logind's Lock signal by starting topaz-locker.service — swaylock
+# in the foreground, which exits once the password is accepted — so the
+# unit is active exactly while the screen is locked.
+locker_active() { [[ "$(tssh systemctl --user is-active topaz-locker.service 2>/dev/null)" == active ]]; }
+swaylock_running() { tssh pgrep -u tester -x swaylock > /dev/null; }
+locked() { locker_active && swaylock_running; }
+unlocked() { ! locker_active && ! swaylock_running; }
+# Before: never started. After: exited cleanly on unlock, no restarts.
+locker_state() { tssh systemctl --user show topaz-locker.service -p ActiveState -p Result -p NRestarts; }
+locker_idle=$'ActiveState=inactive\nResult=success\nNRestarts=0'
+check "topaz-locker.service idle before the test" test "$(locker_state)" = "$locker_idle"
 before=$(locker_state)
 
 check "session not locked before the test" unlocked

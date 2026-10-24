@@ -4,9 +4,7 @@ date: 2026-08-22
 status: active
 paths:
   - /usr/bin/start-cosmic
-  - /usr/bin/start-cosmic-niri
   - /usr/lib/systemd/user/topaz-session-shutdown.target
-  - /etc/niri/cosmic-shell.kdl
 ---
 # Session launchers tear graphical-session.target down on exit
 
@@ -27,8 +25,9 @@ Settings portal at startup (terminals, GTK and Electron apps) sat blocked
 on the D-Bus timeout.
 
 The fix is the teardown niri-session and gnome-session already perform.
-Both launchers (`start-cosmic`, and `start-cosmic-niri` derived from it —
-ledger 0035) are patched at build time to run cosmic-session as a child
+The launcher `start-cosmic` (and, until ledger 0047 removed that
+session, `start-cosmic-niri` derived from it — ledger 0035) is patched
+at build time to run cosmic-session as a child
 and, once it exits, start `topaz-session-shutdown.target`, whose
 `Conflicts=graphical-session.target graphical-session-pre.target` forces
 both down, then unset the session variables (`WAYLAND_DISPLAY`, `DISPLAY`,

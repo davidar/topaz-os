@@ -1,7 +1,7 @@
 ---
 title: cosmic-greeter built from the topaz fork
 date: 2026-08-16
-status: active
+status: superseded
 paths:
   - /usr/bin/cosmic-greeter
   - /usr/share/topaz-os/cosmic-greeter-fork
@@ -57,3 +57,10 @@ ships a different base version (forcing a rebase), the builder's Fedora
 release is pinned to the base image's (glibc), and `topaz check` asserts
 the binary deviates from the packaged one, the version pin holds, and
 all libraries resolve.
+
+**Superseded 2026-10-25 (ledger 0047).** The image ships Fedora's
+cosmic-greeter again. It is no longer the display manager (greetd with
+tuigreet, ledger 0045) nor the daily session's locker (swaylock, ledger
+0041); it remains only as the stock COSMIC session's resident locker,
+where the fingerprint re-arm and lock-lifecycle fixes were not worth a
+per-release rebase. The patches stay on the fork branch.
