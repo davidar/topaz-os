@@ -18,6 +18,15 @@ on:
     paths-ignore:
       - '**/README.md'
   workflow_dispatch:
+    inputs:
+      repro_check:
+        description: >-
+          Run as the Saturday reproducibility check: cold build, compare
+          against the published :latest, push nothing. Unlike the schedule,
+          a manual run compares even when :latest was built from another
+          commit (to exercise the check from a branch), and says so.
+        type: boolean
+        default: false
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
@@ -51,6 +60,14 @@ jobs:
       contents: read
       packages: write
       id-token: write
+
+    env:
+      # The reproducibility-check mode: the Saturday schedule, or a manual
+      # run that asked for it. Disables the layer cache (a cache hit would
+      # make the check vacuous), enables the compare step, and turns off
+      # every push. The release job repeats the expression inline: a
+      # job-level if cannot read env.
+      REPRO_CHECK: ${{ github.event_name == 'schedule' || inputs.repro_check == true }}
 
     outputs:
       # The image the verify job boots: a pull request's own build, or
@@ -148,7 +165,7 @@ jobs:
       - name: Build Image
         id: build-image
         env:
-          CACHE_FROM: ${{ github.event_name != 'schedule' && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
+          CACHE_FROM: ${{ env.REPRO_CHECK != 'true' && format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) || '' }}
         # --preserve-env=<list>, not -E: the 26.04 runner's sudo is
         # sudo-rs, which ignores blanket -E with only a warning — the
         # cache env vars silently never reached the build (2026-08-13).
@@ -195,31 +212,96 @@ jobs:
       # chunked output against :latest. The build (--timestamp 0) and the
       # chunk rewrite (SOURCE_DATE_EPOCH=0) are both deterministic, so any
       # divergence at all is a regression.
+      #
+      # A bare diff_id diff is not actionable: the rebuilt OCI directory
+      # dies with the runner, so the only evidence left of the rebuilt side
+      # of a divergence is the digest (ten red Saturdays in a row produced
+      # exactly that, 2026-08-22 → 2026-10-24). On divergence the step
+      # names every diverging layer by its chunkah component annotation
+      # and keeps the rebuilt blobs plus a listing of each for the artifact
+      # step below. The published side stays on the registry by digest.
       - name: Compare rebuild against published image
-        if: github.event_name == 'schedule'
+        id: compare
+        if: env.REPRO_CHECK == 'true'
         run: |
           set -euo pipefail
           ref=docker://${PUBLISH_REGISTRY}/${IMAGE_NAME}:latest
           pub_ver=$(skopeo inspect --no-tags \
               --format '{{index .Labels "org.opencontainers.image.version"}}' "$ref")
           if [[ "$pub_ver" != *"-${GITHUB_SHA:0:7}"* ]]; then
-            echo "::notice::published :latest ($pub_ver) is not built from HEAD" \
-                 "(${GITHUB_SHA:0:7}); skipping the equivalence check"
-            exit 0
+            if [[ "$GITHUB_EVENT_NAME" == schedule ]]; then
+              echo "::notice::published :latest ($pub_ver) is not built from HEAD" \
+                   "(${GITHUB_SHA:0:7}); skipping the equivalence check"
+              exit 0
+            fi
+            echo "::warning::published :latest ($pub_ver) is not built from HEAD" \
+                 "(${GITHUB_SHA:0:7}); comparing anyway because this run asked" \
+                 "for it — divergences may be real tree differences"
           fi
-          skopeo inspect --no-tags --config "$ref" \
-            | jq -r '.rootfs.diff_ids[]' | sort > /tmp/published.diffids
-          manifest=$(sudo jq -r '.manifests[0].digest' ${RUNNER_TEMP}/chunked-oci/index.json | cut -d: -f2)
-          config=$(sudo jq -r '.config.digest' "${RUNNER_TEMP}/chunked-oci/blobs/sha256/${manifest}" | cut -d: -f2)
-          sudo jq -r '.rootfs.diff_ids[]' "${RUNNER_TEMP}/chunked-oci/blobs/sha256/${config}" \
-            | sort > /tmp/rebuilt.diffids
+          oci=${RUNNER_TEMP}/chunked-oci
+          skopeo inspect --no-tags --raw "$ref" > /tmp/published.manifest
+          skopeo inspect --no-tags --config "$ref" > /tmp/published.config
+          manifest=$(sudo jq -r '.manifests[0].digest' "$oci/index.json" | cut -d: -f2)
+          sudo cat "$oci/blobs/sha256/${manifest}" > /tmp/rebuilt.manifest
+          config=$(jq -r '.config.digest' /tmp/rebuilt.manifest | cut -d: -f2)
+          sudo cat "$oci/blobs/sha256/${config}" > /tmp/rebuilt.config
+          jq -r '.rootfs.diff_ids[]' /tmp/published.config | sort > /tmp/published.diffids
+          jq -r '.rootfs.diff_ids[]' /tmp/rebuilt.config | sort > /tmp/rebuilt.diffids
           if diff /tmp/published.diffids /tmp/rebuilt.diffids; then
             echo "REPRODUCIBLE: rebuild is layer-identical to the published image."
-          else
-            echo "REPRODUCIBILITY REGRESSION: rebuild diverges from the" \
-                 "published image (diff above)." >&2
-            exit 1
+            exit 0
           fi
+
+          # Name the diverging layers. diff_ids and manifest layers share
+          # an index, and chunkah annotates each layer with the component
+          # (package or path group) it holds.
+          evidence=${RUNNER_TEMP}/repro-evidence
+          mkdir -p "$evidence"
+          layer_index() {  # <config> <diff_id>
+            jq -r --arg d "$2" '.rootfs.diff_ids | index($d)' "$1"
+          }
+          layer_field() {  # <manifest> <index> <jq expression on the layer>
+            jq -r --argjson i "$2" ".layers[\$i] | $3" "$1"
+          }
+          layer_line() {  # <side> <manifest> <index>
+            echo "$1 layer $3: $(layer_field "$2" "$3" '.annotations["org.chunkah.component"] // "(unannotated)"')" \
+                 "blob $(layer_field "$2" "$3" '.digest') ($(layer_field "$2" "$3" '.size') bytes)"
+          }
+          {
+            echo "published: $pub_ver"
+            echo "rebuilt:   ${GITHUB_SHA} (run ${GITHUB_RUN_ID})"
+            for id in $(comm -23 /tmp/published.diffids /tmp/rebuilt.diffids); do
+              layer_line published /tmp/published.manifest "$(layer_index /tmp/published.config "$id")"
+            done
+            for id in $(comm -13 /tmp/published.diffids /tmp/rebuilt.diffids); do
+              idx=$(layer_index /tmp/rebuilt.config "$id")
+              layer_line rebuilt /tmp/rebuilt.manifest "$idx"
+              blob=$(layer_field /tmp/rebuilt.manifest "$idx" '.digest' | cut -d: -f2)
+              component=$(layer_field /tmp/rebuilt.manifest "$idx" \
+                '.annotations["org.chunkah.component"] // "unannotated"' | tr / -)
+              case "$(layer_field /tmp/rebuilt.manifest "$idx" '.mediaType')" in
+                *zstd) ext=tar.zst; decompress="zstd -dc" ;;
+                *gzip) ext=tar.gz;  decompress="gzip -dc" ;;
+                *)     ext=tar;     decompress=cat ;;
+              esac
+              sudo cp "$oci/blobs/sha256/$blob" "$evidence/rebuilt-$idx-$component.$ext"
+              $decompress "$evidence/rebuilt-$idx-$component.$ext" | tar -tv \
+                > "$evidence/rebuilt-$idx-$component.list"
+            done
+          } | tee "$evidence/divergence.txt"
+          sudo chown -R "$(id -u):$(id -g)" "$evidence"
+          echo "REPRODUCIBILITY REGRESSION: rebuild diverges from the" \
+               "published image (layers named above)." >&2
+          exit 1
+
+      - name: Keep the diverging rebuilt layers
+        if: failure() && steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: repro-divergence-${{ github.sha }}
+          path: ${{ runner.temp }}/repro-evidence
+          retention-days: 30
+          if-no-files-found: error
 
       # Pull requests publish nothing — except this: their chunked image
       # goes to a pr-<N> tag on the GHCR mirror so the verify job below
@@ -282,7 +364,7 @@ jobs:
       # target (ledger 0033): it serves the multi-range requests partial
       # pulls need; the GHCR mirror step below is best-effort.
       - name: Push To Quay
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         id: push-image
         env:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
@@ -367,14 +449,14 @@ jobs:
       # to consume. For more details, review the image signing section of the README.
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         # https://github.com/containers/container-libs/issues/388
         with:
           cosign-release: 'v2.6.5'
 
       - name: Sign container image
         id: sign-image
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
@@ -396,7 +478,7 @@ jobs:
       # cosign signatures live with the canonical quay image. Identity
       # tag only, like the quay push: the release job aliases it.
       - name: Mirror To GHCR
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         continue-on-error: true
         env:
           ALIAS_TAGS: ${{ steps.gen-build-tags.outputs.alias_tags }}
@@ -444,7 +526,7 @@ jobs:
       # that includes push scope — the first real cache push died on
       # exactly that 403 (2026-08-13).
       - name: Push Build Cache
-        if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           CACHE_TO: ${{ format('{0}/{1}-build-cache', env.IMAGE_REGISTRY, env.IMAGE_NAME) }}
         run: |
@@ -486,7 +568,7 @@ jobs:
   release:
     name: Publish verified tags
     needs: [build_push, verify]
-    if: github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: github.event_name != 'pull_request' && !(github.event_name == 'schedule' || inputs.repro_check == true) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-26.04
     permissions:
       contents: read
