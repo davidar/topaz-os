@@ -3,14 +3,19 @@ title: niri session portals — ScreenCast wired up, Screenshot and Settings fro
 date: 2026-08-25
 status: active
 paths:
-  - /etc/niri/cosmic-shell.kdl
+  - /etc/niri/config.kdl
   - /usr/share/xdg-desktop-portal/niri-portals.conf
 ---
 # niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC
 
-Portal wiring for the COSMIC-on-niri session (ledger 0035): two gaps
-that are consequences of niri not being started as `niri --session`, and
-one routing trap in the packaged defaults.
+Portal wiring, written for the COSMIC-on-niri session (ledger 0035) and
+inherited by the niri (topaz) session (ledger 0041): two gaps that were
+consequences of niri not being started as `niri --session`, and one
+routing trap in the packaged defaults. Since ledger 0047 removed the
+COSMIC-on-niri session, `niri --session` performs the environment
+import and the D-Bus registration itself; what remains of this entry is
+the portal routing in `niri-portals.conf` and the portal-dialog float
+rule, now in the baked `/etc/niri/config.kdl`.
 
 **FileChooser (and friends).** xdg-desktop-portal routes an interface to
 the first backend whose `.portal` file *declares* it — it never probes

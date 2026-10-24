@@ -6,7 +6,7 @@ on:
       - main
   schedule:
     # Weekly reproducibility check, not an update channel: every image input
-    # is pinned by the git tree (base digest, packages.lock, comp REF), so a
+    # is pinned by the git tree (base digest, packages.lock, fork REFs), so a
     # rebuild of an unchanged tree must reproduce the published image.
     # Scheduled runs rebuild HEAD, compare layers against :latest, and never
     # push — any layer divergence fails the run. Saturday 16:00 UTC, a day

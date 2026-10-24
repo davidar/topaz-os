@@ -1,7 +1,7 @@
 ---
 title: cosmic-comp built from the topaz fork
 date: 2026-07-27
-status: active
+status: superseded
 paths:
   - /usr/bin/cosmic-comp
   - /usr/share/topaz-os/cosmic-comp-fork
@@ -50,3 +50,10 @@ mismatched builder fails the build instead of the login.
 The fork was daily-driven and VT-tested through the `topaz dev` overlay
 workflow (ledger 0014) before graduating into the image — that is the
 intended pipeline for any future fork work.
+
+**Superseded 2026-10-25 (ledger 0047).** The image ships Fedora's
+cosmic-comp again. The daily session no longer runs cosmic-comp at all
+(ledger 0041), and the stock COSMIC session it still serves is a
+fallback, where the gesture tunables and startup retry were not worth a
+per-release rebase of two forks (this one and smithay). The patches stay
+on the fork branches for anyone who wants them.

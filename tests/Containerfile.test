@@ -5,8 +5,8 @@
 # sudo for the tester.
 ARG BASE=localhost/topaz-os:test
 FROM $BASE
-# Which session the autologin runs: cosmic-niri (default) or topaz-niri.
-ARG TOPAZ_TEST_SESSION=cosmic-niri
+# Which session the autologin runs: topaz-niri is the only one today.
+ARG TOPAZ_TEST_SESSION=topaz-niri
 
 # One RUN, one layer: on the CI runner each step's commit over the
 # ~400-layer chunked base costs ~5 minutes, so the COPYs ride the same
