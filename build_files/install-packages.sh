@@ -51,8 +51,8 @@ dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 
 ### Trimmed app suite (ledger 0025)
 # cosmic-session hard-Requires cosmic-initial-setup, so the transaction
-# above installs whatever build the repositories currently carry — the lock
-# cannot pin a package that must not ship. The image deliberately has no
+# above installs it — at the build the lock pins as a transient (~), so
+# the install never resolves a name. The image deliberately has no
 # first-boot wizard; remove it post-transaction. --nodeps detaches only
 # cosmic-session's dependency entry, and the epilogue census runs after
 # this, so any stray it left behind (say, a new unique dependency of a

@@ -24,11 +24,11 @@ of those serve no purpose in this image:
 Mechanism: the wallpaper collection is a weak dependency, so the build
 excludes it (`--exclude=cosmic-wallpapers`, mirrored in the lockfile
 generator). The wizard is a hard Require, which rpm only enforces as a
-database entry: the build installs the transaction dnf resolves, then
-removes the package with `rpm -e --nodeps` before the lockfile census
-runs, so the lock records a closure that never contained it. dnf never
-runs on the deployed image, so the dangling dependency entry in the rpm
-database is inert.
+database entry: the build installs the wizard at the build the lockfile
+pins as a transient (a `~` line, ledger 0022), then removes it with
+`rpm -e --nodeps` before the lockfile census runs, so the shipped delta
+never contains it. dnf never runs on the deployed image, so the dangling
+dependency entry in the rpm database is inert.
 
 The remaining suite (files, terminal, editor, store, screenshot, app
 library) stays by choice — the apps are used, and no alternative delivery
