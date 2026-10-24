@@ -195,7 +195,16 @@ jobs:
       # chunked output against :latest. The build (--timestamp 0) and the
       # chunk rewrite (SOURCE_DATE_EPOCH=0) are both deterministic, so any
       # divergence at all is a regression.
+      #
+      # A bare diff_id diff is not actionable: the rebuilt OCI directory
+      # dies with the runner, so the only evidence left of the rebuilt side
+      # of a divergence is the digest (ten red Saturdays in a row produced
+      # exactly that, 2026-08-22 → 2026-10-24). On divergence the step
+      # names every diverging layer by its chunkah component annotation
+      # and keeps the rebuilt blobs plus a listing of each for the artifact
+      # step below. The published side stays on the registry by digest.
       - name: Compare rebuild against published image
+        id: compare
         if: github.event_name == 'schedule'
         run: |
           set -euo pipefail
@@ -207,19 +216,70 @@ jobs:
                  "(${GITHUB_SHA:0:7}); skipping the equivalence check"
             exit 0
           fi
-          skopeo inspect --no-tags --config "$ref" \
-            | jq -r '.rootfs.diff_ids[]' | sort > /tmp/published.diffids
-          manifest=$(sudo jq -r '.manifests[0].digest' ${RUNNER_TEMP}/chunked-oci/index.json | cut -d: -f2)
-          config=$(sudo jq -r '.config.digest' "${RUNNER_TEMP}/chunked-oci/blobs/sha256/${manifest}" | cut -d: -f2)
-          sudo jq -r '.rootfs.diff_ids[]' "${RUNNER_TEMP}/chunked-oci/blobs/sha256/${config}" \
-            | sort > /tmp/rebuilt.diffids
+          oci=${RUNNER_TEMP}/chunked-oci
+          skopeo inspect --no-tags --raw "$ref" > /tmp/published.manifest
+          skopeo inspect --no-tags --config "$ref" > /tmp/published.config
+          manifest=$(sudo jq -r '.manifests[0].digest' "$oci/index.json" | cut -d: -f2)
+          sudo cat "$oci/blobs/sha256/${manifest}" > /tmp/rebuilt.manifest
+          config=$(jq -r '.config.digest' /tmp/rebuilt.manifest | cut -d: -f2)
+          sudo cat "$oci/blobs/sha256/${config}" > /tmp/rebuilt.config
+          jq -r '.rootfs.diff_ids[]' /tmp/published.config | sort > /tmp/published.diffids
+          jq -r '.rootfs.diff_ids[]' /tmp/rebuilt.config | sort > /tmp/rebuilt.diffids
           if diff /tmp/published.diffids /tmp/rebuilt.diffids; then
             echo "REPRODUCIBLE: rebuild is layer-identical to the published image."
-          else
-            echo "REPRODUCIBILITY REGRESSION: rebuild diverges from the" \
-                 "published image (diff above)." >&2
-            exit 1
+            exit 0
           fi
+
+          # Name the diverging layers. diff_ids and manifest layers share
+          # an index, and chunkah annotates each layer with the component
+          # (package or path group) it holds.
+          evidence=${RUNNER_TEMP}/repro-evidence
+          mkdir -p "$evidence"
+          layer_index() {  # <config> <diff_id>
+            jq -r --arg d "$2" '.rootfs.diff_ids | index($d)' "$1"
+          }
+          layer_field() {  # <manifest> <index> <jq expression on the layer>
+            jq -r --argjson i "$2" ".layers[\$i] | $3" "$1"
+          }
+          layer_line() {  # <side> <manifest> <index>
+            echo "$1 layer $3: $(layer_field "$2" "$3" '.annotations["org.chunkah.component"] // "(unannotated)"')" \
+                 "blob $(layer_field "$2" "$3" '.digest') ($(layer_field "$2" "$3" '.size') bytes)"
+          }
+          {
+            echo "published: $pub_ver"
+            echo "rebuilt:   ${GITHUB_SHA} (run ${GITHUB_RUN_ID})"
+            for id in $(comm -23 /tmp/published.diffids /tmp/rebuilt.diffids); do
+              layer_line published /tmp/published.manifest "$(layer_index /tmp/published.config "$id")"
+            done
+            for id in $(comm -13 /tmp/published.diffids /tmp/rebuilt.diffids); do
+              idx=$(layer_index /tmp/rebuilt.config "$id")
+              layer_line rebuilt /tmp/rebuilt.manifest "$idx"
+              blob=$(layer_field /tmp/rebuilt.manifest "$idx" '.digest' | cut -d: -f2)
+              component=$(layer_field /tmp/rebuilt.manifest "$idx" \
+                '.annotations["org.chunkah.component"] // "unannotated"' | tr / -)
+              case "$(layer_field /tmp/rebuilt.manifest "$idx" '.mediaType')" in
+                *zstd) ext=tar.zst; decompress="zstd -dc" ;;
+                *gzip) ext=tar.gz;  decompress="gzip -dc" ;;
+                *)     ext=tar;     decompress=cat ;;
+              esac
+              sudo cp "$oci/blobs/sha256/$blob" "$evidence/rebuilt-$idx-$component.$ext"
+              $decompress "$evidence/rebuilt-$idx-$component.$ext" | tar -tv \
+                > "$evidence/rebuilt-$idx-$component.list"
+            done
+          } | tee "$evidence/divergence.txt"
+          sudo chown -R "$(id -u):$(id -g)" "$evidence"
+          echo "REPRODUCIBILITY REGRESSION: rebuild diverges from the" \
+               "published image (layers named above)." >&2
+          exit 1
+
+      - name: Keep the diverging rebuilt layers
+        if: failure() && steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: repro-divergence-${{ github.sha }}
+          path: ${{ runner.temp }}/repro-evidence
+          retention-days: 30
+          if-no-files-found: error
 
       # Pull requests publish nothing — except this: their chunked image
       # goes to a pr-<N> tag on the GHCR mirror so the verify job below
