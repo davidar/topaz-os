@@ -59,22 +59,52 @@ clamp_install_times() {
 # drop superseded builds, so any locked package the mirrors no longer serve
 # is fetched from koji, which keeps every build permanently at a path
 # derived from its source rpm (the lockfile's second field).
+#
+# Two phases, download then install, rather than one `dnf5 install`:
+# libdnf5 records the repository each package came from
+# (/usr/lib/sysimage/libdnf5/nevras.toml `from_repo`, and the transaction
+# history), and that name is not a property of the package. The same
+# NEVRA moves from `updates` to `updates-archive` the day Fedora
+# supersedes it, and to koji later still — so an unchanged lock produced
+# a different libdnf5 state on every rebuild (the layer carrying it
+# failed the weekly reproducibility check ten Saturdays running, root-
+# caused 2026-10-25). Installing from files records `@commandline` for
+# every package whatever served it, and doing so with every repository
+# disabled proves the lock is a closure instead of asserting it after
+# the fact. Packages the transaction needs but the image must not ship
+# (cosmic-initial-setup, ledger 0025) are in the lock as transients (~):
+# installed here, removed by the layer script before the census. File
+# installs skip repository signature policy, so the local check is
+# turned on explicitly; the keys are in the rpm database from the base
+# image and the COPR enablement above.
 locked_install() {
     local lock=$1
     shift
-    awk '/^\+/ { print substr($1, 2), $2 }' "$lock" > /tmp/lock.adds
+    awk '/^[+~]/ { print substr($1, 2), $2 }' "$lock" > /tmp/lock.adds
+    local dest=/var/tmp/lock-rpms
+    rm -rf "$dest"
+    mkdir -p "$dest"
 
     # Availability check on epoch-less name-ver-rel.arch (epoch never
-    # affects what a mirror serves); anything missing gets a koji URL.
+    # affects what a mirror serves); anything missing is fetched from koji.
     # shellcheck disable=SC2046 # NEVRAs contain no whitespace; splitting is wanted
     dnf5 -q repoquery --queryformat '%{name}-%{version}-%{release}.%{arch}\n' \
         $(cut -d' ' -f1 /tmp/lock.adds) | LC_ALL=C sort -u > /tmp/repo.nvras
-    local specs=()
+    # koji keeps the unsigned build outputs under the arch directory and
+    # the signed copies under data/signed/<key id>; the local signature
+    # check below needs the signed ones. The key id is the short id of
+    # the release primary key already in the rpm database.
+    local keyid
+    keyid=$(rpm -q gpg-pubkey --qf '%{VERSION} %{SUMMARY}\n' \
+        | awk -v key="fedora-$(. /etc/os-release && echo "$VERSION_ID")-primary" \
+              'index($0, key) { print substr($1, length($1) - 7) }')
+    [ -n "$keyid" ]
+    local mirror=()
     local nevra srpm nvra src srcrel rest srcver srcname arch
     while read -r nevra srpm; do
         nvra=$(sed 's/-[0-9]*:/-/' <<< "$nevra")
         if grep -qxF "$nvra" /tmp/repo.nvras; then
-            specs+=("$nevra")
+            mirror+=("$nevra")
         else
             src=${srpm%.src.rpm}
             srcrel=${src##*-}
@@ -83,10 +113,29 @@ locked_install() {
             srcname=${rest%-*}
             arch=${nvra##*.}
             echo "locked ${nvra} is no longer on the mirrors; using koji" >&2
-            specs+=("https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}/${arch}/${nvra}.rpm")
+            curl -fsSL -o "${dest}/${nvra}.rpm" \
+                "https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}/data/signed/${keyid}/${arch}/${nvra}.rpm"
         fi
     done < /tmp/lock.adds
-    dnf5 -y install --setopt=install_weak_deps=False "$@" "${specs[@]}"
+    if [ ${#mirror[@]} -gt 0 ]; then
+        dnf5 -y download --destdir="$dest" "${mirror[@]}"
+    fi
+    dnf5 -y install --disablerepo='*' \
+        --setopt=localpkg_gpgcheck=1 --setopt=install_weak_deps=False \
+        "$@" "$dest"/*.rpm
+    rm -rf "$dest"
+
+    # Verify the state the install should have left: libdnf5 names no
+    # mirror repository for any locked package. (@commandline for the
+    # files above; a version-pinned COPR id for packages a prior swap in
+    # the same layer already installed — those ids do not drift.)
+    local state=/usr/lib/sysimage/libdnf5/nevras.toml
+    if grep -F -f <(awk '/^\+/ { print substr($1, 2) }' "$lock" | sed 's/-0:/-/') "$state" \
+        | grep -E 'from_repo = "(fedora|updates|updates-archive|updates-testing)"'; then
+        echo "libdnf5 recorded a mirror repository for a locked package (above);" >&2
+        echo "the state file would differ on the next rebuild." >&2
+        exit 1
+    fi
 }
 
 ### Locked package set, epilogue (ledger 0022)
@@ -101,7 +150,9 @@ verify_layer_delta() {
         LC_ALL=C comm -13 "$pre" /tmp/rpm-post.list | sed 's/^/+/'
         LC_ALL=C comm -23 "$pre" /tmp/rpm-post.list | sed 's/^/-/'
     } > /tmp/packages.delta
-    if ! diff -u "$lock" /tmp/packages.delta; then
+    # Transients (~) are installed and removed within the layer, so the
+    # delta never contains them.
+    if ! grep -v '^~' "$lock" | diff -u - /tmp/packages.delta; then
         echo "Installed package set does not match $(basename "$lock")." >&2
         echo "The locked install and the lock disagree — check gen-lockfile.sh" >&2
         echo "and the transaction output above; 'just lock' rebases the lock." >&2
