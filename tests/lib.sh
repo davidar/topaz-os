@@ -296,9 +296,10 @@ wait_session_painted() {
     # anything — a screendump taken right away catches a grey void. The
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
-    # The topaz session's bar and swaybg (ledger 0041).
+    # The topaz session's bar, and the canvas with the schedule's first
+    # picture shown (ledgers 0044, 0049).
     local deadline=$((SECONDS + ${1:-120}))
-    local shell='pgrep -x caustics-bar >/dev/null && pgrep -x swaybg >/dev/null'
+    local shell='pgrep -x caustics-bar >/dev/null && caustics-canvasctl status | grep -q " image=/"'
     until tssh "$shell" 2>/dev/null; do
         ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
         sleep 3

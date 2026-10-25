@@ -52,7 +52,7 @@ check "niri answers IPC" \
 check "niri.service active (niri's own session integration)" \
     tssh systemctl --user is-active niri.service
 check "session shell units active" \
-    units_active caustics-bar.service \
+    units_active caustics-bar.service caustics-canvas.service \
         topaz-idle.service topaz-polkit-agent.service \
         topaz-background.service topaz-clipboard.service
 # The locker unit is swayidle's to start on a lock; at login it must
@@ -60,6 +60,11 @@ check "session shell units active" \
 check "topaz-locker.service idle until a lock" locker_idle
 check "caustics bar runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
+check "caustics canvas runs from the installed set" \
+    tssh 'readlink -f /proc/$(pgrep -o -x caustics-canvas)/exe | grep -q ^/usr/lib/caustics-bar/'
+check "canvas shows the schedule's wallpaper (ledger 0048)" \
+    tssh 'caustics-canvasctl status | grep -q " image=/usr/share/backgrounds/bluefin/"'
+check_not "swaybg absent (the canvas draws the wallpaper)" tssh pgrep -x swaybg
 check "notification daemon on the bus is caustics-notify" \
     tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'
 check_not "cosmic-panel absent" tssh pgrep -x cosmic-panel

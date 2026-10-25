@@ -1,13 +1,15 @@
 [Unit]
-Description=Wallpaper (swaybg) for the niri (topaz) session
+Description=Wallpaper schedule for the niri (topaz) session
 # The base image's own wallpaper on the base image's own schedule: the
 # script reads the month's timed wallpaper Bluefin pins for GNOME and
-# switches swaybg between its day and night images at the times the XML
-# names (ledger 0048). TOPAZ_WALLPAPER in ~/.config/topaz/session.conf
-# (ledger 0046) names another image or schedule.
+# shows its day and night images on the caustics canvas (ledger 0049) at
+# the times the XML names, fading over the transitions it names (ledger
+# 0048). TOPAZ_WALLPAPER in ~/.config/topaz/session.conf (ledger 0046)
+# names another image or schedule.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
-After=graphical-session.target
+After=graphical-session.target caustics-canvas.service
+Wants=caustics-canvas.service
 
 [Service]
 EnvironmentFile=-%h/.config/topaz/session.conf

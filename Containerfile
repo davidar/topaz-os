@@ -66,17 +66,18 @@ RUN git init -q /src && \
     install -Dm0755 /src/target/release/niri /out/niri && \
     printf 'niri_repo=%s\nniri_ref=%s\n' "$NIRI_REPO" "$NIRI_REF" > /out/build-info
 
-# caustics, the bar of the niri (topaz) session (ledger 0044), built at a
-# pinned commit of https://github.com/davidar/caustics. The bar and its ten
-# sidecars are one set, installed under a directory named by the ABI hash
-# the bar prints, as the project's own install script lays them out; the
-# shader sources travel too, for the compiler sidecar. The build script
+# caustics, the bar and the canvas of the niri (topaz) session (ledgers
+# 0044, 0049), built at a pinned commit of https://github.com/davidar/caustics.
+# The two hosts and their sidecars, sixteen binaries, are one set, installed
+# under a directory named by the ABI hash the bar prints, as the project's
+# own install script lays them out (its BINARIES list is the authoritative
+# one; the shaders are compiled in, no sources ship). The build script
 # fetches the Slang release the bindings were generated against and checks
 # it against the SHA-256 recorded in the crate, so that download is as
 # pinned as a crate's.
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
-ARG CAUSTICS_REF=b065dee61bec553eaf4222dbd571f1e6962a1938
+ARG CAUSTICS_REF=2924bb830a390aefe8ca02f11d34b8fc80babdef
 RUN dnf -y install gcc cargo rust git-core pkgconf-pkg-config && dnf clean all
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$CAUSTICS_REPO" "$CAUSTICS_REF" && \
@@ -88,7 +89,8 @@ RUN git init -q /src && \
     [ "${#set_hash}" -eq 16 ] && \
     for b in caustics-bar caustics-sysmon caustics-tray caustics-power caustics-audio \
              caustics-network caustics-bluetooth caustics-notify caustics-apps \
-             caustics-glyphs caustics-reload; do \
+             caustics-glyphs caustics-reload caustics-canvas caustics-wallpaper \
+             caustics-canvasctl caustics-polkit caustics-lock; do \
         install -Dm0755 "/src/target/release/$b" "/out/lib/caustics-bar/$set_hash/$b" || exit 1; \
     done && \
     printf 'caustics_repo=%s\ncaustics_ref=%s\ncaustics_set=%s\n' \
@@ -116,8 +118,8 @@ RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/
     /ctx/install-packages.sh
 
 # chayang from the niri-session-build stage (ledger 0046), the fork-built
-# niri from the niri-build stage (ledger 0037) and the caustics bar from
-# the caustics-build stage (ledger 0044)
+# niri from the niri-build stage (ledger 0037) and the caustics set, bar
+# and canvas, from the caustics-build stage (ledgers 0044, 0049)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \

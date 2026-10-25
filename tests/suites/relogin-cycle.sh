@@ -93,7 +93,7 @@ for var in WAYLAND_DISPLAY NIRI_SOCKET DISPLAY; do
 done
 
 check "session shell units active" \
-    wait_for 30 units_active caustics-bar.service \
+    wait_for 30 units_active caustics-bar.service caustics-canvas.service \
     topaz-idle.service topaz-polkit-agent.service \
     topaz-background.service topaz-clipboard.service
 check "topaz-locker.service idle until a lock" locker_idle

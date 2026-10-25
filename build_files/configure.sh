@@ -141,7 +141,7 @@ printf '%s\n' \
 # system_files; enabled here as well. topaz-locker.service is not
 # enabled: swayidle starts it on logind's Lock signal.
 systemctl --global enable \
-    caustics-bar.service topaz-idle.service \
+    caustics-bar.service caustics-canvas.service topaz-idle.service \
     topaz-polkit-agent.service topaz-background.service \
     topaz-clipboard.service
 

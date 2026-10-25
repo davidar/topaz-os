@@ -54,7 +54,7 @@ list ends the session command) so the GNOME session is untouched:
 | on-screen display | cosmic-osd | the bar's own toasts: its audio and power sidecars watch PipeWire and the backlight; `topaz-osd` applies the key presses (brightness through logind's `SetBrightness`, no brightnessctl, no udev rule) |
 | polkit agent | cosmic-osd | cosmic-osd, `topaz-polkit-agent.service` (its OSD half idles without cosmic-settings-daemon; it panics once the compositor is gone at logout, after the session is over) |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
-| wallpaper | cosmic-bg | swaybg, `topaz-background.service`: the base image's timed wallpaper on its own day/night schedule, `TOPAZ_WALLPAPER` in the knob file for another (ledger 0048) |
+| wallpaper | cosmic-bg | the caustics canvas (ledger 0049), driven by `topaz-background.service`: the base image's timed wallpaper on its own day/night schedule, cross-faded, `TOPAZ_WALLPAPER` in the knob file for another (ledger 0048) |
 | dark/light for portals | portal-cosmic Settings (reads cosmic-config) | portal-gnome Settings, from gsettings `color-scheme` (ledger 0039) |
 | clipboard history | — | cliphist, `topaz-clipboard.service` |
 
