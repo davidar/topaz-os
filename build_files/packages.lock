@@ -1,9 +1,13 @@
++acpid-0:2.0.34-16.fc44.x86_64 acpid-2.0.34-16.fc44.src.rpm
 +cliphist-0:0.7.0-1.fc44.x86_64 cliphist-0.7.0-1.fc44.src.rpm
 +cosmic-edit-0:1.11.0-2.fc44.x86_64 cosmic-edit-1.11.0-2.fc44.src.rpm
 +cosmic-files-0:1.11.0-2.fc44.x86_64 cosmic-files-1.11.0-2.fc44.src.rpm
 +cosmic-icon-theme-0:1.11.0-2.fc44.noarch cosmic-icon-theme-1.11.0-2.fc44.src.rpm
 +cosmic-osd-0:1.11.0-2.fc44.x86_64 cosmic-osd-1.11.0-2.fc44.src.rpm
++cosmic-randr-0:1.11.0-2.fc44.x86_64 cosmic-randr-1.11.0-2.fc44.src.rpm
 +cosmic-screenshot-0:1.11.0-2.fc44.x86_64 cosmic-screenshot-1.11.0-2.fc44.src.rpm
++cosmic-settings-0:1.11.0-2.fc44.x86_64 cosmic-settings-1.11.0-2.fc44.src.rpm
++cosmic-settings-daemon-0:1.11.0-2.fc44.x86_64 cosmic-settings-daemon-1.11.0-2.fc44.src.rpm
 +cosmic-store-0:1.11.0-2.fc44.x86_64 cosmic-store-1.11.0-2.fc44.src.rpm
 +cosmic-term-0:1.11.0-2.fc44.x86_64 cosmic-term-1.11.0-2.fc44.src.rpm
 +fcft-0:3.3.3-2.fc44.x86_64 fcft-3.3.3-2.fc44.src.rpm

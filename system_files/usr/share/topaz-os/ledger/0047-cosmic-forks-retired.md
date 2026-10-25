@@ -12,22 +12,28 @@ paths:
 
 The image no longer carries a COSMIC session. cosmic-session and
 everything only it needed — cosmic-comp, cosmic-greeter, cosmic-panel,
-cosmic-launcher, cosmic-applets, cosmic-app-library, cosmic-settings,
-cosmic-settings-daemon, cosmic-bg, cosmic-notifications, cosmic-idle,
-cosmic-randr, cosmic-workspaces, cosmic-config-fedora, and the
-cosmic-initial-setup and cosmic-wallpapers it dragged along (ledger
-0025) — are out of the lock. The four of those the image used to build
+cosmic-launcher, cosmic-applets, cosmic-app-library, cosmic-bg,
+cosmic-notifications, cosmic-idle, cosmic-workspaces,
+cosmic-config-fedora, and the cosmic-initial-setup and
+cosmic-wallpapers it dragged along (ledger 0025) — are out of the
+lock. The four of those the image used to build
 from forks (cosmic-comp with its smithay, ledger 0015; cosmic-greeter,
 0034; cosmic-applets, 0038; cosmic-idle, 0035) are gone with their
 Containerfile stages, and so is the "COSMIC on niri" session (0035)
 three of them existed for.
 
 What stays, as ordinary Fedora packages: the applications (cosmic-files,
-cosmic-term, cosmic-edit, cosmic-store, cosmic-screenshot), cosmic-osd
-as the niri (topaz) session's polkit agent (ledger 0041),
-xdg-desktop-portal-cosmic for the FileChooser, Screenshot and Settings
-portals (ledger 0039), and cosmic-icon-theme, which all of them require.
-Each depends on nothing else from COSMIC.
+cosmic-term, cosmic-edit, cosmic-store, cosmic-screenshot,
+cosmic-settings), cosmic-osd as the niri (topaz) session's polkit agent
+(ledger 0041), xdg-desktop-portal-cosmic for the FileChooser, Screenshot
+and Settings portals (ledger 0039), and cosmic-icon-theme, which all of
+them require. cosmic-settings is the session's network and Bluetooth
+UI — the bar shows state, joining a new network needs a dialog — and
+hard-requires cosmic-settings-daemon and cosmic-randr, two leaf packages
+that nothing in the session starts; its pages that need the daemon or
+cosmic-comp are inert, the network, Bluetooth and sound pages talk to
+NetworkManager, BlueZ and PipeWire directly. Nothing kept depends on
+anything else from COSMIC.
 
 Why: the daily session, niri (topaz), runs no COSMIC shell process and
 no fork-built binary. The forks served only the fallback sessions, and
@@ -47,10 +53,9 @@ Consequences:
   startup shim and `cosmic-shell.kdl` include (0035). The baked niri
   config keeps the portal-dialog float rule (0039) inline and no longer
   trusts the COSMIC panel's sandbox engine (0038).
-- cosmic-settings leaves too: most of its pages talk to
-  cosmic-settings-daemon, and it hard-requires it and cosmic-randr.
-- The DDC udev restriction (ledger 0013) stays: the daemon that probed
-  blindly is gone, but the rule is a correct default regardless.
+- The DDC udev restriction (ledger 0013) stays: cosmic-settings-daemon,
+  whose blind probing it guards against, is installed but never
+  started here, and the rule is a correct default regardless.
 - The VM harness tests the niri (topaz) session only.
 - The niri fork (ledger 0037), chayang (0046) and the caustics bar
   (0044) are unaffected; the niri-session build stage now builds
@@ -59,7 +64,7 @@ Consequences:
 Verification: `topaz check` asserts none of the session and shell
 packages is installed, no COSMIC session entry, fork provenance file,
 shim, launcher, teardown target or greeter rule remains, the baked niri
-config carries no COSMIC session plumbing, and the three COSMIC pieces
-the session relies on (cosmic-osd, the portal backend, cosmic-files as
-the apps' representative) are present. The lockfile census (ledger
+config carries no COSMIC session plumbing, and the COSMIC pieces the
+session relies on (cosmic-osd, the portal backend, cosmic-settings,
+cosmic-files as the apps' representative) are present. The lockfile census (ledger
 0022) covers the package set itself.

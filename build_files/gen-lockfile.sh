@@ -39,12 +39,17 @@ podman run --rm "$base" bash -euo pipefail -c '
         # session keeps (ledger 0041): cosmic-osd as its polkit agent and
         # the COSMIC portal backend. No COSMIC session or shell (ledger
         # 0047): cosmic-session and everything only it needed are gone.
+        # cosmic-settings is the network and Bluetooth UI of the niri
+        # (topaz) session (the bar shows state; joining a network needs
+        # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
+        # two leaf packages that nothing starts.
         dnf5 -y install --setopt=install_weak_deps=False \
             cosmic-files \
             cosmic-term \
             cosmic-edit \
             cosmic-store \
             cosmic-screenshot \
+            cosmic-settings \
             cosmic-osd \
             cosmic-icon-theme \
             xdg-desktop-portal-cosmic
