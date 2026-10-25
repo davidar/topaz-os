@@ -89,11 +89,12 @@ check "Settings portal answers color-scheme" \
 # topaz check as root: every claim must hold in the booted test image
 # (its layer adds the autologin, sshd and sudo, deviating from nothing
 # the check asserts).
+# (tc_fails, not fails: that name is the suite's failure counter.)
 tc_out="$(tssh sudo topaz check 2>/dev/null || true)"
-fails="$(printf '%s\n' "$tc_out" | grep '^\[FAIL\]' || true)"
+tc_fails="$(printf '%s\n' "$tc_out" | grep '^\[FAIL\]' || true)"
 check "topaz check ran" test -n "$tc_out"
-check "topaz check: no failures" test -z "$fails"
-[[ -n "$fails" ]] && printf '%s\n' "$fails"
+check "topaz check: no failures" test -z "$tc_fails"
+[[ -n "$tc_fails" ]] && printf '%s\n' "$tc_fails"
 
 # The screendump is evidence, not decoration: a failed or invalid
 # capture fails the suite instead of shipping a broken artifact.
