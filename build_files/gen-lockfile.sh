@@ -42,7 +42,9 @@ podman run --rm "$base" bash -euo pipefail -c '
         # cosmic-settings is the network and Bluetooth UI of the niri
         # (topaz) session (the bar shows state; joining a network needs
         # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
-        # two leaf packages that nothing starts.
+        # two leaf packages that nothing starts. cosmic-launcher is the
+        # application launcher bound to Mod+D; it brings pop-launcher and
+        # qalculate, nothing else.
         dnf5 -y install --setopt=install_weak_deps=False \
             cosmic-files \
             cosmic-term \
@@ -50,6 +52,7 @@ podman run --rm "$base" bash -euo pipefail -c '
             cosmic-store \
             cosmic-screenshot \
             cosmic-settings \
+            cosmic-launcher \
             cosmic-osd \
             cosmic-icon-theme \
             xdg-desktop-portal-cosmic

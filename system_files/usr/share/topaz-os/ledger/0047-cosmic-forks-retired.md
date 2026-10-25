@@ -12,11 +12,10 @@ paths:
 
 The image no longer carries a COSMIC session. cosmic-session and
 everything only it needed — cosmic-comp, cosmic-greeter, cosmic-panel,
-cosmic-launcher, cosmic-applets, cosmic-app-library, cosmic-bg,
-cosmic-notifications, cosmic-idle, cosmic-workspaces,
-cosmic-config-fedora, and the cosmic-initial-setup and
-cosmic-wallpapers it dragged along (ledger 0025) — are out of the
-lock. The four of those the image used to build
+cosmic-applets, cosmic-app-library, cosmic-bg, cosmic-notifications,
+cosmic-idle, cosmic-workspaces, cosmic-config-fedora, and the
+cosmic-initial-setup and cosmic-wallpapers it dragged along (ledger
+0025) — are out of the lock. The four of those the image used to build
 from forks (cosmic-comp with its smithay, ledger 0015; cosmic-greeter,
 0034; cosmic-applets, 0038; cosmic-idle, 0035) are gone with their
 Containerfile stages, and so is the "COSMIC on niri" session (0035)
@@ -24,7 +23,8 @@ three of them existed for.
 
 What stays, as ordinary Fedora packages: the applications (cosmic-files,
 cosmic-term, cosmic-edit, cosmic-store, cosmic-screenshot,
-cosmic-settings), cosmic-osd as the niri (topaz) session's polkit agent
+cosmic-settings, and cosmic-launcher with its pop-launcher backend as
+the session's Mod+D launcher), cosmic-osd as the niri (topaz) session's polkit agent
 (ledger 0041), xdg-desktop-portal-cosmic for the FileChooser, Screenshot
 and Settings portals (ledger 0039), and cosmic-icon-theme, which all of
 them require. cosmic-settings is the session's network and Bluetooth
