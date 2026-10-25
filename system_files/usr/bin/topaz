@@ -180,7 +180,6 @@ cmd_check() {
                  for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-osd busctl; do
                      command -v $b > /dev/null || exit 1
                  done &&
-                 test -f /usr/share/backgrounds/bluefin/01-bluefin-night.jxl &&
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
@@ -207,6 +206,23 @@ cmd_check() {
                  [[ "$o" != *timeout* ]] &&
                  b=$(TOPAZ_IDLE_LOCK=soon /usr/libexec/topaz/idle --print 2>/dev/null | tr "\n" " ") &&
                  [[ "$b" == *" timeout 270 chayang"* ]]'
+    # The wallpaper follows the base image's own choice and schedule: the
+    # month's timed XML Bluefin pins for GNOME, read by the script at
+    # noon and at 22:00 of the build day, must name a day and a night
+    # image that exist; a knob naming a plain image is painted as is.
+    chk "wallpaper follows the base image's timed schedule (ledger 0048)" \
+        bash -c 'set -o pipefail
+                 test -x /usr/libexec/topaz/background &&
+                 grep -q "^ExecStart=/usr/libexec/topaz/background$" /usr/lib/systemd/user/topaz-background.service &&
+                 grep -q "^EnvironmentFile=-%h/.config/topaz/session.conf$" /usr/lib/systemd/user/topaz-background.service &&
+                 grep -q "^#TOPAZ_WALLPAPER=" /usr/share/topaz-os/session.conf &&
+                 xml=$(sed -n "s|^picture-uri-dark=.file://\(.*\).$|\1|p" /usr/share/glib-2.0/schemas/zz0-bluefin-modifications.gschema.override) &&
+                 [[ "$xml" == /usr/share/backgrounds/bluefin/*.xml ]] && test -f "$xml" &&
+                 day=$(TOPAZ_BACKGROUND_NOW=$(date -d "today 12:00" +%s) /usr/libexec/topaz/background --print | head -1) &&
+                 night=$(TOPAZ_BACKGROUND_NOW=$(date -d "today 22:00" +%s) /usr/libexec/topaz/background --print | head -1) &&
+                 [[ "$day" == *-day.jxl ]] && test -f "$day" &&
+                 [[ "$night" == *-night.jxl ]] && test -f "$night" &&
+                 [ "$(TOPAZ_WALLPAPER="$night" /usr/libexec/topaz/background --print | head -1)" = "$night" ]'
     chk "caustics bar: one set of eleven binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)
@@ -238,7 +254,7 @@ cmd_check() {
                          *) command -v "$cmd" >/dev/null ;;
                          esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
                      done'
-    chk "niri session portals: gtk first, ScreenCast on gnome, FileChooser, Screenshot and Settings from COSMIC (ledger 0039)" \
+    chk "niri session portals: gtk first, ScreenCast and Settings on gnome, FileChooser and Screenshot from COSMIC (ledger 0039)" \
         bash -c 'grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.FileChooser=cosmic;gtk;$" \
@@ -247,14 +263,14 @@ cmd_check() {
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.Screenshot=cosmic;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "^org.freedesktop.impl.portal.Settings=cosmic;gnome;$" \
+                 grep -q "^org.freedesktop.impl.portal.Settings=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "CosmicFilesDialog" /etc/niri/config.kdl &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/gtk.portal &&
                  grep -q "impl.portal.ScreenCast" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
-                 grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
+                 grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  test -x /usr/libexec/xdg-desktop-portal-cosmic'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&

@@ -1,12 +1,12 @@
 ---
-title: niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC
+title: niri session portals — ScreenCast and Settings on gnome, FileChooser and Screenshot from COSMIC
 date: 2026-08-25
 status: active
 paths:
   - /etc/niri/config.kdl
   - /usr/share/xdg-desktop-portal/niri-portals.conf
 ---
-# niri session portals — ScreenCast wired up, Screenshot and Settings from COSMIC
+# niri session portals — ScreenCast and Settings on gnome, FileChooser and Screenshot from COSMIC
 
 Portal wiring, written for the COSMIC-on-niri session (ledger 0035) and
 inherited by the niri (topaz) session (ledger 0041): two gaps that were
@@ -41,13 +41,13 @@ list order). Known limit: the flag also claims the Mutter ScreenCast, Screenshot
 and Introspect bus names, which would collide if a second compositor
 session ever shared the user bus.
 
-**Settings.** portal-gnome's Settings backend reads gsettings, but the
-session's theme lives in cosmic-config, so flatpaks would not see a
-COSMIC dark/light toggle. `configure.sh` appends an explicit preference
-to the packaged `niri-portals.conf` routing Settings to portal-cosmic,
-which reads cosmic-config directly and runs fine under niri (verified:
-its Settings interface answers over D-Bus in a live niri session).
-portal-gnome remains the fallback.
+**Settings.** Routed to portal-gnome, whose backend answers
+`color-scheme` and `accent-color` from gsettings
+(`org.gnome.desktop.interface`). Until 2026-10-25 it went to
+portal-cosmic, which read the theme from cosmic-config so that a COSMIC
+dark/light toggle reached flatpaks; with no COSMIC shell left to write
+cosmic-config (ledger 0047), gsettings is the one theme switch the
+session has, and the GNOME session reads the same keys.
 
 **FileChooser.** Routed to portal-cosmic as well: its dialog is COSMIC
 Files in dialog mode — an ordinary window that works under niri and
