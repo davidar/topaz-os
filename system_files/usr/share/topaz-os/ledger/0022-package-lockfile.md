@@ -25,6 +25,18 @@ refresh-inputs workflow) re-resolves the intent declared in
 build_files/gen-lockfile.sh and the resulting diff is reviewed and
 merged.
 
+Since 2026-10-25 the install is two phases: the closure is downloaded
+(from the mirrors, or koji's signed copies for builds the mirrors have
+dropped) and then installed from those files with every repository
+disabled and the local signature check on. Nothing is resolved at
+install time any more: a package the transaction needs but the image
+must not ship (cosmic-initial-setup, ledger 0025) is recorded as a
+transient `~NEVRA` line, installed from its file and removed before the
+census. A dependency missing from the lock now fails the transaction
+outright, and libdnf5 records `@commandline` as every locked package's
+origin — a repository name would have changed with the mirrors'
+contents (ledger 0020).
+
 Together with the base image digest pin and the compositor fork's commit
 pin, every package input to the image is now named exactly by the git
 tree that builds it.

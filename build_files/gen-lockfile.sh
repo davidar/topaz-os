@@ -95,7 +95,10 @@ podman run --rm "$base" bash -euo pipefail -c '
         # cosmic-session hard-Requires cosmic-initial-setup, but the image
         # deliberately ships no first-boot wizard (ledger 0025): drop it
         # after the transaction. --nodeps detaches only the dependency
-        # entry, and the census below never records the package.
+        # entry. The census before the removal records it as a
+        # transient (~) so the install can fetch the exact build the
+        # transaction needs without resolving anything.
+        census > /tmp/mid
         rpm -e --nodeps cosmic-initial-setup
     } >&2
 
@@ -103,10 +106,12 @@ podman run --rm "$base" bash -euo pipefail -c '
 
     LC_ALL=C comm -13 /tmp/pre /tmp/post | sed "s/^/+/"
     LC_ALL=C comm -23 /tmp/pre /tmp/post | sed "s/^/-/"
+    LC_ALL=C comm -13 /tmp/pre /tmp/mid | LC_ALL=C comm -23 - /tmp/post | sed "s/^/~/"
 ' > build_files/packages.lock
 
 echo "Wrote build_files/packages.lock:" >&2
 {
     grep -c '^+' build_files/packages.lock | xargs echo "  added:  " >&2
     grep -c '^-' build_files/packages.lock | xargs echo "  removed:" >&2
+    grep -c '^~' build_files/packages.lock | xargs echo "  transient:" >&2
 } || true

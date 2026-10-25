@@ -47,6 +47,18 @@ Four sources of byte-churn, all eliminated:
   per process — a fresh line order on every install. The lines only
   delegate to disjoint per-DTD catalogs, so order carries no meaning;
   the build sorts each catalog into a canonical order.
+- libdnf5 records the repository each package was fetched from
+  (`/usr/lib/sysimage/libdnf5/nevras.toml`, and the transaction history
+  database next to it). The name is not a property of the package: the
+  same build moves from `updates` to `updates-archive` the day Fedora
+  supersedes it, and to koji later, so an unchanged lock yielded a
+  different libdnf5 state on every rebuild — the layer carrying it
+  failed the weekly reproducibility check for ten weeks before the
+  cause was found (2026-10-25, by diffing a local cold rebuild's layer
+  against the published one file by file). The locked install now
+  downloads the closure first and installs it from files with every
+  repository disabled, which records `@commandline` for every package
+  regardless of what served it (ledger 0022).
 - the build's dnf transactions leave per-repo `countme` cookies under
   `/var/lib/dnf`. Fedora's privacy-preserving user counting draws a
   random request budget and stamps window epochs into each cookie, so
