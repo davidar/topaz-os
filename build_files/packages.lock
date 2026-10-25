@@ -51,3 +51,4 @@
 +xdg-desktop-portal-cosmic-0:1.10.0-2.fc44.x86_64 xdg-desktop-portal-cosmic-1.10.0-2.fc44.src.rpm
 +xwayland-satellite-0:0.8.2-1.fc44.x86_64 xwayland-satellite-0.8.2-1.fc44.src.rpm
 -libfprint-0:1.94.100-1.fc44.x86_64 libfprint-1.94.100-1.fc44.src.rpm
+~cosmic-initial-setup-0:1.10.0-3.fc44.x86_64 cosmic-initial-setup-1.10.0-3.fc44.src.rpm

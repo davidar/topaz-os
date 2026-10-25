@@ -346,9 +346,18 @@ cmd_check() {
         bash -c 'lock=/usr/share/topaz-os/packages.lock
                  rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
                      > /dev/null || exit 1
-                 sed -n "s/^-//p" "$lock" | cut -d" " -f1 \
+                 sed -n "s/^[-~]//p" "$lock" | cut -d" " -f1 \
                      | xargs -r -n1 rpm -q 2>/dev/null \
                      | grep -qv "is not installed" && exit 1; true'
+    # Mirror repository names drift under an unchanged lock (updates →
+    # updates-archive → koji); the locked install records @commandline
+    # instead so the libdnf5 state reproduces (ledger 0020).
+    chk "libdnf5 names no mirror repository for locked packages" \
+        bash -c 'sed -n "s/^+//p" /usr/share/topaz-os/packages.lock \
+                     | cut -d" " -f1 | sed "s/-0:/-/" \
+                     | grep -F -f - /usr/lib/sysimage/libdnf5/nevras.toml \
+                     | grep -qE "from_repo = \"(fedora|updates|updates-archive|updates-testing)\"" \
+                     && exit 1; true'
     chk "trimmed app-suite packages are absent (ledger 0025)" \
         bash -c '! rpm -q cosmic-initial-setup > /dev/null 2>&1 &&
                  ! rpm -q cosmic-wallpapers > /dev/null 2>&1'
