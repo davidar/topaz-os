@@ -1,10 +1,8 @@
 ---
 title: Session launchers tear graphical-session.target down on exit
 date: 2026-08-22
-status: active
-paths:
-  - /usr/bin/start-cosmic
-  - /usr/lib/systemd/user/topaz-session-shutdown.target
+status: superseded
+paths: []
 ---
 # Session launchers tear graphical-session.target down on exit
 
@@ -49,3 +47,8 @@ unset at logout. Without the import, every unit the user manager starts
 runs without a display — xdg-desktop-portal-gtk crash-loops on "cannot
 open display", leaving the FileChooser portal with no living backend, and
 D-Bus-activated GUI daemons abort the same way.
+
+**Superseded 2026-10-25 (ledger 0047).** `start-cosmic` is no longer in
+the image, so the patch and `topaz-session-shutdown.target` are gone.
+niri-session and gnome-session, the two session launchers left,
+perform this teardown themselves.

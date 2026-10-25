@@ -102,41 +102,6 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
-### Session teardown stops graphical-session.target (ledger 0036)
-# start-cosmic execs cosmic-session and never stops graphical-session.target
-# when the session ends: xdg-desktop-portal's Requisite= on that target
-# pins it (it is StopWhenUnneeded), so a logout leaves the portal daemon —
-# and everything else PartOf= the target — alive with the dead session's
-# environment, and the next login of either session inherits a portal
-# wired to the previous compositor. Run cosmic-session as a child instead
-# and, once it exits, force the target down through a Conflicts= target
-# and unset the session variables: the teardown niri-session and
-# gnome-session already perform, so switching between the sessions is
-# clean in either direction.
-# Guard: fail the build if the exec lines move or change shape.
-for launcher in /usr/bin/start-cosmic; do
-    [ "$(grep -cE '^    exec (/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session$' \
-        "$launcher")" = 2 ]
-    sed -i -E 's#^    exec ((/usr/bin/dbus-run-session -- )?/usr/bin/cosmic-session)$#    \1 || rc=$?#' \
-        "$launcher"
-    cat >> "$launcher" <<'TEARDOWN'
-
-# topaz-os (ledger 0036): tear the graphical session down once
-# cosmic-session exits, so nothing PartOf= graphical-session.target
-# outlives the session or leaks its environment into the next one.
-if command -v systemctl >/dev/null; then
-    systemctl --user start --job-mode=replace-irreversibly \
-        topaz-session-shutdown.target || :
-    systemctl --user unset-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET \
-        XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP || :
-fi
-exit "${rc:-0}"
-TEARDOWN
-    [ "$(grep -c ' || rc=\$?$' "$launcher")" = 2 ]
-    ! grep -qE '^ *exec .*cosmic-session' "$launcher"
-    bash -n "$launcher"
-done
-
 ### niri session portals: gtk first, ScreenCast on gnome, FileChooser,
 ### Screenshot and Settings from COSMIC (ledger 0039)
 # The frontend routes by what a backend's .portal file DECLARES, and
@@ -198,25 +163,19 @@ printf '%s\n' '#%PAM-1.0' \
     'auth       include      password-auth' > /etc/pam.d/swaylock
 
 ### greetd with tuigreet as the display manager (ledger 0045)
-# The base image logs in through GDM. greetd (already installed as
-# cosmic-greeter's dependency) runs tuigreet on VT 1 instead: a terminal
-# greeter with no compositor or toolkit of its own, so the login path
-# shares nothing with the sessions it starts. Both units carry
-# Alias=display-manager.service, so GDM is disabled first to free the
-# alias. cosmic-greeter.service stays installed and disabled. Guards: the
-# base still logs in through GDM (a change there deserves a look), the
-# shipped greetd config names tuigreet, the binary exists, and the alias
-# ends up on greetd.
+# The base image logs in through GDM. greetd (a dependency of tuigreet)
+# runs tuigreet on VT 1 instead: a terminal greeter with no compositor or
+# toolkit of its own, so the login path shares nothing with the sessions
+# it starts. Both units carry Alias=display-manager.service, so GDM is
+# disabled first to free the alias. Guards: the base still logs in
+# through GDM (a change there deserves a look), the shipped greetd config
+# names tuigreet, the binary exists, and the alias ends up on greetd.
 [ "$(readlink /etc/systemd/system/display-manager.service)" = /usr/lib/systemd/system/gdm.service ]
 grep -q '^command = "tuigreet ' /etc/greetd/config.toml
 test -x /usr/bin/tuigreet
 systemctl disable gdm.service
 systemctl enable greetd.service
 [ "$(readlink /etc/systemd/system/display-manager.service)" = /usr/lib/systemd/system/greetd.service ]
-if systemctl is-enabled cosmic-greeter.service > /dev/null 2>&1; then
-    echo "cosmic-greeter.service is enabled; the display manager is greetd" >&2
-    exit 1
-fi
 
 ### greetd's PAM stack: password only (ledger 0045)
 # Fedora's file substacks system-auth, whose pam_fprintd (5 s timeout)

@@ -1,50 +1,65 @@
 ---
-title: COSMIC forks retired; COSMIC-on-niri session removed
+title: COSMIC session, shell and forks removed; the apps stay
 date: 2026-10-25
 status: active
 paths:
-  - /usr/bin/cosmic-comp
-  - /usr/bin/cosmic-greeter
-  - /usr/bin/cosmic-applets
-  - /usr/bin/cosmic-idle
-  - /usr/share/wayland-sessions/cosmic.desktop
+  - /usr/share/topaz-os/packages.lock
   - /etc/niri/config.kdl
+  - /usr/bin/cosmic-osd
+  - /usr/libexec/xdg-desktop-portal-cosmic
 ---
-# COSMIC forks retired; COSMIC-on-niri session removed
+# COSMIC session, shell and forks removed; the apps stay
 
-Every COSMIC binary in the image is Fedora's again. The four forks the
-image built from source — cosmic-comp with its smithay (ledger 0015),
-cosmic-greeter (0034), cosmic-applets (0038) and cosmic-idle (0035) —
-and their Containerfile stages are gone, along with the "COSMIC on niri"
-session (0035) that three of them existed for.
+The image no longer carries a COSMIC session. cosmic-session and
+everything only it needed — cosmic-comp, cosmic-greeter, cosmic-panel,
+cosmic-launcher, cosmic-applets, cosmic-app-library, cosmic-settings,
+cosmic-settings-daemon, cosmic-bg, cosmic-notifications, cosmic-idle,
+cosmic-randr, cosmic-workspaces, cosmic-config-fedora, and the
+cosmic-initial-setup and cosmic-wallpapers it dragged along (ledger
+0025) — are out of the lock. The four of those the image used to build
+from forks (cosmic-comp with its smithay, ledger 0015; cosmic-greeter,
+0034; cosmic-applets, 0038; cosmic-idle, 0035) are gone with their
+Containerfile stages, and so is the "COSMIC on niri" session (0035)
+three of them existed for.
 
-Why now: the daily session, niri (topaz) (ledger 0041), runs no COSMIC
-shell process and no fork-built COSMIC binary. The one COSMIC process
-left in it, cosmic-osd as the polkit agent, is an unforked leaf package.
-The forks served only the two fallback sessions, and each Fedora COSMIC
-release (1.10.0 → 1.11.0 on 2026-10-23) demanded a rebase of all four
-plus smithay before the weekly input refresh could merge — a standing
-cost for sessions nobody logs into. The patch series remain on the fork
-branches (`topaz-1.10.0`, `auth-rearm-1.10.0`) for reference.
+What stays, as ordinary Fedora packages: the applications (cosmic-files,
+cosmic-term, cosmic-edit, cosmic-store, cosmic-screenshot), cosmic-osd
+as the niri (topaz) session's polkit agent (ledger 0041),
+xdg-desktop-portal-cosmic for the FileChooser, Screenshot and Settings
+portals (ledger 0039), and cosmic-icon-theme, which all of them require.
+Each depends on nothing else from COSMIC.
 
-What this changes:
+Why: the daily session, niri (topaz), runs no COSMIC shell process and
+no fork-built binary. The forks served only the fallback sessions, and
+each Fedora COSMIC release (1.10.0 → 1.11.0 on 2026-10-23) demanded a
+rebase of all four plus smithay before the weekly input refresh could
+merge — a standing cost for sessions nobody logs into. The patch series
+remain on the fork branches (`topaz-1.10.0`, `auth-rearm-1.10.0`).
 
-- The stock COSMIC session stays as a fallback next to GNOME, on
-  Fedora's binaries: no gesture tunables, no startup retry on a busy DRM
-  device, no fingerprint re-arm or lock-lifecycle fixes in its locker.
-- The COSMIC-on-niri session entry, the launcher derived from
-  `start-cosmic`, the journal wrapper, the workspaces shim, the startup
-  shim and the `/etc/niri/cosmic-shell.kdl` include are removed. The
-  baked niri config keeps the portal-dialog float rule (ledger 0039)
-  inline and no longer trusts the COSMIC panel's sandbox engine.
+Consequences:
+
+- The login screen offers niri (topaz), niri and GNOME. GNOME is the
+  fallback session.
+- Everything that existed for a COSMIC session goes with it: the
+  `start-cosmic` teardown patch and `topaz-session-shutdown.target`
+  (ledger 0036), the cosmic-greeter fingerprint polkit rule (0017), the
+  derived COSMIC-on-niri launcher, journal wrapper, workspaces shim,
+  startup shim and `cosmic-shell.kdl` include (0035). The baked niri
+  config keeps the portal-dialog float rule (0039) inline and no longer
+  trusts the COSMIC panel's sandbox engine (0038).
+- cosmic-settings leaves too: most of its pages talk to
+  cosmic-settings-daemon, and it hard-requires it and cosmic-randr.
+- The DDC udev restriction (ledger 0013) stays: the daemon that probed
+  blindly is gone, but the rule is a correct default regardless.
 - The VM harness tests the niri (topaz) session only.
 - The niri fork (ledger 0037), chayang (0046) and the caustics bar
   (0044) are unaffected; the niri-session build stage now builds
   chayang alone.
 
-Verification: `topaz check` asserts that none of the four binaries
-differs from its package (rpm verification), that no fork provenance
-file, shim, derived launcher or session entry remains, and that the
-baked niri config carries no COSMIC session plumbing. The lockfile
-census (ledger 0022) is unchanged: the package set is the same, only
-the binaries written over it are not.
+Verification: `topaz check` asserts none of the session and shell
+packages is installed, no COSMIC session entry, fork provenance file,
+shim, launcher, teardown target or greeter rule remains, the baked niri
+config carries no COSMIC session plumbing, and the three COSMIC pieces
+the session relies on (cosmic-osd, the portal backend, cosmic-files as
+the apps' representative) are present. The lockfile census (ledger
+0022) covers the package set itself.

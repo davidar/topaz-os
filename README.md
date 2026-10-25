@@ -1,9 +1,10 @@
 # topaz-os
 
 A custom [bootc](https://github.com/bootc-dev/bootc) image based on
-[Bluefin DX](https://projectbluefin.io/) (NVIDIA open-kernel-module variant), adding the
-[COSMIC desktop](https://system76.com/cosmic) and a few quality-of-life fixes for hybrid
-AMD+NVIDIA laptops. Built from the Universal Blue
+[Bluefin DX](https://projectbluefin.io/) (NVIDIA open-kernel-module variant), adding a
+[niri](https://github.com/YaLTeR/niri) session with the
+[caustics](https://github.com/davidar/caustics) bar and a few quality-of-life fixes for
+hybrid AMD+NVIDIA laptops. Built from the Universal Blue
 [image-template](https://github.com/ublue-os/image-template).
 
 ## What's different from Bluefin DX
@@ -30,10 +31,10 @@ In broad strokes:
   and the idle timeouts are knobs in one file, `~/.config/topaz/session.conf`.
   niri is built from source with every hardcoded gesture, input, layout and animation
   constant promoted to config and blur masked by each surface's own shape.
-- **COSMIC desktop** (Fedora packages, unforked) and the base image's GNOME stay as
-  fallback sessions — pick at the login screen (greetd running tuigreet on the
-  console; ledger 0045). The COSMIC apps are kept; the COSMIC forks the image once
-  built are retired (ledger 0047).
+- **No COSMIC session** — the COSMIC desktop the image started with is gone with the
+  forks it needed (ledger 0047); the COSMIC apps, its polkit agent and its portal
+  backend stay as plain Fedora packages. GNOME remains the fallback session — pick at
+  the login screen (greetd running tuigreet on the console; ledger 0045).
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

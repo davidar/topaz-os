@@ -100,21 +100,28 @@ cmd_check() {
     chk "os-release identifies the image as topaz-os" \
         bash -c 'grep -q "^NAME=\"topaz-os\"" /usr/lib/os-release &&
                  grep -q "^PRETTY_NAME=\"topaz-os " /usr/lib/os-release'
-    chk "COSMIC session is available" \
-        test -f /usr/share/wayland-sessions/cosmic.desktop
-    # The COSMIC forks are retired (ledger 0047): every COSMIC binary is
-    # the packaged one, and no derived session or shim remains.
-    chk "COSMIC binaries are Fedora's, not fork builds (ledger 0047)" \
-        bash -c 'for b in cosmic-comp cosmic-greeter cosmic-applets cosmic-idle; do
-                     rpm -Vf /usr/bin/$b | grep "/usr/bin/$b$" | grep -q 5 && exit 1
+    # No COSMIC session or shell, no fork-built COSMIC binary (ledger
+    # 0047): the packages the image once forked are absent, and so is
+    # everything that existed only for the sessions they served.
+    chk "no COSMIC session, shell or fork remains (ledger 0047)" \
+        bash -c 'for p in cosmic-session cosmic-comp cosmic-greeter cosmic-applets \
+                          cosmic-idle cosmic-panel cosmic-settings-daemon \
+                          cosmic-initial-setup cosmic-wallpapers; do
+                     rpm -q $p > /dev/null 2>&1 && exit 1
                  done
+                 ! test -e /usr/share/wayland-sessions/cosmic.desktop &&
+                 ! test -e /usr/share/wayland-sessions/cosmic-niri.desktop &&
                  ! test -e /usr/share/topaz-os/cosmic-comp-fork &&
                  ! test -e /usr/share/topaz-os/cosmic-greeter-fork &&
                  ! test -e /usr/bin/cosmic-ext-alternative-startup &&
                  ! test -e /usr/bin/start-cosmic-niri &&
-                 ! test -e /usr/share/wayland-sessions/cosmic-niri.desktop &&
                  ! test -e /etc/niri/cosmic-shell.kdl &&
-                 ! test -e /usr/libexec/topaz/cosmic-shim'
+                 ! test -e /usr/libexec/topaz/cosmic-shim &&
+                 ! test -e /usr/lib/systemd/user/topaz-session-shutdown.target &&
+                 ! test -e /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
+                 for p in cosmic-osd xdg-desktop-portal-cosmic cosmic-files; do
+                     rpm -q $p > /dev/null 2>&1 || exit 1
+                 done'
     chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
         bash -c 'test -f /usr/share/topaz-os/niri-session-build &&
                  rpm -Vf /usr/bin/niri | grep "/usr/bin/niri$" | grep -q 5 &&
@@ -173,7 +180,7 @@ cmd_check() {
                  for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-osd busctl; do
                      command -v $b > /dev/null || exit 1
                  done &&
-                 test -f /usr/share/backgrounds/default.jxl &&
+                 test -f /usr/share/backgrounds/bluefin/01-bluefin-night.jxl &&
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
@@ -249,16 +256,9 @@ cmd_check() {
                  grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  test -x /usr/libexec/xdg-desktop-portal-cosmic'
-    chk "session launcher tears graphical-session.target down on exit (ledger 0036)" \
-        bash -c 'test -f /usr/lib/systemd/user/topaz-session-shutdown.target &&
-                 for f in /usr/bin/start-cosmic; do
-                     grep -q topaz-session-shutdown.target "$f" || exit 1
-                     ! grep -qE "^ *exec .*cosmic-session" "$f" || exit 1
-                 done'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&
-                 ! systemctl is-enabled cosmic-greeter.service > /dev/null 2>&1 &&
                  grep -q "^vt = 1$" /etc/greetd/config.toml &&
                  grep -q "^command = \"tuigreet .*--remember --remember-user-session" /etc/greetd/config.toml &&
                  grep -q "^user = \"greetd\"$" /etc/greetd/config.toml &&
@@ -272,11 +272,6 @@ cmd_check() {
         grep -q 'amdgpu.dcdebugmask=0x10' /usr/lib/bootc/kargs.d/10-topaz-display.toml
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
-    chk "cosmic-greeter may verify fingerprints (lock-screen polkit rule)" \
-        bash -c 'grep -q "net.reactivated.fprint.device.verify" \
-                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
-                 grep -q "/usr/bin/cosmic-greeter" \
-                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules'
     chk "authselect profile symlinks to the base profile" \
         test -L /etc/authselect/custom/local-custom/password-auth
     chk "authselect state file records the custom profile" \
@@ -315,7 +310,7 @@ cmd_check() {
                  grep -qx "StartLimitBurst=5" /usr/lib/systemd/system/topaz-pull.service'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
-                 for p in cosmic-session nethogs; do
+                 for p in cosmic-files nethogs; do
                      t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
                      [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
                  done'

@@ -1,14 +1,14 @@
 [Unit]
 Description=Default wallpaper (swaybg) for the niri (topaz) session
-# The image paints the base's default artwork so the session never comes
-# up black; per-user wallpaper management lives in topaz-home, which
-# overrides this unit.
+# The image paints the base's own default artwork (Bluefin's first night
+# wallpaper) so the session never comes up black; per-user wallpaper
+# management lives in topaz-home, which overrides this unit.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/swaybg -m fill -i /usr/share/backgrounds/default.jxl
+ExecStart=/usr/bin/swaybg -m fill -i /usr/share/backgrounds/bluefin/01-bluefin-night.jxl
 Restart=on-failure
 RestartSec=1
 

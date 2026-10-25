@@ -403,9 +403,7 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
-    // fuzzel serves both sessions (ledger 0041); cosmic-launcher is
-    // cosmic-session's daemon and has nothing to answer in the niri
-    // (topaz) session.
+    // fuzzel is the launcher of the niri (topaz) session (ledger 0041).
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     // Lock through logind: the session's locker (swayidle starting
     // topaz-locker.service in niri (topaz), ledger 0041) answers the
