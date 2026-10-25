@@ -1,7 +1,7 @@
 ---
 title: COSMIC on niri session
 date: 2026-08-21
-status: active
+status: superseded
 paths:
   - /usr/share/wayland-sessions/cosmic-niri.desktop
   - /usr/bin/start-cosmic-niri
@@ -113,3 +113,11 @@ engine is trusted so its applets see the window list (ledger 0038).
 Standing obligation, enforced by the build: when Fedora bumps cosmic-idle
 past the version the fork is based on, the build fails loudly — rebase the
 fork onto the new source and move the pin.
+
+**Superseded 2026-10-25 (ledger 0047).** The session is removed: its
+entry, the derived launcher, the journal wrapper, the workspaces shim,
+the startup shim and the `cosmic-shell.kdl` include are gone, and
+cosmic-idle is Fedora's binary again. It existed to run the COSMIC shell
+on niri; the niri (topaz) session (ledger 0041) runs niri without that
+shell, and the stock COSMIC session remains the fallback. The
+portal-dialog float rule moved into the baked `/etc/niri/config.kdl`.

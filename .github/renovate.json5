@@ -69,9 +69,10 @@
       "matchUpdateTypes": ["major"],
     },
     {
-      // The comp-build builder must stay on the same Fedora release as the
-      // base image: a newer builder links cosmic-comp against a newer glibc
-      // than the image ships and the compositor fails to load at login.
+      // The builder stages must stay on the same Fedora release as the
+      // base image: a newer builder links niri, chayang and the caustics
+      // bar against a newer glibc than the image ships, and the binaries
+      // fail to load at login.
       // Bump this manually whenever the base image moves to a new release.
       "enabled": false,
       "matchPackageNames": ["registry.fedoraproject.org/fedora"],

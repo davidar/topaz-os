@@ -17,7 +17,7 @@ wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
 
-session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo cosmic-niri)
+session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 entry=$(session_entry_path "$session")
 echo "session under test: $session ($entry)"
 sid=$(seat0_session)
@@ -92,16 +92,11 @@ for var in WAYLAND_DISPLAY NIRI_SOCKET DISPLAY; do
     check "$var imported into the user manager" wait_for 20 env_has "$var"
 done
 
-if [[ "$session" = topaz-niri ]]; then
-    check "session shell units active" \
-        wait_for 30 units_active caustics-bar.service \
-        topaz-idle.service topaz-polkit-agent.service \
-        topaz-background.service topaz-clipboard.service
-    check "topaz-locker.service idle until a lock" locker_idle
-else
-    check "cosmic-session running" wait_for 30 tssh pgrep -x cosmic-session
-    check "cosmic-panel running" wait_for 30 tssh pgrep -x cosmic-panel
-fi
+check "session shell units active" \
+    wait_for 30 units_active caustics-bar.service \
+    topaz-idle.service topaz-polkit-agent.service \
+    topaz-background.service topaz-clipboard.service
+check "topaz-locker.service idle until a lock" locker_idle
 # wait_session_painted picks the shell to wait for from TOPAZ_TEST_SESSION;
 # hand it the session read back from the guest.
 painted() { TOPAZ_TEST_SESSION="$session" wait_session_painted 60; }
@@ -115,8 +110,6 @@ check "no unexpected failed user units" \
 # affect. It is the one coredump the cycle tolerates, by executable.
 check "no coredumps during the cycle (the polkit agent's logout panic aside)" \
     is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null | grep -v ' /usr/bin/cosmic-osd '"
-check_not "no stale greeter lockfile" \
-    tssh 'ls /run/user/1000/cosmic-greeter-*.lock'
 # The greeter rewrote its records on login (the write is silent when it
 # fails — an unwritable home or a policy denial would surface only as a
 # forgotten user at the next login).

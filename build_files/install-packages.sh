@@ -25,7 +25,7 @@ printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 ### Locked package set, prologue (ledger 0022)
 census > /tmp/rpm-pre.list
 
-### Packages: COSMIC desktop, fingerprint driver, nethogs
+### Packages: the locked set, fingerprint driver, nethogs
 dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
 
 # The libfprint-tod driver (pinned-version COPR, ledger 0003) conflicts
@@ -37,27 +37,9 @@ dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
 # the removal.
 dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
 
-# cosmic-session Recommends cosmic-wallpapers, which the lock deliberately
-# omits (ledger 0025); exclude it so the weak dependency cannot pull an
-# unlocked copy into the image.
-locked_install /ctx/packages.lock --exclude=cosmic-wallpapers
+locked_install /ctx/packages.lock
 
 dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
-
-# COSMIC installs alongside the base image's GNOME; both are selectable at
-# the login screen. cosmic-greeter comes along as a hard dependency of
-# cosmic-session but is not enabled: the display manager is greetd with
-# tuigreet (configure.sh, ledger 0045), verified by `topaz check`.
-
-### Trimmed app suite (ledger 0025)
-# cosmic-session hard-Requires cosmic-initial-setup, so the transaction
-# above installs it — at the build the lock pins as a transient (~), so
-# the install never resolves a name. The image deliberately has no
-# first-boot wizard; remove it post-transaction. --nodeps detaches only
-# cosmic-session's dependency entry, and the epilogue census runs after
-# this, so any stray it left behind (say, a new unique dependency of a
-# future initial-setup build) still fails the gate loudly.
-rpm -e --nodeps cosmic-initial-setup
 
 ### nethogs (ledger 0023)
 # Per-process network accounting needs packet capture, which the tool gets

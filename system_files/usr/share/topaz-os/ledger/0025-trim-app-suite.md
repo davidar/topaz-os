@@ -1,7 +1,7 @@
 ---
 title: trim unused app-suite packages from the COSMIC install
 date: 2026-08-10
-status: active
+status: superseded
 paths:
   - /usr/share/topaz-os/packages.lock
 ---
@@ -37,3 +37,9 @@ channel exists yet (none of the core COSMIC apps are on Flathub as of
 
 `topaz check` asserts both packages are absent; the lockfile census
 (ledger 0022) independently fails the build if either ever ships again.
+
+**Superseded 2026-10-25 (ledger 0047).** cosmic-session, the package
+that welded the wizard and the wallpapers to the install, is no longer
+in the image; neither package is reachable from the lock's intent any
+more, and the post-transaction removal (and its transient lock line)
+is gone. `topaz check` still asserts both are absent.

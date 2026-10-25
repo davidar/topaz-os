@@ -6,8 +6,7 @@
 # greetd's initial_session sets none of them, so mirror the values here.
 # /etc/topaz/test-session (baked into the test image from
 # TOPAZ_TEST_SESSION) selects which session to run:
-#   cosmic-niri  "COSMIC on niri" (ledger 0035, cosmic-niri.desktop) — the default
-#   topaz-niri   "niri (topaz)"   (ledger 0041, topaz.desktop)
+#   topaz-niri   "niri (topaz)"   (ledger 0041, topaz.desktop) — the only one
 export XDG_SESSION_TYPE=wayland
 case "$(cat /etc/topaz/test-session 2>/dev/null)" in
 topaz-niri)
@@ -17,8 +16,7 @@ topaz-niri)
     exec /usr/bin/niri-session
     ;;
 *)
-    export XDG_CURRENT_DESKTOP=niri
-    export XDG_SESSION_DESKTOP=cosmic-niri
-    exec /usr/bin/start-cosmic-niri
+    echo "unknown test session in /etc/topaz/test-session" >&2
+    exit 1
     ;;
 esac

@@ -14,10 +14,8 @@ paths:
   - /etc/swaylock/config
   - /etc/pam.d/swaylock
   - /usr/lib/systemd/user-preset/45-topaz.preset
-  - /usr/libexec/topaz/cosmic-shim
   - /usr/bin/topaz-osd
   - /etc/niri/config.kdl
-  - /etc/niri/cosmic-shell.kdl
 ---
 # niri (topaz) session — no COSMIC shell
 
@@ -26,8 +24,8 @@ A third session entry, "niri (topaz)", runs niri's own systemd session
 `niri-shutdown.target` on exit) with the caustics bar (ledger 0044) as
 its panel and standalone, toolkit-free tools for everything
 cosmic-session used to supervise. No COSMIC shell process runs in it.
-The COSMIC-on-niri session (ledger 0035) and the stock COSMIC session
-remain unchanged as fallbacks.
+GNOME remains as the fallback session (the COSMIC sessions, ledgers
+0004 and 0035, were removed with the forks they needed — ledger 0047).
 
 Why: the COSMIC shell pieces the niri session ran — session supervision,
 panel and applets, notifications, on-screen display, polkit agent,
@@ -43,7 +41,7 @@ What runs, as user units wanted by `graphical-session.target` and gated
 on `ConditionEnvironment=XDG_SESSION_DESKTOP=topaz` (the entry's
 `DesktopNames`, as cosmic-greeter sets it; a single name, because the
 greeter passes the value through greetd's shell, where a `;`-separated
-list ends the session command) so the COSMIC sessions are untouched:
+list ends the session command) so the GNOME session is untouched:
 
 | Role | Was | Now |
 |---|---|---|

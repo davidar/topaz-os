@@ -1,7 +1,7 @@
 ---
 title: Fingerprint unlock on the COSMIC lock screen
 date: 2026-07-28
-status: active
+status: superseded
 paths:
   - /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules
 ---
@@ -38,3 +38,7 @@ above appears in the journal.
 
 Upstream candidates: cosmic-session could spawn the locker inside the
 session scope, or cosmic-greeter could ship a rule like this one.
+
+**Superseded 2026-10-25 (ledger 0047).** cosmic-greeter is no longer in
+the image, so the rule is removed. The niri (topaz) session's locker is
+swaylock, password only by design (ledger 0041).

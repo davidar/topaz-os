@@ -1,9 +1,10 @@
 # topaz-os
 
 A custom [bootc](https://github.com/bootc-dev/bootc) image based on
-[Bluefin DX](https://projectbluefin.io/) (NVIDIA open-kernel-module variant), adding the
-[COSMIC desktop](https://system76.com/cosmic) and a few quality-of-life fixes for hybrid
-AMD+NVIDIA laptops. Built from the Universal Blue
+[Bluefin DX](https://projectbluefin.io/) (NVIDIA open-kernel-module variant), adding a
+[niri](https://github.com/YaLTeR/niri) session with the
+[caustics](https://github.com/davidar/caustics) bar and a few quality-of-life fixes for
+hybrid AMD+NVIDIA laptops. Built from the Universal Blue
 [image-template](https://github.com/ublue-os/image-template).
 
 ## What's different from Bluefin DX
@@ -22,24 +23,18 @@ $ topaz check                         # verify the deviations actually hold
 
 In broad strokes:
 
-- **COSMIC desktop** (Fedora packages) alongside the base image's GNOME — pick your
-  session at the login screen (greetd running tuigreet on the console;
-  ledger 0045). cosmic-comp comes from the
-  [topaz fork](https://github.com/davidar/cosmic-comp): hot-reloadable workspace-gesture
-  and physics config, pending upstream. cosmic-greeter comes from
-  [its fork](https://github.com/davidar/cosmic-greeter): JXL wallpapers on the lock
-  screen and fingerprint re-arm after suspend, pending upstream.
-- **COSMIC on niri** — a second session running the stock COSMIC shell on the
-  [niri](https://github.com/YaLTeR/niri) scrollable-tiling compositor, with the normal
-  COSMIC session still there as the fallback. niri is built from source with every
-  hardcoded gesture, input, layout and animation constant promoted to config, blur
-  masked by each surface's own shape, and the panel's applets trusted so the dock works.
-- **niri (topaz) session** — niri's own systemd session with the
+- **niri (topaz) session** — the [niri](https://github.com/YaLTeR/niri)
+  scrollable-tiling compositor's own systemd session with the
   [caustics](https://github.com/davidar/caustics) bar (panel, dock, tray, notifications,
   all drawn on the GPU) and toolkit-free tools (swayidle, chayang, fuzzel,
   swaybg) for the rest; no COSMIC shell process. The screen fades before the idle lock,
   and the idle timeouts are knobs in one file, `~/.config/topaz/session.conf`.
-  The COSMIC sessions stay as fallbacks.
+  niri is built from source with every hardcoded gesture, input, layout and animation
+  constant promoted to config and blur masked by each surface's own shape.
+- **No COSMIC session** — the COSMIC desktop the image started with is gone with the
+  forks it needed (ledger 0047); the COSMIC apps, its polkit agent and its portal
+  backend stay as plain Fedora packages. GNOME remains the fallback session — pick at
+  the login screen (greetd running tuigreet on the console; ledger 0045).
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.

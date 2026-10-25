@@ -35,42 +35,36 @@ podman run --rm "$base" bash -euo pipefail -c '
         # can never grow the image unreviewed. Wanted weak dependencies
         # are named explicitly at the end of this transaction.
         #
-        # cosmic-session Recommends cosmic-wallpapers; excluded rather than
-        # merely unlisted so the weak dependency cannot pull it back in
-        # (ledger 0025).
+        # COSMIC applications and the two session pieces the niri (topaz)
+        # session keeps (ledger 0041): cosmic-osd as its polkit agent and
+        # the COSMIC portal backend. No COSMIC session or shell (ledger
+        # 0047): cosmic-session and everything only it needed are gone.
+        # cosmic-settings is the network and Bluetooth UI of the niri
+        # (topaz) session (the bar shows state; joining a network needs
+        # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
+        # two leaf packages that nothing starts. cosmic-launcher is the
+        # application launcher bound to Mod+D; it brings pop-launcher and
+        # qalculate, nothing else.
         dnf5 -y install --setopt=install_weak_deps=False \
-            --exclude=cosmic-wallpapers \
-            cosmic-session \
-            cosmic-comp \
-            cosmic-panel \
-            cosmic-launcher \
-            cosmic-applets \
-            cosmic-app-library \
-            cosmic-settings \
-            cosmic-settings-daemon \
-            cosmic-bg \
             cosmic-files \
             cosmic-term \
             cosmic-edit \
             cosmic-store \
             cosmic-screenshot \
+            cosmic-settings \
+            cosmic-launcher \
             cosmic-osd \
-            cosmic-notifications \
-            cosmic-idle \
-            cosmic-randr \
-            cosmic-workspaces \
             cosmic-icon-theme \
-            cosmic-config-fedora
+            xdg-desktop-portal-cosmic
         # Wanted weak dependencies, promoted to explicit intent: playerctl
-        # backs the media keys in cosmic-settings-daemon. (The Qt theming
-        # and spell-checking packages left with the kde-connect subtree —
-        # its apps were the only native Qt applications in the image; the
-        # topaz-home kdeconnect recipe installs them in its container.)
+        # for media-key bindings. (The Qt theming and spell-checking
+        # packages left with the kde-connect subtree — its apps were the
+        # only native Qt applications in the image; the topaz-home
+        # kdeconnect recipe installs them in its container.)
         dnf5 -y install --setopt=install_weak_deps=False \
             playerctl
-        # The alternative "COSMIC on niri" session (ledger 0035): niri
-        # hosts the COSMIC shell, xwayland-satellite gives it X11 clients
-        # (niri has no built-in XWayland).
+        # niri (ledger 0037), with xwayland-satellite for X11 clients (niri
+        # has no built-in XWayland).
         dnf5 -y install --setopt=install_weak_deps=False \
             niri \
             xwayland-satellite
@@ -85,21 +79,19 @@ podman run --rm "$base" bash -euo pipefail -c '
             swaybg \
             fuzzel \
             cliphist
-        # The greeter of the display manager (ledger 0045); greetd itself
-        # is already in the closure as a dependency of cosmic-greeter.
+        # The display manager (ledger 0045): tuigreet pulls greetd in.
         dnf5 -y install --setopt=install_weak_deps=False tuigreet
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y install --setopt=install_weak_deps=False nethogs
-        # cosmic-session hard-Requires cosmic-initial-setup, but the image
-        # deliberately ships no first-boot wizard (ledger 0025): drop it
-        # after the transaction. --nodeps detaches only the dependency
-        # entry. The census before the removal records it as a
-        # transient (~) so the install can fetch the exact build the
-        # transaction needs without resolving anything.
+        # A package the transaction needs but the image must not ship
+        # would be removed here (rpm -e --nodeps) after this census, and
+        # the lock then records it as a transient (~) so the install can
+        # fetch the exact build without resolving anything. Nothing needs
+        # that today (the last case, cosmic-initial-setup, left with
+        # cosmic-session — ledger 0047); the machinery stays.
         census > /tmp/mid
-        rpm -e --nodeps cosmic-initial-setup
     } >&2
 
     census > /tmp/post

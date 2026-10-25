@@ -47,8 +47,9 @@ Upstream gets the report as a gift, not as a dependency.
 - Prefer patching base-image files in `build_files/configure.sh` (with a grep
   guard that fails loudly if upstream drifts) over shipping full replacement
   copies. Build steps live in the script matching their layer: locked
-  packages and their fixups in `install-packages.sh`, the compositor in
-  `install-comp.sh`, system files and configuration in `configure.sh`.
+  packages and their fixups in `install-packages.sh`, the fork-built niri,
+  chayang and the caustics bar in `install-niri-session.sh`, system files
+  and configuration in `configure.sh`.
 - Userland lives in the topaz-home companion repo (ledger 0026), not in the
   image: per-user services, recipes, and installers go there and update at
   git speed. The image keeps only what needs atomic updates and rollback

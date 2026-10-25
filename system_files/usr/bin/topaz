@@ -100,57 +100,39 @@ cmd_check() {
     chk "os-release identifies the image as topaz-os" \
         bash -c 'grep -q "^NAME=\"topaz-os\"" /usr/lib/os-release &&
                  grep -q "^PRETTY_NAME=\"topaz-os " /usr/lib/os-release'
-    chk "COSMIC session is available" \
-        test -f /usr/share/wayland-sessions/cosmic.desktop
-    chk "cosmic-comp is the topaz fork build" \
-        bash -c 'test -f /usr/share/topaz-os/cosmic-comp-fork &&
-                 rpm -Vf /usr/bin/cosmic-comp | grep cosmic-comp | grep -q 5'
-    chk "packaged cosmic-comp still matches the fork base version" \
-        bash -c '[ "$(rpm -q --qf %{VERSION} cosmic-comp)" = \
-                   "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-comp-fork)" ]'
-    chk "fork cosmic-comp is loadable (builder glibc matches the image)" \
-        bash -c '! ldd /usr/bin/cosmic-comp | grep -q "not found"'
-    chk "cosmic-greeter is the topaz fork build" \
-        bash -c 'test -f /usr/share/topaz-os/cosmic-greeter-fork &&
-                 rpm -Vf /usr/bin/cosmic-greeter | grep cosmic-greeter | grep -q 5'
-    chk "packaged cosmic-greeter still matches the fork base version" \
-        bash -c '[ "$(rpm -q --qf %{VERSION} cosmic-greeter)" = \
-                   "$(sed -n "s/^base=//p" /usr/share/topaz-os/cosmic-greeter-fork)" ]'
-    chk "fork cosmic-greeter is loadable (builder glibc matches the image)" \
-        bash -c '! ldd /usr/bin/cosmic-greeter | grep -q "not found"'
-    chk "COSMIC on niri session is available (ledger 0035)" \
-        bash -c 'test -f /usr/share/wayland-sessions/cosmic-niri.desktop &&
-                 test -x "$(sed -n "s/^Exec=//p" \
-                     /usr/share/wayland-sessions/cosmic-niri.desktop)"'
-    chk "cosmic-session startup shim for niri is installed" \
-        test -x /usr/bin/cosmic-ext-alternative-startup
-    chk "niri session logs to the journal and routes the workspaces overlay to niri" \
-        bash -c 'test -x /usr/libexec/topaz/niri-journal &&
-                 test -x /usr/libexec/topaz/niri-session/cosmic-workspaces &&
-                 grep -q "cosmic-session /usr/libexec/topaz/niri-journal " /usr/bin/start-cosmic-niri &&
-                 grep -q "^export PATH=/usr/libexec/topaz/niri-session:" /usr/bin/start-cosmic-niri &&
-                 ! grep -q "cosmic-session niri" /usr/bin/start-cosmic-niri'
-    chk "niri session imports its environment into the user manager (ledger 0036)" \
-        bash -c 'grep -q "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY NIRI_SOCKET" /etc/niri/cosmic-shell.kdl &&
-                 grep -q "dbus-update-activation-environment WAYLAND_DISPLAY" /etc/niri/cosmic-shell.kdl'
-    chk "cosmic-idle runs without wlr-output-power and single-pixel-buffer (niri)" \
-        bash -c 'grep -aq "screens will not power off on idle" /usr/bin/cosmic-idle &&
-                 grep -aq "fading to black through wl_shm" /usr/bin/cosmic-idle'
+    # No COSMIC session or shell, no fork-built COSMIC binary (ledger
+    # 0047): the packages the image once forked are absent, and so is
+    # everything that existed only for the sessions they served.
+    chk "no COSMIC session, shell or fork remains (ledger 0047)" \
+        bash -c 'for p in cosmic-session cosmic-comp cosmic-greeter cosmic-applets \
+                          cosmic-idle cosmic-panel cosmic-bg cosmic-notifications \
+                          cosmic-initial-setup cosmic-wallpapers; do
+                     rpm -q $p > /dev/null 2>&1 && exit 1
+                 done
+                 ! test -e /usr/share/wayland-sessions/cosmic.desktop &&
+                 ! test -e /usr/share/wayland-sessions/cosmic-niri.desktop &&
+                 ! test -e /usr/share/topaz-os/cosmic-comp-fork &&
+                 ! test -e /usr/share/topaz-os/cosmic-greeter-fork &&
+                 ! test -e /usr/bin/cosmic-ext-alternative-startup &&
+                 ! test -e /usr/bin/start-cosmic-niri &&
+                 ! test -e /etc/niri/cosmic-shell.kdl &&
+                 ! test -e /usr/libexec/topaz/cosmic-shim &&
+                 ! test -e /usr/lib/systemd/user/topaz-session-shutdown.target &&
+                 ! test -e /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
+                 for p in cosmic-osd xdg-desktop-portal-cosmic cosmic-files cosmic-settings cosmic-launcher; do
+                     rpm -q $p > /dev/null 2>&1 || exit 1
+                 done'
     chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
         bash -c 'test -f /usr/share/topaz-os/niri-session-build &&
                  rpm -Vf /usr/bin/niri | grep "/usr/bin/niri$" | grep -q 5 &&
                  [ "$(rpm -q --qf %{VERSION} niri)" = \
                    "$(sed -n "s/^niri_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
                  ! ldd /usr/bin/niri | grep -q "not found"'
-    chk "baked niri config is valid and starts the COSMIC shim from the image-owned include" \
-        bash -c 'grep -q "^include \"cosmic-shell.kdl\"$" /etc/niri/config.kdl &&
-                 grep -q "^spawn-at-startup \"/usr/libexec/topaz/cosmic-shim\"$" /etc/niri/cosmic-shell.kdl &&
-                 grep -q "COSMIC_SESSION_SOCK" /usr/libexec/topaz/cosmic-shim &&
-                 test -x /usr/libexec/topaz/cosmic-shim &&
-                 ! grep -q "alternative-startup\|import-environment" /etc/niri/config.kdl &&
+    chk "baked niri config is valid and carries no COSMIC session plumbing" \
+        bash -c '! grep -q "^include " /etc/niri/config.kdl &&
+                 ! grep -q "alternative-startup\|import-environment\|cosmic-shim\|trust-sandbox-engine" /etc/niri/config.kdl &&
                  grep -q "touchpad-swipe" /etc/niri/config.kdl &&
                  grep -q "mask-threshold" /etc/niri/config.kdl &&
-                 grep -q "trust-sandbox-engine \"com.system76.CosmicPanel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"loginctl\" \"lock-session\"" /etc/niri/config.kdl &&
                  grep -q "has-sibling=true" /etc/niri/config.kdl &&
                  ! grep -q "spawn \"cosmic-greeter\"" /etc/niri/config.kdl &&
@@ -195,10 +177,10 @@ cmd_check() {
                  test -x /usr/bin/topaz-osd &&
                  ! { grep -hvE "^\s*(#|//)" /usr/bin/topaz-osd /etc/niri/config.kdl | grep -q brightnessctl; } &&
                  grep -q "login1.Session SetBrightness" /usr/bin/topaz-osd &&
-                 for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-greeter cosmic-osd busctl; do
+                 for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-osd busctl; do
                      command -v $b > /dev/null || exit 1
                  done &&
-                 test -f /usr/share/backgrounds/default.jxl &&
+                 test -f /usr/share/backgrounds/bluefin/01-bluefin-night.jxl &&
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
@@ -248,7 +230,7 @@ cmd_check() {
                  test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json'
     chk "every spawn-at-startup target in the baked niri config exists" \
         bash -c 'set -o pipefail
-                 grep -h "^spawn-at-startup " /etc/niri/*.kdl |
+                 { grep -h "^spawn-at-startup " /etc/niri/*.kdl || true; } |
                      sed "s/^spawn-at-startup \"\([^\"]*\)\".*/\1/" |
                      while read -r cmd; do
                          case $cmd in
@@ -257,8 +239,7 @@ cmd_check() {
                          esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
                      done'
     chk "niri session portals: gtk first, ScreenCast on gnome, FileChooser, Screenshot and Settings from COSMIC (ledger 0039)" \
-        bash -c 'grep -q "dbus-interfaces-in-non-session-instances" /etc/niri/cosmic-shell.kdl &&
-                 grep -q "^default=gtk;gnome;$" \
+        bash -c 'grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.FileChooser=cosmic;gtk;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
@@ -268,31 +249,16 @@ cmd_check() {
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.Settings=cosmic;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "CosmicFilesDialog" /etc/niri/cosmic-shell.kdl &&
+                 grep -q "CosmicFilesDialog" /etc/niri/config.kdl &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/gtk.portal &&
                  grep -q "impl.portal.ScreenCast" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  test -x /usr/libexec/xdg-desktop-portal-cosmic'
-    chk "cosmic-applets is the topaz build with the wlr toplevel fallback and hover previews (ledger 0038)" \
-        bash -c 'rpm -Vf /usr/bin/cosmic-applets | grep "/usr/bin/cosmic-applets$" | grep -q 5 &&
-                 [ "$(rpm -q --qf %{VERSION} cosmic-applets)" = \
-                   "$(sed -n "s/^applets_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
-                 grep -aq "zwlr_foreign_toplevel_manager_v1" /usr/bin/cosmic-applets &&
-                 grep -aq "hover_delay_ms" /usr/bin/cosmic-applets &&
-                 [ "$(readlink -f /usr/bin/cosmic-app-list)" = /usr/bin/cosmic-applets ] &&
-                 ! ldd /usr/bin/cosmic-applets | grep -q "not found"'
-    chk "session launchers tear graphical-session.target down on exit (ledger 0036)" \
-        bash -c 'test -f /usr/lib/systemd/user/topaz-session-shutdown.target &&
-                 for f in /usr/bin/start-cosmic /usr/bin/start-cosmic-niri; do
-                     grep -q topaz-session-shutdown.target "$f" || exit 1
-                     ! grep -qE "^ *exec .*cosmic-session" "$f" || exit 1
-                 done'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&
-                 ! systemctl is-enabled cosmic-greeter.service > /dev/null 2>&1 &&
                  grep -q "^vt = 1$" /etc/greetd/config.toml &&
                  grep -q "^command = \"tuigreet .*--remember --remember-user-session" /etc/greetd/config.toml &&
                  grep -q "^user = \"greetd\"$" /etc/greetd/config.toml &&
@@ -306,11 +272,6 @@ cmd_check() {
         grep -q 'amdgpu.dcdebugmask=0x10' /usr/lib/bootc/kargs.d/10-topaz-display.toml
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
-    chk "cosmic-greeter may verify fingerprints (lock-screen polkit rule)" \
-        bash -c 'grep -q "net.reactivated.fprint.device.verify" \
-                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
-                 grep -q "/usr/bin/cosmic-greeter" \
-                     /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules'
     chk "authselect profile symlinks to the base profile" \
         test -L /etc/authselect/custom/local-custom/password-auth
     chk "authselect state file records the custom profile" \
@@ -349,7 +310,7 @@ cmd_check() {
                  grep -qx "StartLimitBurst=5" /usr/lib/systemd/system/topaz-pull.service'
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
-                 for p in cosmic-session nethogs; do
+                 for p in cosmic-files nethogs; do
                      t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
                      [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
                  done'
