@@ -102,25 +102,25 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
-### niri session portals: gtk first, ScreenCast on gnome, FileChooser,
-### Screenshot and Settings from COSMIC (ledger 0039)
+### niri session portals: gtk first, ScreenCast and Settings on gnome,
+### FileChooser and Screenshot from COSMIC (ledger 0039)
 # The frontend routes by what a backend's .portal file DECLARES, and
 # portal-gnome declares fourteen interfaces while exporting only Settings
 # when not on GNOME — so upstream's gnome-first default sends FileChooser
 # (and everything else both files declare) into "no such interface" with
 # no fallback. Put gtk, which exports what it declares, first; route
 # ScreenCast explicitly to gnome (its backend consumes the Mutter API
-# `niri --session` registers); route Settings to portal-cosmic, which
-# reads the session's theme from cosmic-config directly and runs fine
-# under niri — portal-gnome's gsettings-backed Settings would miss a
-# COSMIC dark/light toggle. FileChooser also goes to portal-cosmic: its
+# `niri --session` registers); route Settings to gnome as well: its
+# backend answers color-scheme and accent-color from gsettings, the one
+# theme switch this session has now that no COSMIC shell writes
+# cosmic-config (ledger 0047). FileChooser goes to portal-cosmic: its
 # dialog (COSMIC Files in dialog mode) is an ordinary window that works
-# under niri and matches the shell. Screenshot goes to portal-cosmic as
-# well: it captures through ext-image-copy-capture-v1, which the topaz
-# niri build implements (ledger 0037); ScreenCast stays on gnome until
-# the dmabuf path of that implementation is verified on real hardware.
-# Guard: fail the build if upstream's file gains its own preferences or
-# changes shape.
+# under niri. Screenshot goes to portal-cosmic as well: it captures
+# through ext-image-copy-capture-v1, which the topaz niri build
+# implements (ledger 0037); ScreenCast stays on gnome until the dmabuf
+# path of that implementation is verified on real hardware. Guard: fail
+# the build if upstream's file gains its own preferences or changes
+# shape.
 grep -q '^default=gnome;gtk;$' /usr/share/xdg-desktop-portal/niri-portals.conf
 ! grep -qE 'portal\.(Settings|ScreenCast|Screenshot|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
 sed -i 's/^default=gnome;gtk;$/default=gtk;gnome;/' \
@@ -129,7 +129,7 @@ printf '%s\n' \
     'org.freedesktop.impl.portal.FileChooser=cosmic;gtk;' \
     'org.freedesktop.impl.portal.ScreenCast=gnome;' \
     'org.freedesktop.impl.portal.Screenshot=cosmic;gnome;' \
-    'org.freedesktop.impl.portal.Settings=cosmic;gnome;' \
+    'org.freedesktop.impl.portal.Settings=gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
 ### niri (topaz) session (ledger 0041)
@@ -137,9 +137,7 @@ printf '%s\n' \
 # graphical-session.target (niri's own session integration starts it),
 # each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC session is
 # untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
-# so the session shares niri-portals.conf above — portal-cosmic's
-# Settings backend reads cosmic-config, keeping the panel's theme and the
-# portals' color-scheme on the same switch. Preset shipped in
+# so the session shares niri-portals.conf above. Preset shipped in
 # system_files; enabled here as well. topaz-locker.service is not
 # enabled: swayidle starts it on logind's Lock signal.
 systemctl --global enable \
