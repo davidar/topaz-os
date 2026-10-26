@@ -437,7 +437,18 @@ collect_evidence() {
     tssh journalctl --user -b --no-pager -o short-monotonic > "$RUN_ART/journal-user.log" 2>&1 || true
     tssh sudo journalctl -b --no-pager -o short-monotonic > "$RUN_ART/journal-system.log" 2>&1 || true
     tssh coredumpctl -q --no-pager list > "$RUN_ART/coredumps.log" 2>&1 || true
-    echo "guest journals and core dumps saved under $RUN_ART"
+    # The session as the canvas sees it: which logind session is the
+    # graphical one, the unit's state, what the canvas and its lock answer,
+    # and which sockets exist (a lock that refused to run still answers,
+    # with an error; `status` shows nothing for it, `lock` shows the text).
+    {
+        echo "== loginctl list-sessions"; tssh loginctl list-sessions --no-pager
+        echo "== systemctl --user status caustics-canvas.service"
+        tssh systemctl --user status --no-pager caustics-canvas.service
+        echo "== caustics-canvasctl status"; tssh caustics-canvasctl status
+        echo "== sockets in XDG_RUNTIME_DIR"; tssh 'ls -l "$XDG_RUNTIME_DIR"/*.sock'
+    } > "$RUN_ART/session-state.log" 2>&1 || true
+    echo "guest journals, core dumps and session state saved under $RUN_ART"
 }
 
 # --- suite assertion helpers (same output shape as topaz check) -------------

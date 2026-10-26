@@ -129,6 +129,7 @@ jobs:
             tests/.artifacts/journal-user.log
             tests/.artifacts/journal-system.log
             tests/.artifacts/coredumps.log
+            tests/.artifacts/session-state.log
             tests/.artifacts/screens/
           if-no-files-found: ignore
           retention-days: 14
