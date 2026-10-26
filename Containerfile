@@ -8,37 +8,10 @@ COPY build_files/install-packages.sh build_files/locked-install.lib.sh build_fil
 
 FROM scratch AS ctx-niri-session
 COPY build_files/install-niri-session.sh /
-COPY build_files/patches /patches
 
 FROM scratch AS ctx-files
 COPY build_files/configure.sh /
 COPY system_files /system_files
-
-# chayang, the fade before the idle lock of the niri (topaz) session
-# (ledger 0046), at the upstream commit Fedora packages as 0.1.0, with one
-# patch from build_files/patches/: it draws its overlay from a
-# single-pixel buffer, a protocol niri does not export, so unpatched it
-# exits before drawing anything. The patch falls back to a 1x1 wl_shm
-# buffer. Nothing in the build embeds a timestamp or a path. The builder's
-# Fedora release must match the base image's (currently 44): a newer
-# builder links against a newer glibc than the image ships, and the
-# binary fails to load. `topaz check` asserts every fork-built binary's
-# libraries resolve, so a mismatched bump fails the build, not the login.
-FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS niri-session-build
-ARG CHAYANG_REPO=https://gitlab.freedesktop.org/emersion/chayang.git
-ARG CHAYANG_REF=fc98f97db88c890fb4589f3d2a090f3b0ce81f62
-RUN dnf -y install gcc git-core pkgconf-pkg-config meson ninja-build \
-    wayland-devel wayland-protocols-devel && dnf clean all
-RUN --mount=type=bind,from=ctx-niri-session,source=/patches/chayang-shm-fallback.patch,target=/ctx/chayang-shm-fallback.patch \
-    git init -q /src-chayang && \
-    git -C /src-chayang fetch --depth=1 "$CHAYANG_REPO" "$CHAYANG_REF" && \
-    git -C /src-chayang checkout -q FETCH_HEAD && \
-    git -C /src-chayang apply /ctx/chayang-shm-fallback.patch && \
-    meson setup --buildtype=release /src-chayang/build /src-chayang && \
-    ninja -C /src-chayang/build && \
-    install -Dm0755 /src-chayang/build/chayang /out/chayang && \
-    printf 'chayang_repo=%s\nchayang_ref=%s\n' "$CHAYANG_REPO" "$CHAYANG_REF" \
-        > /out/build-info
 
 # niri itself, built from the topaz fork at a pinned commit on top of the
 # upstream release Fedora packages (ledger 0037): hardcoded gesture,
@@ -46,7 +19,11 @@ RUN --mount=type=bind,from=ctx-niri-session,source=/patches/chayang-shm-fallback
 # hot-reload like the rest of niri's config, background effects masked by
 # each surface's own alpha, a trust list for sandbox engines, and the
 # ext-image-copy-capture protocols so the screenshot portal can capture.
-# Same Fedora-release rule as above.
+# Nothing in the build embeds a timestamp or a path. The builder's Fedora
+# release must match the base image's (currently 44): a newer builder
+# links against a newer glibc than the image ships, and the binary fails
+# to load. `topaz check` asserts every fork-built binary's libraries
+# resolve, so a mismatched bump fails the build, not the login.
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
 ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
@@ -117,11 +94,10 @@ RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/
     --mount=type=tmpfs,dst=/tmp \
     /ctx/install-packages.sh
 
-# chayang from the niri-session-build stage (ledger 0046), the fork-built
-# niri from the niri-build stage (ledger 0037) and the caustics set, bar
-# and canvas, from the caustics-build stage (ledgers 0044, 0049)
+# The fork-built niri from the niri-build stage (ledger 0037) and the
+# caustics set, bar and canvas, from the caustics-build stage (ledgers
+# 0044, 0049)
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
-    --mount=type=bind,from=niri-session-build,source=/out,target=/niri-session \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \
     --mount=type=bind,from=caustics-build,source=/out,target=/caustics-build \
     /ctx/install-niri-session.sh

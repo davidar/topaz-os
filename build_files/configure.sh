@@ -138,18 +138,20 @@ printf '%s\n' \
 # each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC session is
 # untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
 # so the session shares niri-portals.conf above. Preset shipped in
-# system_files; enabled here as well. topaz-locker.service is not
-# enabled: swayidle starts it on logind's Lock signal.
+# system_files; enabled here as well. Not enabled: topaz-locker.service
+# and topaz-polkit-agent.service, the swaylock and cosmic-osd rescues
+# for the canvas's lock and polkit sidecars (ledger 0049), which nothing
+# starts unless a user asks for them.
 systemctl --global enable \
     caustics-bar.service caustics-canvas.service topaz-idle.service \
-    topaz-polkit-agent.service topaz-background.service \
-    topaz-clipboard.service
+    topaz-background.service topaz-clipboard.service
 
-### swaylock's PAM stack (ledger 0041)
-# Fedora's file includes `login`, whose system-auth stack runs pam_fprintd
-# (5 s timeout) before the password module: every unlock would wait those
-# 5 s with no fingerprint prompt on screen. password-auth is the same
-# stack without the fingerprint module.
+### The lock screen's PAM stack (ledgers 0041, 0049)
+# The canvas's lock sidecar authenticates through the `swaylock` PAM
+# service, as swaylock did. Fedora's file includes `login`, whose
+# system-auth stack runs pam_fprintd (5 s timeout) before the password
+# module: every unlock would wait those 5 s with no fingerprint prompt on
+# screen. password-auth is the same stack without the fingerprint module.
 grep -qE '^auth\s+include\s+login$' /etc/pam.d/swaylock
 grep -qE '^auth\s+sufficient\s+pam_unix\.so' /etc/pam.d/password-auth
 if grep -q pam_fprintd /etc/pam.d/password-auth; then

@@ -1,43 +1,39 @@
 ---
-title: A fade before the idle lock, and the idle timeouts in one knob file
+title: A dim before the idle lock, and the idle timeouts in one knob file
 date: 2026-10-21
 status: active
 paths:
   - /usr/lib/systemd/user/topaz-idle.service
   - /usr/libexec/topaz/idle
   - /usr/share/topaz-os/session.conf
-  - /usr/bin/chayang
 ---
 
 The niri (topaz) session's idle lock (ledger 0041) arrived cold: swayidle
 ran `loginctl lock-session` at five minutes with nothing on screen to say
 it was coming. cosmic-idle, which it replaced, faded the screen to black
 first. swayidle is only a timer; in its world the warning is a separate
-tool: chayang (emersion) draws a black overlay on every output and fades
-it in over a given number of seconds, exiting 0 when the fade completed,
-2 when input cancelled it, and 1 when it could not run. It depends on
-libwayland-client alone.
+tool, run as the lock stage's command.
 
-Fedora packages chayang 0.1.0, but that binary cannot run on niri: it
-draws its overlay from a wp_single_pixel_buffer_manager_v1 buffer, and
-niri registers that global only in its test builds (niri issue 619), so
-the packaged chayang exits 1 before drawing anything — the gap the
-cosmic-idle fork closes for the COSMIC-on-niri session (ledger 0035). The
-image therefore builds chayang itself in the niri-session build stage, at
-the upstream commit Fedora packages (`CHAYANG_REF`), with one patch
-carried in `build_files/patches/chayang-shm-fallback.patch`: when the
-single-pixel-buffer global is absent, the overlay comes from a 1x1
-ARGB8888 wl_shm buffer that the viewport scales to the surface exactly as
-before. The chayang package itself is not installed, so nothing is
-shadowed.
+That tool is the caustics canvas (ledger 0049): `caustics-canvasctl dim 1
+over <seconds> --wait` dims every output over the warning period, the
+windows dissolving into the wallpaper, and exits 0 when the dim reached
+its depth, 2 when input cancelled it (the user is back), and 1 when it
+could not be asked for or the canvas went away first. The contract is
+chayang's, which held this stage from 2026-10-21 to 2026-10-26: chayang
+drew a black overlay, had to be built here with a patch because niri does
+not export the single-pixel-buffer protocol it drew from, and left with
+its build stage and patch once the canvas could dim.
 
 What this entry does:
 
-- **The fade.** The lock stage is now `timeout <lock − warn> "chayang -d
-  <warn> || [ $? -ne 2 ] && loginctl lock-session"`: the screen fades for
-  the warning period, any input cancels the fade and skips that lock (the
-  idle period starts over), and a chayang that cannot run locks anyway —
-  a broken fade fails toward a locked screen, never an open one.
+- **The dim.** The lock stage is `timeout <lock − warn> "caustics-canvasctl
+  dim 1 over <warn> --wait || [ $? -ne 2 ] && loginctl lock-session"`: the
+  screen dims for the warning period, any input cancels the dim and skips
+  that lock (the idle period starts over), and a canvas that cannot be
+  asked locks anyway — a missing warning fails toward a locked screen,
+  never an open one. The canvas ends the dim itself when its lock comes.
+  `topaz-idle.service` is ordered after `caustics-canvas.service` so the
+  canvas is up before the first timer fires.
 - **One knob file.** `topaz-idle.service` reads `~/.config/topaz/
   session.conf` as an optional `EnvironmentFile` and runs
   `/usr/libexec/topaz/idle`, which assembles swayidle's stages from
@@ -50,13 +46,12 @@ What this entry does:
   for any further per-session knob a topaz unit grows; drop-ins keep
   working for anything else.
 
-Check: the patched chayang (its commit recorded in
-`/usr/share/topaz-os/niri-session-build`, no chayang package) and the
-wrapper present, the unit wired to both, every knob the wrapper reads
-documented in the shipped example, and the
-wrapper's `--print` output for the defaults (fade at 270 s for 30 s,
-blank at 600 s, suspend at 1800 s), with the fade and the suspend
-switched off, with every stage off, and with a malformed value. Post-boot:
-the VM harness's idle-fade suite retunes the knobs to seconds, measures
-the screen darkening mid-fade, cancels one fade with a keypress and lets
-the next end in the lock.
+Check: no chayang in the image or its build record, the wrapper present,
+the unit wired to it and ordered after the canvas, every knob the wrapper
+reads documented in the shipped example, and the wrapper's `--print`
+output for the defaults (dim at 270 s for 30 s, blank at 600 s, suspend
+at 1800 s), with the dim and the suspend switched off, with every stage
+off, and with a malformed value. Post-boot: the VM harness's idle-fade
+suite retunes the knobs to seconds, reads the canvas's dim state and
+measures the screen darkening late in the dim, cancels one dim with a
+keypress and lets the next end in the lock.

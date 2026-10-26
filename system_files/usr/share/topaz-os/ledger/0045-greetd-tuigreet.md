@@ -61,7 +61,7 @@ once the session has a locker that offers it.
 What stays. The `cosmic-greeter` package remains (a hard dependency of
 `cosmic-session`) as the lock screen of the COSMIC fallback sessions,
 and the fork build (ledger 0034) with it, for its locker fixes; the
-niri (topaz) session locks with swaylock (ledger 0041). Rescue: VT 2,
+niri (topaz) session locks through the caustics canvas (ledger 0049). Rescue: VT 2,
 `systemctl disable greetd && systemctl enable gdm`, reboot. On a
 machine that set its own display manager by hand (the August trial), the
 local `/etc/systemd/system/display-manager.service` symlink wins over

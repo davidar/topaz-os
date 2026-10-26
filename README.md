@@ -27,14 +27,14 @@ In broad strokes:
   scrollable-tiling compositor's own systemd session with the
   [caustics](https://github.com/davidar/caustics) bar (panel, dock, tray, notifications,
   all drawn on the GPU), its canvas for the wallpaper (the base image's day/night
-  schedule, cross-faded) and toolkit-free tools (swayidle, chayang, fuzzel) for the
-  rest; no COSMIC shell process. The screen fades before the idle lock,
-  and the idle timeouts are knobs in one file, `~/.config/topaz/session.conf`.
+  schedule, cross-faded), the dim before the idle lock, the polkit prompt and the
+  lock screen, and toolkit-free tools (swayidle, fuzzel) for the rest; no COSMIC
+  shell process. The idle timeouts are knobs in one file, `~/.config/topaz/session.conf`.
   niri is built from source with every hardcoded gesture, input, layout and animation
   constant promoted to config and blur masked by each surface's own shape.
 - **No COSMIC session** — the COSMIC desktop the image started with is gone with the
-  forks it needed (ledger 0047); the COSMIC apps, its polkit agent and its portal
-  backend stay as plain Fedora packages. GNOME remains the fallback session — pick at
+  forks it needed (ledger 0047); the COSMIC apps and its portal backend stay as plain
+  Fedora packages. GNOME remains the fallback session — pick at
   the login screen (greetd running tuigreet on the console; ledger 0045).
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix

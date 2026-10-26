@@ -57,9 +57,8 @@ Consequences:
   whose blind probing it guards against, is installed but never
   started here, and the rule is a correct default regardless.
 - The VM harness tests the niri (topaz) session only.
-- The niri fork (ledger 0037), chayang (0046) and the caustics bar
-  (0044) are unaffected; the niri-session build stage now builds
-  chayang alone.
+- The niri fork (ledger 0037), chayang (0046; since left for the
+  canvas, ledger 0049) and the caustics bar (0044) are unaffected.
 
 Verification: `topaz check` asserts none of the session and shell
 packages is installed, no COSMIC session entry, fork provenance file,

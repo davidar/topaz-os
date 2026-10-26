@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Suite: the idle path of the niri (topaz) session (ledger 0046). The knob
-# file retunes swayidle's stages; the screen fades before the idle lock;
-# a keypress during the fade cancels that lock; an undisturbed fade ends
-# in the lock, which a typed password clears. Runs the stages in seconds
-# by writing the test user's ~/.config/topaz/session.conf, and removes it
-# again at the end. topaz-niri only: the idle unit is gated on that
-# session.
+# Suite: the idle path of the niri (topaz) session (ledgers 0046, 0049).
+# The knob file retunes swayidle's stages; the canvas dims the screen
+# before the idle lock; a keypress during the dim cancels that lock; an
+# undisturbed dim ends in the lock, which a typed password clears. Runs
+# the stages in seconds by writing the test user's
+# ~/.config/topaz/session.conf, and removes it again at the end.
+# topaz-niri only: the idle unit is gated on that session.
 set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,26 +26,37 @@ check "test password set" set_test_password
 knobs=/home/tester/.config/topaz/session.conf
 idle_argv() { tssh pgrep -u tester -a -x swayidle 2>/dev/null; }
 argv_has() { contains "$(idle_argv)" "$1"; }
-locker_active() { [[ "$(tssh systemctl --user is-active topaz-locker.service 2>/dev/null)" == active ]]; }
-swaylock_running() { tssh pgrep -u tester -x swaylock > /dev/null; }
-locked() { locker_active && swaylock_running; }
-unlocked() { ! locker_active && ! swaylock_running; }
-fading() { tssh pgrep -u tester -x chayang > /dev/null; }
-not_fading() { ! fading; }
+# The canvas reports its own state (ledger 0049): the wallpaper line
+# begins with the dim's, the lock's line says whether the session is
+# locked. An unreachable canvas matches nothing, so every probe fails
+# closed.
+canvas_status() { tssh caustics-canvasctl status 2>/dev/null; }
+dimming() { canvas_status | grep -qE '^dim=(dimming|dimmed)'; }
+not_dimming() { canvas_status | grep -q '^dim=none'; }
+locked() { canvas_status | grep -q '^ok locked=yes'; }
+unlocked() { canvas_status | grep -q '^ok locked=no'; }
+canvas_journal() { tssh "journalctl --user -u caustics-canvas.service --since @$1 2>/dev/null"; }
 brightness() { python3 "$TESTS_DIR/png_mean.py" "$1"; }
-# darker <a.png> <b.png>: b is at most 70 % as bright as a (a half-black
-# overlay halves the mean; the threshold leaves room for the fade's timing)
-darker() { awk -v a="$(brightness "$1")" -v b="$(brightness "$2")" 'BEGIN { exit !(a > 20 && b < a * 0.7) }'; }
+# darker <a.png> <b.png>: b is at most 90 % as bright as a. The dim draws
+# the wallpaper over the windows, darkened by at most 30 % at full depth,
+# so the drop is modest; the capture is taken late in the dim.
+darker() { awk -v a="$(brightness "$1")" -v b="$(brightness "$2")" 'BEGIN { exit !(b < a * 0.9) }'; }
+# bright <a.png>: a mean above 60/255, enough for the drop to be measurable
+# (the night image of the schedule is too dark to tell).
+bright() { awk -v a="$(brightness "$1")" 'BEGIN { exit !(a > 60) }'; }
 # alike <a.png> <b.png>: within 15 % of each other
 alike() { awk -v a="$(brightness "$1")" -v b="$(brightness "$2")" 'BEGIN { exit !(b > a * 0.85 && b < a * 1.15) }'; }
 shot() { screendump "$RUN_ART/screens/idle-fade-$1.png"; }
-# A keypress the session ignores but the idle clock and chayang see.
+# A keypress the session ignores but the idle clock and the canvas see.
 nudge() { press_key shift; }
 
 check "topaz-idle.service active" units_active topaz-idle.service
-check "default stages: a 30 s fade from 270 s, then the lock" \
-    argv_has 'timeout 270 chayang -d 30 || [ $? -ne 2 ] && loginctl lock-session'
+check "default stages: a 30 s dim from 270 s, then the lock" \
+    argv_has 'timeout 270 caustics-canvasctl dim 1 over 30 --wait || [ $? -ne 2 ] && loginctl lock-session'
+check "before-sleep holds on the canvas's lock" argv_has 'before-sleep caustics-canvasctl lock --wait'
+check_not "swayidle no longer starts the swaylock unit" argv_has topaz-locker
 check "session not locked before the test" unlocked
+check "no dim before the test" not_dimming
 
 # Seconds instead of minutes, blank and suspend off. Restarting swayidle
 # arms its timers against the compositor's idle clock, which may already
@@ -55,28 +66,38 @@ tssh "mkdir -p $(dirname $knobs) && printf 'TOPAZ_IDLE_LOCK=%s\\nTOPAZ_IDLE_WARN
       systemctl --user restart topaz-idle.service"
 sleep 1
 nudge
-check "knob file retunes the stages: fade $warn s before the lock at $lock s" \
-    argv_has "timeout $((lock - warn)) chayang -d $warn ||"
+t1=$(tssh date +%s)
+check "knob file retunes the stages: dim $warn s before the lock at $lock s" \
+    argv_has "timeout $((lock - warn)) caustics-canvasctl dim 1 over $warn --wait ||"
 check_not "blank stage off" argv_has power-off-monitors
 check_not "suspend stage off" argv_has "systemctl suspend"
 
-# Cycle one: fade, then cancel it. The fade runs from lock-warn to lock
-# after the nudge; capture at its midpoint, cancel before it ends.
-before=$(shot 0-before) && check "screendump before the fade" test -n "$before"
-sleep $((lock - warn + warn / 2 - 2))
-check "chayang running mid-fade" fading
-mid=$(shot 1-mid-fade) && check "screendump mid-fade" test -n "$mid"
-check "screen darker mid-fade than before" darker "$before" "$mid"
+# Cycle one: dim, then cancel it. The dim runs from lock-warn to lock
+# after the nudge; capture two thirds of the way in, cancel before it ends.
+before=$(shot 0-before) && check "screendump before the dim" test -n "$before"
+sleep $((lock - warn + warn * 2 / 3 - 1))
+check "canvas dimming late in the warning" dimming
+check "canvas journal: a dim over $warn s began" \
+    bash -c "canvas_journal $t1 | grep -q 'over $((warn * 1000)) ms'"
+late=$(shot 1-late-dim) && check "screendump late in the dim" test -n "$late"
+if [[ -n "$before" && -n "$late" ]] && bright "$before"; then
+    check "screen darker late in the dim than before" darker "$before" "$late"
+else
+    echo "screen too dark to measure the dim (mean $(brightness "$before")); the canvas's own state stands"
+fi
 nudge
-check "fade cancelled by input: chayang gone within 3 s" wait_for 3 not_fading
+check "dim cancelled by input: canvas reports none within 3 s" wait_for 3 not_dimming
+check "canvas journal: the dim was cancelled by a key" \
+    bash -c "canvas_journal $t1 | grep -q 'cancelled by a key'"
 sleep 2
 after=$(shot 2-cancelled) && check "screendump after the cancel" test -n "$after"
 check "screen back to its brightness after the cancel" alike "$before" "$after"
 sleep $((warn + 3))
-check "cancelled fade did not lock" unlocked
+check "cancelled dim did not lock" unlocked
 
 # Cycle two: the nudge above restarted the clock; leave it alone.
-check "undisturbed fade ends in the lock" wait_for $((lock + 10)) locked
+check "undisturbed dim ends in the lock" wait_for $((lock + 10)) locked
+check "the lock ended the dim" not_dimming
 console_screendump idle-fade 3-locked
 if locked; then
     type_keys "$TEST_PASSWORD" && press_enter
@@ -90,8 +111,9 @@ tssh "rm -f $knobs && systemctl --user restart topaz-idle.service"
 sleep 1
 nudge
 check "defaults restored without the knob file" \
-    argv_has 'timeout 270 chayang -d 30 ||'
+    argv_has 'timeout 270 caustics-canvasctl dim 1 over 30 --wait ||'
 check "topaz-idle.service active at the end" units_active topaz-idle.service
+check "topaz-locker.service never started (the rescue locker)" locker_idle
 check_not "no coredumps during the suite" \
     tssh coredumpctl -q --no-pager list --since "@$t0"
 

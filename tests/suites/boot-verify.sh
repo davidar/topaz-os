@@ -53,11 +53,13 @@ check "niri.service active (niri's own session integration)" \
     tssh systemctl --user is-active niri.service
 check "session shell units active" \
     units_active caustics-bar.service caustics-canvas.service \
-        topaz-idle.service topaz-polkit-agent.service \
-        topaz-background.service topaz-clipboard.service
-# The locker unit is swayidle's to start on a lock; at login it must
-# be neither running nor failed.
-check "topaz-locker.service idle until a lock" locker_idle
+        topaz-idle.service topaz-background.service topaz-clipboard.service
+# The swaylock and cosmic-osd units are the rescues (ledger 0049): never
+# started, never failed.
+check "topaz-locker.service idle (the rescue locker)" locker_idle
+check "topaz-polkit-agent.service inactive (the rescue agent)" \
+    test "$(tssh systemctl --user is-active topaz-polkit-agent.service)" = inactive
+check_not "cosmic-osd absent" tssh pgrep -x cosmic-osd
 check "caustics bar runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
 check "caustics canvas runs from the installed set" \
@@ -65,6 +67,14 @@ check "caustics canvas runs from the installed set" \
 check "canvas shows the schedule's wallpaper (ledger 0048)" \
     tssh 'caustics-canvasctl status | grep -q " image=/usr/share/backgrounds/bluefin/"'
 check_not "swaybg absent (the canvas draws the wallpaper)" tssh pgrep -x swaybg
+# The two sinks the unit names (ledger 0049): the agent registered with
+# polkitd for this session (its journal line), the lock answering its
+# socket and holding no lock at login.
+check "caustics-polkit is the session's polkit agent" \
+    tssh 'journalctl --user -b -u caustics-canvas.service | grep -q "caustics-polkit: the authentication agent of session"'
+check "caustics-lock answers, unlocked" \
+    tssh 'caustics-canvasctl status | grep -q "^ok locked=no "'
+check_not "chayang absent (the canvas dims)" tssh command -v chayang
 check "notification daemon on the bus is caustics-notify" \
     tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'
 check_not "cosmic-panel absent" tssh pgrep -x cosmic-panel

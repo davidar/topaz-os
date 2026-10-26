@@ -94,9 +94,10 @@ done
 
 check "session shell units active" \
     wait_for 30 units_active caustics-bar.service caustics-canvas.service \
-    topaz-idle.service topaz-polkit-agent.service \
-    topaz-background.service topaz-clipboard.service
-check "topaz-locker.service idle until a lock" locker_idle
+    topaz-idle.service topaz-background.service topaz-clipboard.service
+check "topaz-locker.service idle (the rescue locker)" locker_idle
+check "caustics-polkit registered again in the new session" \
+    wait_for 30 tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'caustics-polkit: the authentication agent of session'"
 # wait_session_painted picks the shell to wait for from TOPAZ_TEST_SESSION;
 # hand it the session read back from the guest.
 painted() { TOPAZ_TEST_SESSION="$session" wait_session_painted 60; }
@@ -104,12 +105,8 @@ check "shell painted" painted
 
 check "no unexpected failed user units" \
     is_empty tssh "systemctl --user --failed --no-legend --plain | grep -v nvidia"
-# cosmic-osd (the polkit agent, ledger 0041) panics in its keyboard-layout
-# thread when the compositor's socket closes under it at logout: an
-# upstream teardown crash after the session is over, with nothing left to
-# affect. It is the one coredump the cycle tolerates, by executable.
-check "no coredumps during the cycle (the polkit agent's logout panic aside)" \
-    is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null | grep -v ' /usr/bin/cosmic-osd '"
+check "no coredumps during the cycle" \
+    is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null"
 # The greeter rewrote its records on login (the write is silent when it
 # fails — an unwritable home or a policy denial would surface only as a
 # forgotten user at the next login).
