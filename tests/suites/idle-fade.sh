@@ -33,8 +33,8 @@ argv_has() { contains "$(idle_argv)" "$1"; }
 canvas_status() { tssh caustics-canvasctl status 2>/dev/null; }
 dimming() { canvas_status | grep -qE '^dim=(dimming|dimmed)'; }
 not_dimming() { canvas_status | grep -q '^dim=none'; }
-locked() { canvas_status | grep -q '^ok locked=yes'; }
-unlocked() { canvas_status | grep -q '^ok locked=no'; }
+locked() { canvas_status | grep -q '^locked=yes'; }
+unlocked() { canvas_status | grep -q '^locked=no'; }
 # canvas_said <since> <text>: the canvas unit's journal since that epoch
 # second carries the text (the sidecars' lines included).
 canvas_said() { tssh "journalctl --user -u caustics-canvas.service --since @$1 2>/dev/null | grep -q '$2'"; }

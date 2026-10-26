@@ -28,9 +28,9 @@ check "test password set" set_test_password
 # lock, and `caustics-canvasctl status` ends with the lock's line —
 # locked yes or no, and the failed attempts of the lock held or last held.
 # An unreachable canvas matches nothing, so every probe fails closed.
-lock_line() { tssh caustics-canvasctl status 2>/dev/null | grep '^ok locked='; }
-locked() { [[ "$(lock_line)" == "ok locked=yes"* ]]; }
-unlocked() { [[ "$(lock_line)" == "ok locked=no"* ]]; }
+lock_line() { tssh caustics-canvasctl status | grep '^locked='; }
+locked() { [[ "$(lock_line)" == "locked=yes"* ]]; }
+unlocked() { [[ "$(lock_line)" == "locked=no"* ]]; }
 attempts() { lock_line | sed -n 's/.* attempts=//p'; }
 # The canvas is resident: it must come through the cycle as the same
 # process, with no restart, and the swaylock rescue unit must stay idle.

@@ -73,7 +73,7 @@ check_not "swaybg absent (the canvas draws the wallpaper)" tssh pgrep -x swaybg
 check "caustics-polkit is the session's polkit agent" \
     tssh 'journalctl --user -b -u caustics-canvas.service | grep -q "caustics-polkit: the authentication agent of session"'
 check "caustics-lock answers, unlocked" \
-    tssh 'caustics-canvasctl status | grep -q "^ok locked=no "'
+    tssh 'caustics-canvasctl status | grep -q "^locked=no "'
 check_not "chayang absent (the canvas dims)" tssh command -v chayang
 check "notification daemon on the bus is caustics-notify" \
     tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'
