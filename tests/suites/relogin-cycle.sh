@@ -100,7 +100,7 @@ check "caustics-polkit registered again in the new session" \
     wait_for 30 tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'caustics-polkit: the authentication agent of session'"
 # wait_session_painted picks the shell to wait for from TOPAZ_TEST_SESSION;
 # hand it the session read back from the guest.
-painted() { TOPAZ_TEST_SESSION="$session" wait_session_painted 60; }
+painted() { TOPAZ_TEST_SESSION="$session" wait_session_painted; }
 check "shell painted" painted
 
 check "no unexpected failed user units" \

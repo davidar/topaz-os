@@ -297,9 +297,16 @@ wait_session_painted() {
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
     # The topaz session's bar, and the canvas with the schedule's first
-    # picture shown (ledgers 0044, 0049).
-    local deadline=$((SECONDS + ${1:-120}))
-    local shell='pgrep -x caustics-bar >/dev/null && caustics-canvasctl status | grep -q " image=/"'
+    # picture drawn (ledgers 0044, 0049). The host's own journal line says
+    # so; `caustics-canvasctl status` is the wallpaper sidecar's answer,
+    # given while the host is still compiling its pipelines — over two
+    # minutes on the software renderer of a CI runner — and the host takes
+    # no sidecar's word, a lock's included, until that is done. The lines
+    # are matched by the host's pid, so a canvas of an earlier login
+    # (relogin-cycle) does not count.
+    local deadline=$((SECONDS + ${1:-300}))
+    local shell='pgrep -x caustics-bar >/dev/null &&
+        journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -q "canvas: show .* into slot"'
     until tssh "$shell" 2>/dev/null; do
         ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
         sleep 3

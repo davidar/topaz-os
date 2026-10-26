@@ -14,6 +14,8 @@ echo "waiting for ssh..."
 wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
+echo "waiting for the shell to paint..."
+wait_session_painted || exit 1
 
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"

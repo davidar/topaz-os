@@ -19,7 +19,8 @@ wait_user_graphical 180 || exit 1
 
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"
-wait_session_painted
+echo "waiting for the shell to paint..."
+wait_session_painted || exit 1
 t0=$(tssh date +%s)
 check "test password set" set_test_password
 

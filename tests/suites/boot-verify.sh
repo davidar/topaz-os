@@ -12,6 +12,8 @@ echo "waiting for ssh..."
 wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
+echo "waiting for the shell to paint..."
+wait_session_painted || exit 1
 
 # Which session the test image autologs into (tests/Containerfile.test,
 # TOPAZ_TEST_SESSION): topaz-niri (ledger 0041) is the only one.
@@ -113,7 +115,6 @@ check "topaz check: no failures" test -z "$tc_fails"
 
 # The screendump is evidence, not decoration: a failed or invalid
 # capture fails the suite instead of shipping a broken artifact.
-wait_session_painted 60
 check "screendump: boot-verify.png" screendump "$ART/screens/boot-verify.png"
 
 suite_verdict boot-verify
