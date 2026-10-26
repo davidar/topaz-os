@@ -126,6 +126,9 @@ jobs:
           name: vm-evidence
           path: |
             tests/.artifacts/serial.log
+            tests/.artifacts/journal-user.log
+            tests/.artifacts/journal-system.log
+            tests/.artifacts/coredumps.log
             tests/.artifacts/screens/
           if-no-files-found: ignore
           retention-days: 14

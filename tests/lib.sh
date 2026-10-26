@@ -428,6 +428,18 @@ run_suite() {
     TESTS_DIR="$TESTS_DIR" bash "$script"
 }
 
+# The guest's journals and core dumps, kept beside the screens: a failed
+# check names what it saw, and these say why. The user journal carries
+# the session units' lines, the canvas's sidecars included; the system
+# journal needs the tester's sudo. Best effort: a guest that is already
+# gone leaves the files empty, never a failure.
+collect_evidence() {
+    tssh journalctl --user -b --no-pager -o short-monotonic > "$RUN_ART/journal-user.log" 2>&1 || true
+    tssh sudo journalctl -b --no-pager -o short-monotonic > "$RUN_ART/journal-system.log" 2>&1 || true
+    tssh coredumpctl -q --no-pager list > "$RUN_ART/coredumps.log" 2>&1 || true
+    echo "guest journals and core dumps saved under $RUN_ART"
+}
+
 # --- suite assertion helpers (same output shape as topaz check) -------------
 
 checks=0
