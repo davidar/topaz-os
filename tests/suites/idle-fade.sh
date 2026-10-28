@@ -42,7 +42,7 @@ canvas_said() { tssh "journalctl --user -u caustics-canvas.service --since @$1 2
 brightness() { python3 "$TESTS_DIR/png_mean.py" "$1"; }
 # darker <a.png> <b.png>: b is at most 90 % as bright as a. The dim draws
 # the wallpaper over the windows, darkened by at most 30 % at full depth,
-# so the drop is modest; the capture is taken late in the dim.
+# so the drop is modest; the capture is taken midway through the dim.
 darker() { awk -v a="$(brightness "$1")" -v b="$(brightness "$2")" 'BEGIN { exit !(b < a * 0.9) }'; }
 # bright <a.png>: a mean above 60/255, enough for the drop to be measurable
 # (the night image of the schedule is too dark to tell).
@@ -63,10 +63,12 @@ check_not "swayidle no longer starts the swaylock unit" argv_has topaz-locker
 check "session not locked before the test" unlocked
 check "no dim before the test" not_dimming
 
-# Seconds instead of minutes, blank and suspend off. Restarting swayidle
-# arms its timers against the compositor's idle clock, which may already
-# be past them; the nudge right after restarts the clock from now.
-lock=24 warn=12
+# Seconds instead of minutes, blank and suspend off. The dim must outlast
+# a capture taken in the middle of it: in the guest, under a software
+# renderer, a screenshot has taken 4 s and may take longer. Restarting
+# swayidle arms its timers against the compositor's idle clock, which may
+# already be past them; the nudge right after restarts the clock from now.
+lock=36 warn=24
 tssh "mkdir -p $(dirname $knobs) && printf 'TOPAZ_IDLE_LOCK=%s\\nTOPAZ_IDLE_WARN=%s\\nTOPAZ_IDLE_BLANK=0\\nTOPAZ_IDLE_SUSPEND=0\\n' $lock $warn > $knobs &&
       systemctl --user restart topaz-idle.service"
 sleep 1
@@ -78,20 +80,23 @@ check_not "blank stage off" argv_has power-off-monitors
 check_not "suspend stage off" argv_has "systemctl suspend"
 
 # Cycle one: dim, then cancel it. The dim runs from lock-warn to lock
-# after the nudge; capture two thirds of the way in, cancel before it ends.
+# after the nudge; capture halfway in, then cancel. A dim that reached its
+# depth before the cancel has locked the session, and the key would go to
+# the lock screen instead, so the cancel is only sent to a running dim.
 before=$(shot 0-before)
 [[ -n "$before" ]] || echo "no screendump in this display mode; the pixel checks are skipped"
-sleep $((lock - warn + warn * 2 / 3 - 1))
-check "canvas dimming late in the warning" dimming
+sleep $((lock - warn + warn / 2 - 1))
+check "canvas dimming midway through the warning" dimming
 check "canvas journal: a dim over $warn s began" canvas_said "$t1" "over $((warn * 1000)) ms"
 late=$(shot 1-late-dim)
 if [[ -n "$before" && -n "$late" ]]; then
     if bright "$before"; then
-        check "screen darker late in the dim than before" darker "$before" "$late"
+        check "screen darker midway through the dim than before" darker "$before" "$late"
     else
         echo "screen too dark to measure the dim (mean $(brightness "$before")); the canvas's own state stands"
     fi
 fi
+check "dim still running when the cancel is sent (the capture fit inside it)" dimming
 nudge
 check "dim cancelled by input: canvas reports none within 3 s" wait_for 3 not_dimming
 check "canvas journal: the dim was cancelled by a key" canvas_said "$t1" "cancelled by a key"
@@ -100,7 +105,9 @@ after=$(shot 2-cancelled)
 if [[ -n "$before" && -n "$after" ]]; then
     check "screen back to its brightness after the cancel" alike "$before" "$after"
 fi
-sleep $((warn + 3))
+# A dim that went on unseen after the cancel had less than half the
+# warning left; the lock it would end in has to be absent by now.
+sleep $((warn / 2 + 3))
 check "cancelled dim did not lock" unlocked
 
 # Cycle two: the nudge above restarted the clock; leave it alone.
