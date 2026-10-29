@@ -109,10 +109,14 @@ fi
 # warning left; the lock it would end in has to be absent by now.
 sleep $((warn / 2 + 3))
 check "cancelled dim did not lock" unlocked
+t2=$(tssh date +%s)
 
-# Cycle two: the nudge above restarted the clock; leave it alone.
+# Cycle two: the nudge above restarted the clock; leave it alone. The lock
+# takes the dim's overlays down without a word to the wallpaper sidecar,
+# whose status keeps saying dimmed until an undim; the host's own journal
+# line, from this cycle, is the witness that the overlay went.
 check "undisturbed dim ends in the lock" wait_for $((lock + 10)) locked
-check "the lock ended the dim" not_dimming
+check "canvas journal: the lock ended the dim" canvas_said "$t2" "ended by the lock"
 console_screendump idle-fade 3-locked
 if locked; then
     type_keys "$TEST_PASSWORD" && press_enter
@@ -121,8 +125,9 @@ else
     check "unlocked within 10 s of the password (not reached: never locked)" false
 fi
 
-# Leave the session as found: defaults back, idle clock fresh.
-tssh "rm -f $knobs && systemctl --user restart topaz-idle.service"
+# Leave the session as found: defaults back, idle clock fresh, and the
+# wallpaper sidecar's dim state cleared (see cycle two).
+tssh "rm -f $knobs && systemctl --user restart topaz-idle.service && caustics-canvasctl undim"
 sleep 1
 nudge
 check "defaults restored without the knob file" \
