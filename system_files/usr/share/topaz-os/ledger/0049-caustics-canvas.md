@@ -37,12 +37,12 @@ the Super+Alt+L bind), asks the canvas to lock, runs the PAM conversation
 as the `swaylock` service (the fingerprint-free `password-auth` stack of
 ledger 0041), and takes a fingerprint through fprintd directly, holding
 the reader only in windows while someone is at the lock — opened on the
-lock, on input and on resume, closed after 30 s idle — since a sensor
-kept verifying for hours disables itself on heat
-(`CAUSTICS_LOCK_FINGERPRINT=0` turns it off); nothing but a PAM success
-or a matched finger unlocks. It sets logind's `LockedHint`, and a canvas
-restarted while locked reads the hint and re-locks before its first
-frame. `caustics-canvasctl lock --wait` returns
+lock, on input and on resume, never while the machine sleeps, closed
+after 30 s idle — since a sensor kept verifying for hours disables itself
+on heat (`CAUSTICS_LOCK_FINGERPRINT=0` turns it off); nothing but a PAM
+success or a matched finger unlocks. It sets logind's `LockedHint`, and a
+canvas restarted while locked reads the hint and re-locks before its
+first frame. `caustics-canvasctl lock --wait` returns
 once the compositor has confirmed the lock: swayidle's before-sleep runs
 it, so a suspend is held until the screen is locked.
 
