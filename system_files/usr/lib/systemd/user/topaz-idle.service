@@ -1,19 +1,20 @@
 [Unit]
 Description=Idle handling (swayidle) for the niri (topaz) session
-# Fade, lock, blank, suspend; lock before any sleep. The stages are
+# Dim, lock, blank, suspend; lock before any sleep. The stages are
 # assembled by /usr/libexec/topaz/idle from the knobs in
 # ~/.config/topaz/session.conf (ledger 0046; /usr/share/topaz-os/
 # session.conf lists them with their defaults) — no drop-in needed to
-# retune or switch one off. The idle lock goes through logind
-# (`loginctl lock-session`, also what the Super+Alt+L bind does), after
-# chayang has faded the screen as the warning; logind's Lock signal
-# starts the locker unit. Before sleep (lid, idle, `systemctl suspend`)
-# swayidle starts the locker unit itself and, with -w, holds the suspend
-# until that start returns — which the unit (Type=notify) does only once
-# the screen is locked.
+# retune or switch one off. The canvas (ledger 0049) does the work: its
+# dim is the warning, and its lock sidecar hears logind's Lock signal
+# (`loginctl lock-session`, also what the Super+Alt+L bind does). Before
+# sleep (lid, idle, `systemctl suspend`) swayidle runs `caustics-canvasctl
+# lock --wait` and, with -w, holds the suspend until the compositor has
+# confirmed the lock. Ordered after the canvas unit so the canvas is up
+# before the first timer fires; a dim asked of a canvas that is not there
+# exits 1, and the line falls through to the lock.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
-After=graphical-session.target
+After=graphical-session.target caustics-canvas.service
 
 [Service]
 EnvironmentFile=-%h/.config/topaz/session.conf

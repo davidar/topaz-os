@@ -296,9 +296,17 @@ wait_session_painted() {
     # anything — a screendump taken right away catches a grey void. The
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
-    # The topaz session's bar and swaybg (ledger 0041).
-    local deadline=$((SECONDS + ${1:-120}))
-    local shell='pgrep -x caustics-bar >/dev/null && pgrep -x swaybg >/dev/null'
+    # The topaz session's bar, and the canvas with the schedule's first
+    # picture drawn (ledgers 0044, 0049). The host's own journal line says
+    # so; `caustics-canvasctl status` is the wallpaper sidecar's answer,
+    # given while the host is still compiling its pipelines — over two
+    # minutes on the software renderer of a CI runner — and the host takes
+    # no sidecar's word, a lock's included, until that is done. The lines
+    # are matched by the host's pid, so a canvas of an earlier login
+    # (relogin-cycle) does not count.
+    local deadline=$((SECONDS + ${1:-300}))
+    local shell='pgrep -x caustics-bar >/dev/null &&
+        journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -q "canvas: show .* into slot"'
     until tssh "$shell" 2>/dev/null; do
         ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
         sleep 3
@@ -427,6 +435,29 @@ run_suite() {
     TESTS_DIR="$TESTS_DIR" bash "$script"
 }
 
+# The guest's journals and core dumps, kept beside the screens: a failed
+# check names what it saw, and these say why. The user journal carries
+# the session units' lines, the canvas's sidecars included; the system
+# journal needs the tester's sudo. Best effort: a guest that is already
+# gone leaves the files empty, never a failure.
+collect_evidence() {
+    tssh journalctl --user -b --no-pager -o short-monotonic > "$RUN_ART/journal-user.log" 2>&1 || true
+    tssh sudo journalctl -b --no-pager -o short-monotonic > "$RUN_ART/journal-system.log" 2>&1 || true
+    tssh coredumpctl -q --no-pager list > "$RUN_ART/coredumps.log" 2>&1 || true
+    # The session as the canvas sees it: which logind session is the
+    # graphical one, the unit's state, what the canvas and its lock answer,
+    # and which sockets exist (a lock that refused to run still answers,
+    # with an error; `status` shows nothing for it, `lock` shows the text).
+    {
+        echo "== loginctl list-sessions"; tssh loginctl list-sessions --no-pager
+        echo "== systemctl --user status caustics-canvas.service"
+        tssh systemctl --user status --no-pager caustics-canvas.service
+        echo "== caustics-canvasctl status"; tssh caustics-canvasctl status
+        echo "== sockets in XDG_RUNTIME_DIR"; tssh 'ls -l "$XDG_RUNTIME_DIR"/*.sock'
+    } > "$RUN_ART/session-state.log" 2>&1 || true
+    echo "guest journals, core dumps and session state saved under $RUN_ART"
+}
+
 # --- suite assertion helpers (same output shape as topaz check) -------------
 
 checks=0
@@ -465,8 +496,8 @@ units_active() { # units_active <user unit...>
     [[ -n "$out" ]] && ! printf '%s\n' "$out" | grep -qvx active
 }
 
-# The niri (topaz) locker unit (swaylock) is started by swayidle on a lock
-# and exits on unlock: outside a lock it is inactive, and never failed.
+# The niri (topaz) swaylock unit is the rescue locker (ledger 0049):
+# nothing starts it, so it is inactive and never failed, at all times.
 locker_idle() {
     [[ "$(tssh systemctl --user show topaz-locker.service -p ActiveState -p Result)" == $'ActiveState=inactive\nResult=success' ]]
 }

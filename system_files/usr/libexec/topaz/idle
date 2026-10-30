@@ -1,6 +1,6 @@
 #!/bin/bash
 # topaz-idle.service's ExecStart (ledger 0046): swayidle, with its stages
-# assembled from the session knobs so that the lock, the fade that warns
+# assembled from the session knobs so that the lock, the dim that warns
 # of it, the screen blank and the suspend are each one number in
 # ~/.config/topaz/session.conf (the unit reads it as an EnvironmentFile;
 # /usr/share/topaz-os/session.conf lists the knobs and defaults) rather
@@ -29,17 +29,23 @@ warn=$(knob TOPAZ_IDLE_WARN 30)
 blank=$(knob TOPAZ_IDLE_BLANK 600)
 suspend=$(knob TOPAZ_IDLE_SUSPEND 1800)
 
-locker='systemctl --user start topaz-locker.service'
-args=(-w lock "$locker" before-sleep "$locker")
+# The lock is the canvas's (ledger 0049): its lock sidecar hears logind's
+# Lock signal itself, so the idle lock and the Super+Alt+L bind both go
+# through `loginctl lock-session` and no `lock` event is needed here.
+# Before sleep, -w holds the suspend until the command returns, and
+# `lock --wait` returns once the compositor has confirmed the lock.
+args=(-w before-sleep 'caustics-canvasctl lock --wait')
 
 if ((lock > 0)); then
     if ((warn > 0 && warn < lock)); then
-        # chayang fades every output to black over the warning period:
-        # exit 0 when the fade completed undisturbed, 2 when input
-        # cancelled it (the lock is skipped and the idle period starts
-        # over), 1 when it could not run at all — then lock anyway, so a
-        # broken fade fails toward a locked screen, never an open one.
-        args+=(timeout $((lock - warn)) "chayang -d $warn || [ \$? -ne 2 ] && loginctl lock-session")
+        # The canvas dims every output over the warning period (the
+        # windows dissolve into the wallpaper): exit 0 when the dim
+        # reached its depth undisturbed, 2 when input cancelled it (the
+        # lock is skipped and the idle period starts over), 1 when it
+        # could not be asked for — then lock anyway, so a missing canvas
+        # fails toward a locked screen, never an open one. The canvas ends
+        # the dim itself when its lock comes.
+        args+=(timeout $((lock - warn)) "caustics-canvasctl dim 1 over $warn --wait || [ \$? -ne 2 ] && loginctl lock-session")
     else
         args+=(timeout "$lock" 'loginctl lock-session')
     fi

@@ -1,9 +1,14 @@
 [Unit]
 Description=PolicyKit authentication agent (cosmic-osd) for the niri (topaz) session
-# cosmic-osd carries COSMIC's polkit agent; it needs nothing from
-# cosmic-session, and its on-screen display half only reacts to
-# cosmic-settings-daemon events, which this session does not generate;
-# the bar draws the volume and brightness toasts instead.
+# The rescue agent. The session's polkit prompts are the canvas's
+# (ledger 0049, its caustics-polkit sidecar); this unit is not enabled,
+# and must not run beside it: polkitd takes one agent per session and
+# refuses the second. To fall back, take caustics-polkit out of the
+# canvas's sidecar list (a drop-in on caustics-canvas.service) and
+# `systemctl --user enable --now topaz-polkit-agent.service`. cosmic-osd
+# carries COSMIC's polkit agent; it needs nothing from cosmic-session,
+# and its on-screen display half only reacts to cosmic-settings-daemon
+# events, which this session does not generate.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
 After=graphical-session.target

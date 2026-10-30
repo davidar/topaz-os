@@ -21,6 +21,7 @@ usage() {
 #usage#   start | stop | status
 #usage#   ssh [cmd...]  shell into the running VM as the test user
 #usage#   suite <name>  run tests/suites/<name>.sh against the running VM
+#usage#   evidence      save the guest's journals and core dumps under .artifacts/
 #usage#                 (a path runs that suite file — companion repos)
 #usage#   screendump [out.png]
 #usage#
@@ -38,6 +39,7 @@ stop) vm_stop ;;
 status) vm_status ;;
 ssh) tssh "$@" ;;
 suite) run_suite "${1:?suite name}" ;;
+evidence) collect_evidence ;;
 screendump) screendump "${1:-}" ;;
 all)
     build_image
@@ -51,6 +53,7 @@ all)
     for s in "${@:-boot-verify}"; do
         run_suite "$s" || rc=1
     done
+    collect_evidence
     exit "$rc"
     ;;
 *)

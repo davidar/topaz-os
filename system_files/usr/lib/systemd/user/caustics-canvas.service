@@ -1,0 +1,41 @@
+[Unit]
+Description=caustics canvas for the niri (topaz) session
+# The canvas is the session's wallpaper on every output, cross-faded on
+# command by its wallpaper sidecar (ledger 0049); the idle fade, the
+# polkit prompt and the lock screen are its later jobs. Gated like the
+# bar (ledger 0044): a unit of the same name under ~/.config/systemd/user
+# replaces this one wholesale, which is how a checkout installs itself.
+ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
+PartOf=graphical-session.target
+After=graphical-session.target
+# Ten starts a minute, then systemd gives up: a canvas that cannot start
+# at all does not spin.
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+# The wrapper pins the Vulkan loader to the integrated GPU's driver on a
+# hybrid laptop, then runs /usr/bin/caustics-canvas.
+ExecStart=/usr/libexec/topaz/caustics-gpu caustics-canvas
+Environment=RUST_LOG=info
+# The sidecars: the compiled-in three (wallpaper, reload, glyphs) and the
+# two the canvas starts only when named, the polkit agent and the lock.
+# Naming them here is what makes the canvas this session's agent and
+# locker (ledger 0049); the previous ones, topaz-polkit-agent.service
+# and topaz-locker.service, stay installed and idle as the rescues.
+Environment=CAUSTICS_SIDECARS="caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock"
+# No CAUSTICS_DIR: the baked canvas runs its compiled-in caustic and the
+# reload sidecar idles.
+StandardOutput=journal
+StandardError=journal
+# Restart on everything, a refusal and a lost device included, unlike the
+# bar's unit: the canvas is where the lock screen is drawn, and a
+# session must always get it back, a device lost on resume most of all.
+Restart=always
+RestartSec=1
+# A backstop, not a budget: the canvas holds two output-sized pictures and
+# one Slang compile in the reload sidecar peaks near 400 MB.
+MemoryMax=1G
+
+[Install]
+WantedBy=graphical-session.target

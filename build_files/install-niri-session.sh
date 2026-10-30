@@ -1,24 +1,10 @@
 #!/bin/bash
 
-# niri-session layer: the fade tool of the niri (topaz) session, keyed on
-# the niri-session-build stage's output (pinned by CHAYANG_REF in the
-# Containerfile), plus the fork-built niri from the niri-build stage
-# (NIRI_REF) and the caustics bar from the caustics-build stage
-# (CAUSTICS_REF).
+# niri-session layer: the fork-built niri from the niri-build stage
+# (pinned by NIRI_REF in the Containerfile) and the caustics set, bar and
+# canvas, from the caustics-build stage (CAUSTICS_REF).
 
 set -ouex pipefail
-
-### chayang, the fade before the idle lock (ledger 0046)
-# Built from the upstream commit Fedora packages as 0.1.0 with the wl_shm
-# fallback patch in build_files/patches/, because niri does not export
-# wp_single_pixel_buffer_manager_v1 and the packaged binary exits before
-# drawing anything. The package itself stays out of the lock, so nothing
-# is shadowed; fail loudly if it ever arrives as a dependency.
-if rpm -q chayang >/dev/null 2>&1; then
-    echo "chayang is installed as a package; the image builds its own (ledger 0046)" >&2
-    exit 1
-fi
-install -m0755 /niri-session/chayang /usr/bin/chayang
 
 ### niri topaz fork (ledger 0037)
 # The packaged niri binary is replaced by the topaz fork, built on the
@@ -35,20 +21,23 @@ if [ "$packaged_niri" != "$niri_base_version" ]; then
 fi
 install -m0755 /niri-build/niri /usr/bin/niri
 
-### caustics bar (ledger 0044)
-# One set: the eleven binaries under /usr/lib/caustics-bar/<abi-hash>/ and
-# /usr/bin/caustics-bar a symlink into it. The bar resolves its own path
-# and starts the sidecars beside it, so the link is what makes the set a
-# set. The shaders are compiled in; no sources ship (the reload sidecar
-# idles without a directory to watch).
+### caustics bar and canvas (ledgers 0044, 0049)
+# One set: the sixteen binaries under /usr/lib/caustics-bar/<abi-hash>/
+# and, in /usr/bin, a symlink into it for each binary something
+# outside the set starts by name: the bar and the canvas (their units)
+# and the canvas's client (the wallpaper and idle scripts). Each host
+# resolves its own path and starts its sidecars beside it, so the links
+# are what make the set a set. The shaders are compiled in; no sources
+# ship (the reload sidecars idle without a directory to watch).
 caustics_set=$(sed -n 's/^caustics_set=//p' /caustics-build/build-info)
 test -d "/caustics-build/lib/caustics-bar/$caustics_set"
 mkdir -p /usr/lib/caustics-bar
 cp -r "/caustics-build/lib/caustics-bar/$caustics_set" /usr/lib/caustics-bar/
-ln -s "/usr/lib/caustics-bar/$caustics_set/caustics-bar" /usr/bin/caustics-bar
+for b in caustics-bar caustics-canvas caustics-canvasctl; do
+    ln -s "/usr/lib/caustics-bar/$caustics_set/$b" "/usr/bin/$b"
+done
 [ "$(/usr/bin/caustics-bar --abi-hash)" = "$caustics_set" ]
 
-{ cat /niri-session/build-info;
-  cat /niri-build/build-info; echo "niri_base=$niri_base_version";
+{ cat /niri-build/build-info; echo "niri_base=$niri_base_version";
   cat /caustics-build/build-info; } \
     > /usr/share/topaz-os/niri-session-build

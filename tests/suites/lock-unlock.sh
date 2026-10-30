@@ -14,6 +14,8 @@ echo "waiting for ssh..."
 wait_ssh 420 || exit 1
 echo "waiting for the user session..."
 wait_user_graphical 180 || exit 1
+echo "waiting for the shell to paint..."
+wait_session_painted || exit 1
 
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"
@@ -23,54 +25,58 @@ check "graphical session on seat0" test -n "$sid"
 t0=$(tssh date +%s)
 check "test password set" set_test_password
 
-# What a working lock looks like from outside (ledger 0041): swayidle
-# answers logind's Lock signal by starting topaz-locker.service — swaylock
-# in the foreground, which exits once the password is accepted — so the
-# unit is active exactly while the screen is locked.
-locker_active() { [[ "$(tssh systemctl --user is-active topaz-locker.service 2>/dev/null)" == active ]]; }
-swaylock_running() { tssh pgrep -u tester -x swaylock > /dev/null; }
-locked() { locker_active && swaylock_running; }
-unlocked() { ! locker_active && ! swaylock_running; }
-# Before: never started. After: exited cleanly on unlock, no restarts.
-locker_state() { tssh systemctl --user show topaz-locker.service -p ActiveState -p Result -p NRestarts; }
-locker_idle=$'ActiveState=inactive\nResult=success\nNRestarts=0'
-check "topaz-locker.service idle before the test" test "$(locker_state)" = "$locker_idle"
-before=$(locker_state)
-
+# What a working lock looks like from outside (ledger 0049): the canvas's
+# lock sidecar hears logind's Lock signal, the canvas takes the session
+# lock, and `caustics-canvasctl status` ends with the lock's line —
+# locked yes or no, and the failed attempts of the lock held or last held.
+# An unreachable canvas matches nothing, so every probe fails closed.
+lock_line() { tssh caustics-canvasctl status | grep '^locked='; }
+locked() { [[ "$(lock_line)" == "locked=yes"* ]]; }
+unlocked() { [[ "$(lock_line)" == "locked=no"* ]]; }
+attempts() { lock_line | sed -n 's/.* attempts=//p'; }
+# The canvas is resident: it must come through the cycle as the same
+# process, with no restart, and the swaylock rescue unit must stay idle.
+canvas_state() { tssh systemctl --user show caustics-canvas.service -p ActiveState -p NRestarts -p MainPID; }
+before=$(canvas_state)
+check "caustics-canvas.service active before the test" contains "$before" ActiveState=active
+check "topaz-locker.service idle (the rescue locker)" locker_idle
 check "session not locked before the test" unlocked
 
 tssh loginctl lock-session "$sid"
 check "locked within 5 s of lock-session" wait_for 5 locked
+check "canvas journal: the compositor locked the session" \
+    tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'the compositor locked the session'"
 console_screendump lock-unlock 1-locked
 
 if locked; then
     # The lock screen takes typed characters as the password. A rejected
-    # attempt takes PAM's failure delay before the prompt re-arms, so
+    # attempt takes PAM's failure delay before a fresh conversation, so
     # give it that long before typing again.
     type_keys wrongpass1 && press_enter
     sleep 4
     check "still locked after a wrong password" locked
+    check "the wrong password was counted" test "$(attempts)" = 1
     console_screendump lock-unlock 2-wrong-password
 
     type_keys "$TEST_PASSWORD" && press_enter
     check "unlocked within 10 s of the right password" wait_for 10 unlocked
+    check "canvas journal: the session is unlocked" \
+        tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'the session is unlocked'"
 else
     # Typing a password into an unlocked session would land in whatever
     # has focus; the stages below count as failed, not as passed.
     echo "session never locked; skipping the password stages"
     for stage in "still locked after a wrong password" \
-        "unlocked within 10 s of the right password"; do
+        "the wrong password was counted" \
+        "unlocked within 10 s of the right password" \
+        "canvas journal: the session is unlocked"; do
         check "$stage (not reached: never locked)" false
     done
 fi
-after=$(locker_state)
-if [[ "$session" = topaz-niri ]]; then
-    check "locker unit back to idle (clean exit, no restarts)" test "$after" = "$locker_idle"
-    [[ "$after" = "$locker_idle" ]] || printf 'locker unit after:\n%s\n' "$after"
-else
-    check "locker survived the cycle (same process, no respawn)" test "$before" = "$after"
-    [[ "$before" = "$after" ]] || printf 'locker before:\n%s\nafter:\n%s\n' "$before" "$after"
-fi
+after=$(canvas_state)
+check "canvas came through the cycle as the same process (no restart)" test "$before" = "$after"
+[[ "$before" = "$after" ]] || printf 'canvas before:\n%s\nafter:\n%s\n' "$before" "$after"
+check "topaz-locker.service still idle (the rescue locker)" locker_idle
 check_not "no coredumps during the suite" \
     tssh coredumpctl -q --no-pager list --since "@$t0"
 console_screendump lock-unlock 3-unlocked

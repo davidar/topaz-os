@@ -1,14 +1,17 @@
 #!/bin/bash
-# Starts the caustics bar for the niri (topaz) session (ledger 0044).
+# Starts a caustics host (the bar, ledger 0044; the canvas, ledger 0049)
+# for the niri (topaz) session: caustics-gpu <binary> [args...].
 #
 # On a hybrid laptop the Vulkan loader loads every installed driver and
 # enumerates every device, and enumerating the discrete GPU alone can wake
-# it for the life of the session. The bar prefers a low-power adapter and
-# refuses an NVIDIA one by itself, but by then the loader has done the
+# it for the life of the session. The hosts prefer a low-power adapter and
+# refuse an NVIDIA one by themselves, but by then the loader has done the
 # enumeration. So when an integrated GPU is bound to a render node, pin the
 # loader to its driver and the discrete one is never opened. No integrated
 # GPU (a desktop, the test VM) leaves the loader alone; a VK_DRIVER_FILES
 # already in the environment (a unit drop-in) wins.
+host=${1:?usage: caustics-gpu <binary> [args...]}
+shift
 if [ -z "${VK_DRIVER_FILES:-}" ]; then
     icd=""
     for driver in /sys/class/drm/renderD*/device/driver; do
@@ -21,4 +24,4 @@ if [ -z "${VK_DRIVER_FILES:-}" ]; then
         export VK_DRIVER_FILES="$icd"
     fi
 fi
-exec /usr/bin/caustics-bar "$@"
+exec "/usr/bin/$host" "$@"

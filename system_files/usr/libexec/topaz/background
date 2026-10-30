@@ -1,24 +1,25 @@
 #!/bin/bash
-# topaz-background.service's ExecStart (ledger 0048): paint the wallpaper
-# the base image gives GNOME, on the schedule GNOME follows.
+# topaz-background.service's ExecStart (ledger 0048): show the wallpaper
+# the base image gives GNOME, on the schedule GNOME follows, on the
+# caustics canvas (ledger 0049).
 #
 # Bluefin pins one of its month-named timed wallpapers in a gschema
 # override at base-build time (picture-uri-dark); GNOME reads that XML
-# and cross-fades day/night on its clock. swaybg knows nothing about
-# timed wallpapers, so this script reads the same override, walks the
-# same XML, and runs swaybg with whichever image the schedule names
-# now, restarting it at the next change (a transition counts as its
-# midpoint: the first half shows the old image, the second the new).
-# No per-user state: new artwork arrives with the base image, exactly as
+# and cross-fades day/night on its clock. This script reads the same
+# override, walks the same XML and drives the canvas through its client:
+# a <static> is a cut to its image, a <transition> a fade to its target
+# over the XML's own duration, the hours-long blend GNOME draws. No
+# per-user state: new artwork arrives with the base image, exactly as
 # it does for GNOME.
 #
 # Knobs (~/.config/topaz/session.conf, the unit's EnvironmentFile):
 #   TOPAZ_WALLPAPER  an image, or a GNOME timed-wallpaper XML, in place
 #                    of the base image's choice.
-# With --print the chosen image and the seconds until the next change
-# are printed instead of running swaybg — the build-time check reads
-# it, with TOPAZ_BACKGROUND_NOW (seconds since the epoch) standing in
-# for the clock.
+# With --print the chosen image, the seconds until the next change and
+# the seconds of fade left in the current transition (0 outside one)
+# are printed instead of driving the canvas — the build-time check
+# reads it, with TOPAZ_BACKGROUND_NOW (seconds since the epoch) standing
+# in for the clock.
 set -eu
 
 override=/usr/share/glib-2.0/schemas/zz0-bluefin-modifications.gschema.override
@@ -26,7 +27,7 @@ fallback=/usr/share/backgrounds/bluefin/01-bluefin-night.jxl
 
 source=${TOPAZ_WALLPAPER:-}
 if [ -z "$source" ]; then
-    source=$(sed -n "s|^picture-uri-dark='file://\(.*\)'$|\1|p" "$override" 2>/dev/null | head -1)
+    source=$(sed -n "s|^picture-uri-dark='file://\(.*\)'$|\1|p" "$override" 2>/dev/null | sed -n 1p)
 fi
 if [ -z "$source" ] || [ ! -e "$source" ]; then
     echo "topaz-background: no wallpaper at '${source:-(unset)}'; using $fallback" >&2
@@ -34,14 +35,16 @@ if [ -z "$source" ] || [ ! -e "$source" ]; then
 fi
 
 # Read a GNOME timed-wallpaper XML into parallel arrays of (image,
-# seconds). A <transition> becomes two half-length segments, one per
-# image. The cycle starts at <starttime>'s time of day; the date part is
-# ignored, as GNOME effectively does for a 24-hour cycle.
+# seconds, from): a <static> shows its file; a <transition> fades to its
+# target from the image before it, `from`, over its whole duration. The
+# cycle starts at <starttime>'s time of day; the date part is ignored,
+# as GNOME effectively does for a 24-hour cycle.
 files=()
 durs=()
+froms=()
 start_of_cycle=0
 read_schedule() {
-    local xml=$1 count i kind file dur from to half
+    local xml=$1 count i kind file dur from to
     local h m s
     h=$(xmllint --xpath 'string(/background/starttime/hour)' "$xml")
     m=$(xmllint --xpath 'string(/background/starttime/minute)' "$xml")
@@ -54,25 +57,27 @@ read_schedule() {
         static)
             file=$(xmllint --xpath "string(/background/*[$i]/file)" "$xml")
             dur=$(xmllint --xpath "string(/background/*[$i]/duration)" "$xml")
-            files+=("$file"); durs+=("${dur%.*}")
+            files+=("$file"); durs+=("${dur%.*}"); froms+=("")
             ;;
         transition)
             from=$(xmllint --xpath "string(/background/*[$i]/from)" "$xml")
             to=$(xmllint --xpath "string(/background/*[$i]/to)" "$xml")
             dur=$(xmllint --xpath "string(/background/*[$i]/duration)" "$xml")
-            half=$(( ${dur%.*} / 2 ))
-            files+=("$from"); durs+=("$half")
-            files+=("$to"); durs+=("$(( ${dur%.*} - half ))")
+            files+=("$to"); durs+=("${dur%.*}"); froms+=("$from")
             ;;
         esac
     done
     [ ${#files[@]} -gt 0 ]
 }
 
-# Resolve the schedule at $1 (epoch seconds): sets `image` and `remaining`
-# (seconds until the image changes, merging consecutive segments that
-# name the same file).
+# Resolve the schedule at $1 (epoch seconds): sets `image`, `from` (the
+# image a transition in progress fades from, empty in a static),
+# `fade` (seconds of that transition left, 0 in a static) and
+# `remaining` (seconds until the image changes, merging consecutive
+# segments that name the same file).
 image=
+from=
+fade=0
 remaining=0
 resolve() {
     local now=$1 midnight offset total=0 i end=0 n=${#files[@]} j
@@ -84,7 +89,10 @@ resolve() {
         end=$((end + durs[i]))
         if ((offset < end)); then
             image=${files[i]}
+            from=${froms[i]}
             remaining=$((end - offset))
+            fade=0
+            [ -n "$from" ] && fade=$remaining
             j=$(( (i + 1) % n ))
             while ((j != i)) && [ "${files[j]}" = "$image" ]; do
                 remaining=$((remaining + durs[j]))
@@ -95,9 +103,18 @@ resolve() {
     done
 }
 
-paint() {  # <image>: swaybg in the background, pid in $swaybg
-    swaybg -m fill -i "$1" &
-    swaybg=$!
+# The canvas answers on $XDG_RUNTIME_DIR/caustics-canvas.sock once its
+# wallpaper sidecar is up, a moment after the unit this one orders
+# itself after; the client exits 1 until then, and again while a
+# restarting canvas is away. Ask every two seconds for a minute, then
+# give up and let the unit's Restart= try afresh.
+show() {  # <image> [fade <seconds>]
+    for _ in $(seq 30); do
+        caustics-canvasctl show "$@" && return 0
+        sleep 2
+    done
+    echo "topaz-background: the canvas did not take '$1' in a minute" >&2
+    exit 1
 }
 
 case "$source" in
@@ -105,25 +122,36 @@ case "$source" in
     read_schedule "$source" || { echo "topaz-background: $source has no schedule" >&2; exit 1; }
     if [ "${1:-}" = --print ]; then
         resolve "${TOPAZ_BACKGROUND_NOW:-$(date +%s)}"
-        printf '%s\n%s\n' "$image" "$remaining"
+        printf '%s\n%s\n%s\n' "$image" "$remaining" "$fade"
         exit 0
     fi
-    swaybg=
-    trap 'kill "$swaybg" 2>/dev/null; exit 0' TERM INT
+    trap 'exit 0' TERM INT
+    first=yes
     while true; do
         resolve "$(date +%s)"
-        paint "$image"
+        if ((fade > 0)); then
+            # Into a transition: a fresh canvas shows its dim colour,
+            # so cut to the image the fade starts from before fading.
+            [ -n "$first" ] && show "$from"
+            show "$image" fade "$fade"
+        else
+            show "$image"
+        fi
+        first=
         # A backgrounded sleep keeps the loop interruptible: a stop
         # request reaches the trap at once instead of after the sleep.
         sleep "$remaining" & wait $! || true
-        kill "$swaybg" 2>/dev/null; wait "$swaybg" 2>/dev/null || true
     done
     ;;
 *)
     if [ "${1:-}" = --print ]; then
-        printf '%s\n0\n' "$source"
+        printf '%s\n0\n0\n' "$source"
         exit 0
     fi
-    exec swaybg -m fill -i "$source"
+    show "$source"
+    # One picture, shown; stay up so the unit reads as the session's
+    # wallpaper owner and a stop is clean.
+    trap 'exit 0' TERM INT
+    sleep infinity & wait $! || true
     ;;
 esac
