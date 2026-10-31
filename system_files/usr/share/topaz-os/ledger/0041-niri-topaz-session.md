@@ -50,7 +50,7 @@ list ends the session command) so the GNOME session is untouched:
 | polkit agent | cosmic-osd | the canvas's polkit sidecar (ledger 0049); cosmic-osd left in ledger 0050 |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
 | wallpaper | cosmic-bg | the caustics canvas (ledger 0049), driven by `topaz-background.service`: the base image's timed wallpaper on its own day/night schedule, cross-faded, `TOPAZ_WALLPAPER` in the knob file for another (ledger 0048) |
-| dark/light for portals | portal-cosmic Settings (reads cosmic-config) | portal-gnome Settings, from gsettings `color-scheme` (ledger 0039) |
+| portals: file dialog, screenshot, screen share, dark/light | portal-cosmic (FileChooser, Screenshot, Settings off cosmic-config) | portal-gtk dialogs; portal-gnome Screenshot, ScreenCast and Settings over the Mutter and Shell D-Bus APIs niri registers and gsettings `color-scheme` (ledger 0039) |
 | clipboard history | — | cliphist, `topaz-clipboard.service` |
 
 The baked niri config serves all sessions: its startup shim spawn goes
@@ -66,10 +66,12 @@ resident; the failure modes ledger 0034 patched in the resident COSMIC
 locker do not arise there because the canvas never unlocks on its own
 and re-locks from logind's `LockedHint` when restarted.
 
-Still COSMIC in this session, deliberately and for now: the COSMIC file
-dialog and screenshot portals (ledger 0039). The login screen left too:
-greetd runs tuigreet on the console (ledger 0045). Every other piece is
-toolkit-free: no GTK or Qt joins the session. The tools the canvas
+Nothing COSMIC runs in this session any more: the COSMIC file dialog and
+screenshot portals left with the rewiring of ledger 0039, the login
+screen before that (greetd runs tuigreet on the console, ledger 0045).
+GTK joins the session only as portal-gtk's dialogs; the COSMIC
+applications that remain (ledger 0047) are applications, started by the
+user. The tools the canvas
 replaced stayed installed as its rescues until it had been lived in,
 then left (ledger 0050).
 

@@ -134,9 +134,10 @@ vm_start() {
     [[ "${TOPAZ_TEST_PERSIST:-0}" = 1 ]] && snapshot=()
 
     # virgl gives the guest a real EGL path. Plain virtio-vga leaves clients
-    # with no usable renderer: niri limps along but scans out black, and
-    # portal-cosmic hangs before claiming its bus name, wedging the portal
-    # frontend. The host side of the GL context adapts to the hardware:
+    # with no usable renderer: niri limps along but scans out black, and a
+    # GPU-drawn portal backend (portal-cosmic, when the image had it) hung
+    # before claiming its bus name, wedging the portal frontend. The host
+    # side of the GL context adapts to the hardware:
     #   egl  — render on the host GPU (egl-headless), plus a VNC listener
     #          (unix socket, nothing exposed) that screendump() reads and
     #          that doubles as a debug viewer.

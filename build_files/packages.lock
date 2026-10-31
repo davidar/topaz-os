@@ -5,7 +5,6 @@
 +cosmic-icon-theme-0:1.11.0-2.fc44.noarch cosmic-icon-theme-1.11.0-2.fc44.src.rpm
 +cosmic-launcher-0:1.11.0-2.fc44.x86_64 cosmic-launcher-1.11.0-2.fc44.src.rpm
 +cosmic-randr-0:1.11.0-2.fc44.x86_64 cosmic-randr-1.11.0-2.fc44.src.rpm
-+cosmic-screenshot-0:1.11.0-2.fc44.x86_64 cosmic-screenshot-1.11.0-2.fc44.src.rpm
 +cosmic-settings-0:1.11.0-2.fc44.x86_64 cosmic-settings-1.11.0-2.fc44.src.rpm
 +cosmic-settings-daemon-0:1.11.0-2.fc44.x86_64 cosmic-settings-daemon-1.11.0-2.fc44.src.rpm
 +cosmic-store-0:1.11.0-2.fc44.x86_64 cosmic-store-1.11.0-2.fc44.src.rpm
@@ -31,6 +30,5 @@
 +qalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
 +swayidle-0:1.9.0-2.fc44.x86_64 swayidle-1.9.0-2.fc44.src.rpm
 +tuigreet-0:0.9.1-7.fc44.x86_64 tuigreet-0.9.1-7.fc44.src.rpm
-+xdg-desktop-portal-cosmic-0:1.11.0-2.fc44.x86_64 xdg-desktop-portal-cosmic-1.11.0-2.fc44.src.rpm
 +xwayland-satellite-0:0.8.2-1.fc44.x86_64 xwayland-satellite-0.8.2-1.fc44.src.rpm
 -libfprint-0:1.94.100-1.fc44.x86_64 libfprint-1.94.100-1.fc44.src.rpm

@@ -282,12 +282,8 @@ layout {
 // Portal dialogs (file chooser, access prompts, print) are transient
 // dialogs from another process, so niri can't tie them to their parent
 // window and would tile them; float them instead (ledger 0039).
-// CosmicFilesDialog = COSMIC Files in dialog mode, spawned by
-// portal-cosmic's FileChooser; CosmicPortal = its other dialogs;
-// the gtk id covers everything portal-gtk serves.
+// The gtk id covers every dialog portal-gtk serves (ledger 0039).
 window-rule {
-    match app-id=r#"^com\.system76\.CosmicFilesDialog$"#
-    match app-id=r#"^com\.system76\.CosmicPortal$"#
     match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
     open-floating true
 }

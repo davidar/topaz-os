@@ -119,7 +119,9 @@ cmd_check() {
                  ! test -e /usr/libexec/topaz/cosmic-shim &&
                  ! test -e /usr/lib/systemd/user/topaz-session-shutdown.target &&
                  ! test -e /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
-                 for p in xdg-desktop-portal-cosmic cosmic-files cosmic-settings cosmic-launcher; do
+                 ! rpm -q xdg-desktop-portal-cosmic > /dev/null 2>&1 &&
+                 ! rpm -q cosmic-screenshot > /dev/null 2>&1 &&
+                 for p in cosmic-files cosmic-settings cosmic-launcher; do
                      rpm -q $p > /dev/null 2>&1 || exit 1
                  done'
     chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
@@ -301,24 +303,25 @@ cmd_check() {
                          *) command -v "$cmd" >/dev/null ;;
                          esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
                      done'
-    chk "niri session portals: gtk first, ScreenCast and Settings on gnome, FileChooser and Screenshot from COSMIC (ledger 0039)" \
+    chk "niri session portals: gtk first; ScreenCast, Screenshot and Settings on gnome (ledger 0039)" \
         bash -c 'grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "^org.freedesktop.impl.portal.FileChooser=cosmic;gtk;$" \
+                 grep -q "^org.freedesktop.impl.portal.FileChooser=gtk;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.ScreenCast=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "^org.freedesktop.impl.portal.Screenshot=cosmic;gnome;$" \
+                 grep -q "^org.freedesktop.impl.portal.Screenshot=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.Settings=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "CosmicFilesDialog" /etc/niri/config.kdl &&
+                 ! grep -q "Cosmic" /etc/niri/config.kdl &&
+                 grep -qF "portal\\.desktop\\.gtk" /etc/niri/config.kdl &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/gtk.portal &&
                  grep -q "impl.portal.ScreenCast" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
-                 grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
-                 grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
+                 grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
-                 test -x /usr/libexec/xdg-desktop-portal-cosmic'
+                 ! test -e /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
+                 ! test -e /usr/libexec/xdg-desktop-portal-cosmic'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&

@@ -35,26 +35,26 @@ podman run --rm "$base" bash -euo pipefail -c '
         # can never grow the image unreviewed. Wanted weak dependencies
         # are named explicitly at the end of this transaction.
         #
-        # COSMIC applications and the one session piece the niri (topaz)
-        # session keeps (ledger 0041): the COSMIC portal backend. No COSMIC
-        # session or shell (ledger 0047): cosmic-session and everything
-        # only it needed are gone; cosmic-osd left with the polkit agent of the
-        # canvas (ledger 0050). cosmic-settings is the network and Bluetooth
-        # UI of the niri (topaz) session (the bar shows state; joining a
-        # network needs this); it hard-requires cosmic-settings-daemon and
-        # cosmic-randr, two leaf packages that nothing starts.
-        # cosmic-launcher is the application launcher bound to Mod+D; it
-        # brings pop-launcher and qalculate, nothing else.
+        # COSMIC applications, as ordinary packages; no COSMIC session,
+        # shell or session piece (ledger 0047): cosmic-session and
+        # everything only it needed are gone, cosmic-osd left with the
+        # polkit agent of the canvas (ledger 0050) and the COSMIC portal
+        # backend with the portal rewiring onto gtk and gnome (ledger
+        # 0039), taking cosmic-screenshot, its one client, with it.
+        # cosmic-settings is the network and Bluetooth UI of the niri
+        # (topaz) session (the bar shows state; joining a network needs
+        # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
+        # two leaf packages that nothing starts. cosmic-launcher is the
+        # application launcher bound to Mod+D; it brings pop-launcher and
+        # qalculate, nothing else.
         dnf5 -y install --setopt=install_weak_deps=False \
             cosmic-files \
             cosmic-term \
             cosmic-edit \
             cosmic-store \
-            cosmic-screenshot \
             cosmic-settings \
             cosmic-launcher \
-            cosmic-icon-theme \
-            xdg-desktop-portal-cosmic
+            cosmic-icon-theme
         # Wanted weak dependencies, promoted to explicit intent: playerctl
         # for media-key bindings. (The Qt theming and spell-checking
         # packages left with the kde-connect subtree — its apps were the

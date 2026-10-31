@@ -102,33 +102,30 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
-### niri session portals: gtk first, ScreenCast and Settings on gnome,
-### FileChooser and Screenshot from COSMIC (ledger 0039)
+### niri session portals: gtk first; ScreenCast, Screenshot and Settings
+### on gnome (ledger 0039)
 # The frontend routes by what a backend's .portal file DECLARES, and
-# portal-gnome declares fourteen interfaces while exporting only Settings
-# when not on GNOME — so upstream's gnome-first default sends FileChooser
-# (and everything else both files declare) into "no such interface" with
-# no fallback. Put gtk, which exports what it declares, first; route
-# ScreenCast explicitly to gnome (its backend consumes the Mutter API
-# `niri --session` registers); route Settings to gnome as well: its
-# backend answers color-scheme and accent-color from gsettings, the one
-# theme switch this session has now that no COSMIC shell writes
-# cosmic-config (ledger 0047). FileChooser goes to portal-cosmic: its
-# dialog (COSMIC Files in dialog mode) is an ordinary window that works
-# under niri. Screenshot goes to portal-cosmic as well: it captures
-# through ext-image-copy-capture-v1, which the topaz niri build
-# implements (ledger 0037); ScreenCast stays on gnome until the dmabuf
-# path of that implementation is verified on real hardware. Guard: fail
-# the build if upstream's file gains its own preferences or changes
-# shape.
+# portal-gnome declares eighteen interfaces while exporting only the few
+# it can serve off GNOME — so upstream's gnome-first default sends
+# FileChooser (and everything else both files declare) into "no such
+# interface" with no fallback. Put gtk, which exports what it declares,
+# first, so FileChooser and the other dialogs are portal-gtk's; route
+# the three portal-gnome does serve here explicitly, since each is the
+# load-bearing route and should not be an accident of list order:
+# ScreenCast and Screenshot consume the Mutter ScreenCast and Shell
+# Screenshot D-Bus APIs `niri --session` registers, and Settings answers
+# color-scheme and accent-color from gsettings, the one theme switch
+# this session has now that no COSMIC shell writes cosmic-config (ledger
+# 0047). Guard: fail the build if upstream's file gains its own
+# preferences or changes shape.
 grep -q '^default=gnome;gtk;$' /usr/share/xdg-desktop-portal/niri-portals.conf
 ! grep -qE 'portal\.(Settings|ScreenCast|Screenshot|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
 sed -i 's/^default=gnome;gtk;$/default=gtk;gnome;/' \
     /usr/share/xdg-desktop-portal/niri-portals.conf
 printf '%s\n' \
-    'org.freedesktop.impl.portal.FileChooser=cosmic;gtk;' \
+    'org.freedesktop.impl.portal.FileChooser=gtk;' \
     'org.freedesktop.impl.portal.ScreenCast=gnome;' \
-    'org.freedesktop.impl.portal.Screenshot=cosmic;gnome;' \
+    'org.freedesktop.impl.portal.Screenshot=gnome;' \
     'org.freedesktop.impl.portal.Settings=gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
