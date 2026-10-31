@@ -4,7 +4,6 @@
 +cosmic-files-0:1.11.0-2.fc44.x86_64 cosmic-files-1.11.0-2.fc44.src.rpm
 +cosmic-icon-theme-0:1.11.0-2.fc44.noarch cosmic-icon-theme-1.11.0-2.fc44.src.rpm
 +cosmic-launcher-0:1.11.0-2.fc44.x86_64 cosmic-launcher-1.11.0-2.fc44.src.rpm
-+cosmic-osd-0:1.11.0-2.fc44.x86_64 cosmic-osd-1.11.0-2.fc44.src.rpm
 +cosmic-randr-0:1.11.0-2.fc44.x86_64 cosmic-randr-1.11.0-2.fc44.src.rpm
 +cosmic-screenshot-0:1.11.0-2.fc44.x86_64 cosmic-screenshot-1.11.0-2.fc44.src.rpm
 +cosmic-settings-0:1.11.0-2.fc44.x86_64 cosmic-settings-1.11.0-2.fc44.src.rpm
@@ -12,7 +11,7 @@
 +cosmic-store-0:1.11.0-2.fc44.x86_64 cosmic-store-1.11.0-2.fc44.src.rpm
 +cosmic-term-0:1.11.0-2.fc44.x86_64 cosmic-term-1.11.0-2.fc44.src.rpm
 +fcft-0:3.3.3-2.fc44.x86_64 fcft-3.3.3-2.fc44.src.rpm
-+fd-find-0:10.4.2-4.fc44.x86_64 rust-fd-find-10.4.2-4.fc44.src.rpm
++fd-find-0:10.4.2-6.fc44.x86_64 rust-fd-find-10.4.2-6.fc44.src.rpm
 +fuzzel-0:1.14.0-1.fc44.x86_64 fuzzel-1.14.0-1.fc44.src.rpm
 +gnome-icon-theme-0:3.12.0-27.fc44.noarch gnome-icon-theme-3.12.0-27.fc44.src.rpm
 +greetd-0:0.10.3-6.fc44.x86_64 greetd-0.10.3-6.fc44.src.rpm
@@ -30,9 +29,7 @@
 +pop-icon-theme-0:3.5.0-5.fc44.noarch pop-icon-theme-3.5.0-5.fc44.src.rpm
 +pop-launcher-1:1.11.0-2.fc44.x86_64 pop-launcher-1.11.0-2.fc44.src.rpm
 +qalculate-0:5.9.0-1.fc44.x86_64 libqalculate-5.9.0-1.fc44.src.rpm
-+swaybg-0:1.2.2-1.fc44.x86_64 swaybg-1.2.2-1.fc44.src.rpm
 +swayidle-0:1.9.0-2.fc44.x86_64 swayidle-1.9.0-2.fc44.src.rpm
-+swaylock-0:1.8.6-1.fc44.x86_64 swaylock-1.8.6-1.fc44.src.rpm
 +tuigreet-0:0.9.1-7.fc44.x86_64 tuigreet-0.9.1-7.fc44.src.rpm
 +xdg-desktop-portal-cosmic-0:1.11.0-2.fc44.x86_64 xdg-desktop-portal-cosmic-1.11.0-2.fc44.src.rpm
 +xwayland-satellite-0:0.8.2-1.fc44.x86_64 xwayland-satellite-0.8.2-1.fc44.src.rpm

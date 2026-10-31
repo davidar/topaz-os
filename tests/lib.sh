@@ -496,12 +496,6 @@ units_active() { # units_active <user unit...>
     [[ -n "$out" ]] && ! printf '%s\n' "$out" | grep -qvx active
 }
 
-# The niri (topaz) swaylock unit is the rescue locker (ledger 0049):
-# nothing starts it, so it is inactive and never failed, at all times.
-locker_idle() {
-    [[ "$(tssh systemctl --user show topaz-locker.service -p ActiveState -p Result)" == $'ActiveState=inactive\nResult=success' ]]
-}
-
 is_empty() { [[ -z "$("$@" 2>/dev/null | tr -d '[:space:]')" ]]; }
 
 contains() { printf '%s' "$1" | grep -qF "$2"; }

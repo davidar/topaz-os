@@ -59,7 +59,6 @@ check "topaz-idle.service active" units_active topaz-idle.service
 check "default stages: a 30 s dim from 270 s, then the lock" \
     argv_has 'timeout 270 caustics-canvasctl dim 1 over 30 --wait || [ $? -ne 2 ] && loginctl lock-session'
 check "before-sleep holds on the canvas's lock" argv_has 'before-sleep caustics-canvasctl lock --wait'
-check_not "swayidle no longer starts the swaylock unit" argv_has topaz-locker
 check "session not locked before the test" unlocked
 check "no dim before the test" not_dimming
 
@@ -133,7 +132,6 @@ nudge
 check "defaults restored without the knob file" \
     argv_has 'timeout 270 caustics-canvasctl dim 1 over 30 --wait ||'
 check "topaz-idle.service active at the end" units_active topaz-idle.service
-check "topaz-locker.service never started (the rescue locker)" locker_idle
 check_not "no coredumps during the suite" \
     tssh coredumpctl -q --no-pager list --since "@$t0"
 

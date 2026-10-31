@@ -56,19 +56,16 @@ check "niri.service active (niri's own session integration)" \
 check "session shell units active" \
     units_active caustics-bar.service caustics-canvas.service \
         topaz-idle.service topaz-background.service topaz-clipboard.service
-# The swaylock and cosmic-osd units are the rescues (ledger 0049): never
-# started, never failed.
-check "topaz-locker.service idle (the rescue locker)" locker_idle
-check "topaz-polkit-agent.service inactive (the rescue agent)" \
-    test "$(tssh systemctl --user is-active topaz-polkit-agent.service)" = inactive
-check_not "cosmic-osd absent" tssh pgrep -x cosmic-osd
+# The tools the canvas replaced are gone from the image (ledger 0050):
+# no other locker, polkit agent or wallpaper client is installed to run.
+check "no swaylock, cosmic-osd or swaybg in the image (ledger 0050)" \
+    is_empty tssh "command -v swaylock cosmic-osd swaybg"
 check "caustics bar runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
 check "caustics canvas runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -o -x caustics-canvas)/exe | grep -q ^/usr/lib/caustics-bar/'
 check "canvas shows the schedule's wallpaper (ledger 0048)" \
     tssh 'caustics-canvasctl status | grep -q " image=/usr/share/backgrounds/bluefin/"'
-check_not "swaybg absent (the canvas draws the wallpaper)" tssh pgrep -x swaybg
 # The two sinks the unit names (ledger 0049): the agent registered with
 # polkitd for this session (its journal line), the lock answering its
 # socket and holding no lock at login.

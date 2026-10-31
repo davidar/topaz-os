@@ -35,16 +35,16 @@ podman run --rm "$base" bash -euo pipefail -c '
         # can never grow the image unreviewed. Wanted weak dependencies
         # are named explicitly at the end of this transaction.
         #
-        # COSMIC applications and the two session pieces the niri (topaz)
-        # session keeps (ledger 0041): cosmic-osd as its polkit agent and
-        # the COSMIC portal backend. No COSMIC session or shell (ledger
-        # 0047): cosmic-session and everything only it needed are gone.
-        # cosmic-settings is the network and Bluetooth UI of the niri
-        # (topaz) session (the bar shows state; joining a network needs
-        # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
-        # two leaf packages that nothing starts. cosmic-launcher is the
-        # application launcher bound to Mod+D; it brings pop-launcher and
-        # qalculate, nothing else.
+        # COSMIC applications and the one session piece the niri (topaz)
+        # session keeps (ledger 0041): the COSMIC portal backend. No COSMIC
+        # session or shell (ledger 0047): cosmic-session and everything
+        # only it needed are gone; cosmic-osd left with the polkit agent of the
+        # canvas (ledger 0050). cosmic-settings is the network and Bluetooth
+        # UI of the niri (topaz) session (the bar shows state; joining a
+        # network needs this); it hard-requires cosmic-settings-daemon and
+        # cosmic-randr, two leaf packages that nothing starts.
+        # cosmic-launcher is the application launcher bound to Mod+D; it
+        # brings pop-launcher and qalculate, nothing else.
         dnf5 -y install --setopt=install_weak_deps=False \
             cosmic-files \
             cosmic-term \
@@ -53,7 +53,6 @@ podman run --rm "$base" bash -euo pipefail -c '
             cosmic-screenshot \
             cosmic-settings \
             cosmic-launcher \
-            cosmic-osd \
             cosmic-icon-theme \
             xdg-desktop-portal-cosmic
         # Wanted weak dependencies, promoted to explicit intent: playerctl
@@ -69,14 +68,14 @@ podman run --rm "$base" bash -euo pipefail -c '
             niri \
             xwayland-satellite
         # The "niri (topaz)" session (ledger 0041): the systemd session that
-        # ships with niri, the caustics bar (built from source, ledger 0044)
-        # and standalone pieces for everything cosmic-session used to
-        # supervise; notifications come from the bar, the lock screen is
-        # swaylock.
+        # ships with niri, the caustics bar and canvas (built from source,
+        # ledgers 0044, 0049) and standalone pieces for the rest of what
+        # cosmic-session used to supervise; notifications come from the
+        # bar, the wallpaper, the lock screen and the polkit prompt from the
+        # canvas (swaybg, swaylock and cosmic-osd, its rescues, left in
+        # ledger 0050).
         dnf5 -y install --setopt=install_weak_deps=False \
             swayidle \
-            swaylock \
-            swaybg \
             fuzzel \
             cliphist
         # The display manager (ledger 0045): tuigreet pulls greetd in.

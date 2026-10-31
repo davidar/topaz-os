@@ -1,0 +1,8 @@
+#%PAM-1.0
+# The PAM service the caustics canvas's lock sidecar authenticates through
+# (ledgers 0049, 0050; CAUSTICS_LOCK_PAM_SERVICE on caustics-canvas.service).
+# password-auth rather than login: the same stack without pam_fprintd, so an
+# unlock never waits out the 5 s fingerprint timeout with no prompt for it
+# on screen (the lock takes fingerprints through fprintd itself). Only the
+# auth phase runs: the lock neither opens a session nor checks the account.
+auth       include      password-auth

@@ -95,7 +95,6 @@ done
 check "session shell units active" \
     wait_for 30 units_active caustics-bar.service caustics-canvas.service \
     topaz-idle.service topaz-background.service topaz-clipboard.service
-check "topaz-locker.service idle (the rescue locker)" locker_idle
 check "caustics-polkit registered again in the new session" \
     wait_for 30 tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'caustics-polkit: the authentication agent of session'"
 # wait_session_painted picks the shell to wait for from TOPAZ_TEST_SESSION;

@@ -405,11 +405,11 @@ binds {
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
     // fuzzel is the launcher of the niri (topaz) session (ledger 0041).
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-    // Lock through logind: the session's locker (swayidle starting
-    // topaz-locker.service in niri (topaz), ledger 0041) answers the
-    // session's Lock signal. Spawning a locker directly here would take
-    // the session lock outside that path and leave niri locked with
-    // nothing to unlock it.
+    // Lock through logind: the session's locker (the caustics canvas's
+    // lock sidecar in niri (topaz), ledger 0049) hears the session's
+    // Lock signal. Spawning a locker directly here would take the
+    // session lock outside that path and leave niri locked with nothing
+    // to unlock it.
     Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn "loginctl" "lock-session"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
