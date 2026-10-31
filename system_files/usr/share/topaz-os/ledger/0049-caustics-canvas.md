@@ -53,8 +53,26 @@ every exit, a refusal and a lost device included: a locked session must
 always get its lock client back, and the compositor keeps the session
 locked in between. The unit names the full sidecar list in
 `CAUSTICS_SIDECARS` — the compiled-in three (wallpaper, reload, glyphs)
-plus the polkit agent and the lock, which the canvas starts only when
-named, since two agents or two lockers on one session fight.
+plus the polkit agent, the lock, the secret agent and the pairing sink,
+which the canvas starts only when named, since two agents or two lockers
+on one session fight.
+
+Two more sinks ask on the same prompt. `caustics-secrets` registers with
+NetworkManager as this user's secret agent: when the bar's network menu
+joins a Wi-Fi network the machine has no profile for, NetworkManager asks
+the agent for the passphrase, the canvas asks on its prompt, and the
+answer goes to NetworkManager in the method reply and nowhere else (the
+bar never holds it). `caustics-pairing` serves
+`$XDG_RUNTIME_DIR/caustics-pairing.sock` for the bar's Bluetooth sidecar,
+which is BlueZ's pairing agent: a passkey to confirm or a pairing to allow
+is a yes-or-no toast on the bar, and the one question that needs typing
+on this machine, a PIN or a passkey for an older keyboard, is asked on the
+canvas's prompt through that socket and handed to BlueZ alone. With the
+sink answering, the bar registers its agent as `KeyboardDisplay`; without
+it, `DisplayYesNo`. These two retire the last job cosmic-settings held in
+this session, joining a secured network, and the pairing of devices that
+ask for confirmation, which no agent answered before. While the session
+is locked both sinks dismiss at once: the prompt is the lock's.
 
 The tools replaced — swaybg, cosmic-osd's agent as
 `topaz-polkit-agent.service`, swaylock as `topaz-locker.service` — stayed
@@ -71,8 +89,12 @@ list and the PAM service name, and is enabled; `caustics-canvas` and
 (its usage line); the setuid polkit helper, libpam, the `caustics-lock`
 PAM file on the fingerprint-free stack and libxkbcommon (the prompt's
 keymap, opened at run time) are present. Post-boot: the unit is active and the client reports the
-schedule's image; the agent's registration line is in the journal and no
-cosmic-osd runs; the lock answers `locked=no` at login; the lock-unlock
+schedule's image; the polkit agent's registration line is in the journal
+and no cosmic-osd runs; the secret agent's registration with
+NetworkManager and the pairing sink's `serving` line are in the journal
+(the bar's BlueZ agent registers only where bluetoothd runs, so its line
+is a hardware check: the VM has no adapter and `bluetooth.service` does
+not start); the lock answers `locked=no` at login; the lock-unlock
 suite locks through logind, refuses a wrong password and unlocks on the
 right one with the canvas never restarting; the idle-fade suite reads
 the dim's progress and cancels it with a key. Suspend with the lock held

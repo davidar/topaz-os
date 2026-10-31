@@ -241,7 +241,7 @@ cmd_check() {
                  [ "$(at 01:15)" = "/b.jxl 4500 900 " ] &&
                  [ "$(at 02:45)" = "/a.jxl 4500 900 " ] &&
                  rm -f "$probe"'
-    chk "caustics bar: one set of sixteen binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
+    chk "caustics bar: one set of nineteen binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)
                  [ "${#sets[@]}" -eq 1 ] || exit 1
@@ -250,13 +250,14 @@ cmd_check() {
                  [ "$("${set_dir}caustics-bar" --abi-hash)" = "$set_hash" ] &&
                  [ "$(sed -n "s/^caustics_set=//p" /usr/share/topaz-os/niri-session-build)" = "$set_hash" ] &&
                  for b in caustics-bar caustics-sysmon caustics-tray caustics-power caustics-audio \
-                          caustics-network caustics-bluetooth caustics-notify caustics-apps \
-                          caustics-glyphs caustics-reload caustics-canvas caustics-wallpaper \
-                          caustics-canvasctl caustics-polkit caustics-lock; do
+                          caustics-network caustics-bluetooth caustics-notify caustics-displays \
+                          caustics-apps caustics-glyphs caustics-reload caustics-canvas \
+                          caustics-wallpaper caustics-canvasctl caustics-polkit caustics-lock \
+                          caustics-secrets caustics-pairing; do
                      test -x "$set_dir$b" || exit 1
                      ! ldd "$set_dir$b" | grep -q "not found" || exit 1
                  done &&
-                 [ "$(find "$set_dir" -mindepth 1 | wc -l)" -eq 16 ] &&
+                 [ "$(find "$set_dir" -mindepth 1 | wc -l)" -eq 19 ] &&
                  grep -q "^ExecStart=/usr/libexec/topaz/caustics-gpu caustics-bar$" /usr/lib/systemd/user/caustics-bar.service &&
                  ! grep -q "CAUSTICS_DIR=" /usr/lib/systemd/user/caustics-bar.service &&
                  ! test -e /usr/share/caustics &&
@@ -267,9 +268,10 @@ cmd_check() {
                  test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json'
     # The canvas: the second host of the set, its unit restarting on
     # every exit (it is where the lock screen is drawn), its sidecar list
-    # naming the polkit agent and the lock, the links the units and the
+    # naming the polkit agent, the lock, the secret agent and the pairing
+    # sink, the links the units and the
     # scripts start it and its client by, the client running at all (its
-    # usage line) outside a session, and what the two sinks need: the
+    # usage line) outside a session, and what the polkit and lock sinks need: the
     # setuid polkit helper, libpam, the lock's own PAM service (named on
     # the unit, shipped in /etc/pam.d, on the fingerprint-free stack) and
     # libxkbcommon for the prompt's keymap.
@@ -281,7 +283,7 @@ cmd_check() {
                  grep -q "^Restart=always$" $u &&
                  ! grep -q "^RestartPreventExitStatus" $u &&
                  ! grep -q "CAUSTICS_DIR=" $u &&
-                 grep -q "^Environment=CAUSTICS_SIDECARS=\"caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock\"$" $u &&
+                 grep -q "^Environment=CAUSTICS_SIDECARS=\"caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock caustics-secrets caustics-pairing\"$" $u &&
                  grep -q "^Environment=CAUSTICS_LOCK_PAM_SERVICE=caustics-lock$" $u &&
                  test -L /etc/systemd/user/graphical-session.target.wants/caustics-canvas.service &&
                  set_dir=$(dirname "$(readlink -f /usr/bin/caustics-bar)") &&

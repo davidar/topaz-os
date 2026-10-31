@@ -18,12 +18,13 @@ small bar process owning the Wayland surface and a set of sidecar
 processes talking to the rest of the system. It provides the dock with
 window previews, the system tray, charts, a clock and calendar, the
 notification daemon, the volume and brightness toasts, and menus for
-power, audio, network and Bluetooth.
+power, audio, network, Bluetooth and displays (outputs on and off, scale,
+mode and rotation over niri's IPC socket).
 No distribution packages it, so the image builds it (Containerfile
 `caustics-build` stage) at a pinned commit.
 
 The install follows the project's own layout. The bar, the canvas
-(ledger 0049) and their sidecars are one **set**: the sixteen binaries
+(ledger 0049) and their sidecars are one **set**: the nineteen binaries
 live under `/usr/lib/caustics-bar/<abi-hash>/`, named by the hash of the
 contract between them that the bar prints with `--abi-hash`, and
 `/usr/bin/caustics-bar`, `/usr/bin/caustics-canvas` and
@@ -58,7 +59,7 @@ improve; the canvas's unit restarts on every exit (ledger 0049).
 `/usr/share/topaz-os/niri-session-build` records the pinned commit and
 the set's hash. `topaz check` asserts exactly one set is installed, the
 bar's link resolves into it, its `--abi-hash` matches the directory and
-the record, all sixteen binaries are present with their libraries
+the record, all nineteen binaries are present with their libraries
 resolving and nothing else is in the set, no shader directory or
 `CAUSTICS_DIR` is shipped, the bar's unit carries the wrapper and the
 exit-status rule, and the integrated-GPU and lavapipe drivers the
