@@ -322,6 +322,11 @@ cmd_check() {
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  ! test -e /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  ! test -e /usr/libexec/xdg-desktop-portal-cosmic'
+    chk "terminal settings tools: one packaged tool per domain the shell leaves to a terminal (ledger 0051)" \
+        bash -c 'for b in nmtui wiremix kanshi wlr-randr wlsunset grim slurp wf-recorder btop ncdu gdu bashmount; do
+                     command -v $b > /dev/null || { echo "missing: $b" >&2; exit 1; }
+                 done &&
+                 ! command -v brightnessctl > /dev/null'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&

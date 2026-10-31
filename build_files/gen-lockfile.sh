@@ -78,6 +78,26 @@ podman run --rm "$base" bash -euo pipefail -c '
             swayidle \
             fuzzel \
             cliphist
+        # Terminal settings tools (ledger 0051): the session has no settings
+        # application and no toolkit; what the bar and the canvas do not
+        # cover is done in a terminal, locally or over ssh. One tool per
+        # domain, all packaged: network connections, audio routing, output
+        # layout and hotplug profiles, colour temperature, screenshots and
+        # recording, processes, disk usage and removable mounts. Nothing is
+        # enabled; kanshi and wlsunset are daemons a user starts.
+        dnf5 -y install --setopt=install_weak_deps=False \
+            NetworkManager-tui \
+            wiremix \
+            kanshi \
+            wlr-randr \
+            wlsunset \
+            grim \
+            slurp \
+            wf-recorder \
+            btop \
+            ncdu \
+            gdu \
+            bashmount
         # The display manager (ledger 0045): tuigreet pulls greetd in.
         dnf5 -y install --setopt=install_weak_deps=False tuigreet
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
