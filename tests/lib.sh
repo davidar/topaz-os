@@ -134,9 +134,10 @@ vm_start() {
     [[ "${TOPAZ_TEST_PERSIST:-0}" = 1 ]] && snapshot=()
 
     # virgl gives the guest a real EGL path. Plain virtio-vga leaves clients
-    # with no usable renderer: niri limps along but scans out black, and
-    # portal-cosmic hangs before claiming its bus name, wedging the portal
-    # frontend. The host side of the GL context adapts to the hardware:
+    # with no usable renderer: niri limps along but scans out black, and a
+    # GPU-drawn portal backend (portal-cosmic, when the image had it) hung
+    # before claiming its bus name, wedging the portal frontend. The host
+    # side of the GL context adapts to the hardware:
     #   egl  — render on the host GPU (egl-headless), plus a VNC listener
     #          (unix socket, nothing exposed) that screendump() reads and
     #          that doubles as a debug viewer.
@@ -494,12 +495,6 @@ units_active() { # units_active <user unit...>
     local out
     out="$(tssh systemctl --user is-active "$@" 2>/dev/null)"
     [[ -n "$out" ]] && ! printf '%s\n' "$out" | grep -qvx active
-}
-
-# The niri (topaz) swaylock unit is the rescue locker (ledger 0049):
-# nothing starts it, so it is inactive and never failed, at all times.
-locker_idle() {
-    [[ "$(tssh systemctl --user show topaz-locker.service -p ActiveState -p Result)" == $'ActiveState=inactive\nResult=success' ]]
 }
 
 is_empty() { [[ -z "$("$@" 2>/dev/null | tr -d '[:space:]')" ]]; }

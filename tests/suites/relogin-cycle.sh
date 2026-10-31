@@ -95,7 +95,6 @@ done
 check "session shell units active" \
     wait_for 30 units_active caustics-bar.service caustics-canvas.service \
     topaz-idle.service topaz-background.service topaz-clipboard.service
-check "topaz-locker.service idle (the rescue locker)" locker_idle
 check "caustics-polkit registered again in the new session" \
     wait_for 30 tssh "journalctl --user -u caustics-canvas.service --since @$t0 | grep -q 'caustics-polkit: the authentication agent of session'"
 # wait_session_painted picks the shell to wait for from TOPAZ_TEST_SESSION;
@@ -105,17 +104,8 @@ check "shell painted" painted
 
 check "no unexpected failed user units" \
     is_empty tssh "systemctl --user --failed --no-legend --plain | grep -v nvidia"
-# xdg-desktop-portal-cosmic (the file dialog and screenshot portals,
-# ledger 0039) can crash as the session ends: its iced event loop drops
-# its seat state after the compositor is gone and destroys a cursor-shape
-# device on the dead connection (wl_proxy_destroy, SIGSEGV). An upstream
-# teardown bug in a process that is exiting anyway, with nothing left to
-# affect. It is the one coredump the cycle tolerates, by executable; the
-# tolerated line is printed so the evidence shows it.
-tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null | grep ' /usr/libexec/xdg-desktop-portal-cosmic '" |
-    sed 's/^/tolerated: /'
-check "no coredumps during the cycle (the cosmic portal's logout crash aside)" \
-    is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null | grep -v ' /usr/libexec/xdg-desktop-portal-cosmic '"
+check "no coredumps during the cycle" \
+    is_empty tssh "coredumpctl -q --no-legend --no-pager list --since @$t0 2>/dev/null"
 # The greeter rewrote its records on login (the write is silent when it
 # fails — an unwritable home or a policy denial would surface only as a
 # forgotten user at the next login).

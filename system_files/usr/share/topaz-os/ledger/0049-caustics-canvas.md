@@ -7,8 +7,7 @@ paths:
   - /usr/bin/caustics-canvas
   - /usr/bin/caustics-canvasctl
   - /usr/libexec/topaz/caustics-gpu
-  - /usr/lib/systemd/user/topaz-locker.service
-  - /usr/lib/systemd/user/topaz-polkit-agent.service
+  - /etc/pam.d/caustics-lock
 ---
 # The caustics canvas draws the wallpaper, the idle dim, the polkit prompt and the lock screen
 
@@ -34,8 +33,9 @@ canvas prompt for each request and drives `polkit-agent-helper-1`, which
 runs PAM; three wrong attempts fail the request. `caustics-lock` hears
 logind's `Lock` signal itself (`loginctl lock-session`: the idle timer,
 the Super+Alt+L bind), asks the canvas to lock, runs the PAM conversation
-as the `swaylock` service (the fingerprint-free `password-auth` stack of
-ledger 0041), and takes a fingerprint through fprintd directly, holding
+as the `caustics-lock` service named on the unit (`/etc/pam.d/caustics-lock`,
+shipped: the fingerprint-free `password-auth` stack, so no unlock waits
+out pam_fprintd's 5 s with no prompt for it), and takes a fingerprint through fprintd directly, holding
 the reader only in windows while someone is at the lock — opened on the
 lock, on input and on resume, never while the machine sleeps, closed
 after 30 s idle — since a sensor kept verifying for hours disables itself
@@ -56,27 +56,21 @@ locked in between. The unit names the full sidecar list in
 plus the polkit agent and the lock, which the canvas starts only when
 named, since two agents or two lockers on one session fight.
 
-The tools replaced stay installed, idle, as the rescues until the canvas
-has been lived in (the lock through a suspend in particular):
-`topaz-polkit-agent.service` (cosmic-osd) is no longer enabled and must
-not run beside the canvas's agent — polkitd refuses a second — and
-`topaz-locker.service` (swaylock) is started by nothing; it gained
-`ExecStartPost=-caustics-canvasctl undim` so that, when it is the locker,
-a dim does not survive behind it. To fall back on either, a drop-in on
-`caustics-canvas.service` shortens the sidecar list, then the agent is
-enabled, or a drop-in on `topaz-idle.service` runs swayidle with `lock`
-and `before-sleep` set to `systemctl --user start topaz-locker.service`.
-swaybg stays as the wallpaper rescue of ledger 0048. A checkout of the
-project installed under `~/.local` brings its own unit of the same name,
-which replaces this one; its drop-ins carry the sidecar list.
+The tools replaced — swaybg, cosmic-osd's agent as
+`topaz-polkit-agent.service`, swaylock as `topaz-locker.service` — stayed
+installed and idle as the rescues until the canvas had been lived in,
+the lock through a suspend included, and left in ledger 0050. A checkout
+of the project installed under `~/.local` brings its own unit of the
+same name, which replaces this one; its drop-ins must carry the sidecar
+list and the PAM service name, since the checkout's unit sets neither.
 
 Check: the unit carries the wrapper, the gate, `Restart=always`, no
 `RestartPreventExitStatus`, no `CAUSTICS_DIR`, exactly this sidecar
-list, and is enabled; the two rescue units are not; `caustics-canvas` and
+list and the PAM service name, and is enabled; `caustics-canvas` and
 `caustics-canvasctl` resolve into the installed set and the client runs
-(its usage line); the setuid polkit helper, libpam, the `swaylock` PAM
-stack and libxkbcommon (the prompt's keymap, opened at run time) are
-present. Post-boot: the unit is active and the client reports the
+(its usage line); the setuid polkit helper, libpam, the `caustics-lock`
+PAM file on the fingerprint-free stack and libxkbcommon (the prompt's
+keymap, opened at run time) are present. Post-boot: the unit is active and the client reports the
 schedule's image; the agent's registration line is in the journal and no
 cosmic-osd runs; the lock answers `locked=no` at login; the lock-unlock
 suite locks through logind, refuses a wrong password and unlocks on the

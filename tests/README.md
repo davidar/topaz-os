@@ -56,10 +56,9 @@ Pieces:
   autologin session.
 - `suites/lock-unlock.sh` — locks the session through logind, types a
   wrong and then the right password at the lock screen, and asserts the
-  lock holds and clears as seen from outside: in niri (topaz) the
-  swaylock unit active exactly while locked and idle again afterwards
-  with no restarts; in COSMIC on niri LockedHint, the resident locker's
-  lockfile, and the same locker process at the end.
+  lock holds and clears as seen from outside: the canvas's lock sidecar
+  reporting locked, a counted wrong attempt, then unlocked, with the
+  canvas the same process throughout (no restart).
 - `suites/idle-fade.sh` — niri (topaz) only: writes the test user's
   `~/.config/topaz/session.conf` to run the idle stages in seconds, asserts
   swayidle picked them up, measures the screen darkening mid-fade

@@ -5,14 +5,9 @@ status: active
 paths:
   - /usr/share/wayland-sessions/topaz.desktop
   - /usr/lib/systemd/user/caustics-bar.service
-  - /usr/lib/systemd/user/topaz-locker.service
   - /usr/lib/systemd/user/topaz-idle.service
-  - /usr/lib/systemd/user/topaz-polkit-agent.service
   - /usr/lib/systemd/user/topaz-background.service
   - /usr/lib/systemd/user/topaz-clipboard.service
-  - /usr/libexec/topaz/locker
-  - /etc/swaylock/config
-  - /etc/pam.d/swaylock
   - /usr/lib/systemd/user-preset/45-topaz.preset
   - /usr/bin/topaz-osd
   - /etc/niri/config.kdl
@@ -49,13 +44,13 @@ list ends the session command) so the GNOME session is untouched:
 | bar, dock, tray, charts, clock | cosmic-panel + applets | caustics-bar (`caustics-bar.service`, ledger 0044) |
 | notifications | cosmic-notifications + panel applet | the bar's own daemon (its `caustics-notify` sidecar) |
 | workspaces overview | shim | the bar's overview button, through niri's IPC |
-| locker | cosmic-greeter, resident, restarted by cosmic-session | the caustics canvas's lock sidecar (ledger 0049): it hears logind's Lock signal itself and the canvas draws the lock screen; swayidle's before-sleep runs `caustics-canvasctl lock --wait`, which returns once the compositor has confirmed the lock, so the suspend is held until then. Password only — the PAM stack is `swaylock`'s, `password-auth`, without the 5 s fingerprint wait `login` carries. swaylock and `topaz-locker.service` stay installed and idle as the rescue |
+| locker | cosmic-greeter, resident, restarted by cosmic-session | the caustics canvas's lock sidecar (ledger 0049): it hears logind's Lock signal itself and the canvas draws the lock screen; swayidle's before-sleep runs `caustics-canvasctl lock --wait`, which returns once the compositor has confirmed the lock, so the suspend is held until then. Password or fingerprint; the PAM stack is its own, `caustics-lock`, on `password-auth` without the 5 s fingerprint wait `login` carries. swaylock held this from 2026-10-17 to 2026-10-26 and left in ledger 0050 |
 | idle → dim → lock → blank → suspend | cosmic-idle (fork) | swayidle, `topaz-idle.service`; the canvas dims the screen before the lock, and the timeouts are knobs in `~/.config/topaz/session.conf` (ledger 0046) |
 | on-screen display | cosmic-osd | the bar's own toasts: its audio and power sidecars watch PipeWire and the backlight; `topaz-osd` applies the key presses (brightness through logind's `SetBrightness`, no brightnessctl, no udev rule) |
-| polkit agent | cosmic-osd | the canvas's polkit sidecar (ledger 0049); cosmic-osd and `topaz-polkit-agent.service` stay installed and disabled as the rescue |
+| polkit agent | cosmic-osd | the canvas's polkit sidecar (ledger 0049); cosmic-osd left in ledger 0050 |
 | launcher / app library | cosmic-launcher, cosmic-app-library | fuzzel (Mod+D) |
 | wallpaper | cosmic-bg | the caustics canvas (ledger 0049), driven by `topaz-background.service`: the base image's timed wallpaper on its own day/night schedule, cross-faded, `TOPAZ_WALLPAPER` in the knob file for another (ledger 0048) |
-| dark/light for portals | portal-cosmic Settings (reads cosmic-config) | portal-gnome Settings, from gsettings `color-scheme` (ledger 0039) |
+| portals: file dialog, screenshot, screen share, dark/light | portal-cosmic (FileChooser, Screenshot, Settings off cosmic-config) | portal-gtk dialogs; portal-gnome Screenshot, ScreenCast and Settings over the Mutter and Shell D-Bus APIs niri registers and gsettings `color-scheme` (ledger 0039) |
 | clipboard history | — | cliphist, `topaz-clipboard.service` |
 
 The baked niri config serves all sessions: its startup shim spawn goes
@@ -69,21 +64,21 @@ The lock screen, the dim before it and the polkit prompt moved from
 swaylock, chayang and cosmic-osd to the canvas (ledger 0049), which is
 resident; the failure modes ledger 0034 patched in the resident COSMIC
 locker do not arise there because the canvas never unlocks on its own
-and re-locks from logind's `LockedHint` when restarted. Fingerprint
-unlock is still not offered.
+and re-locks from logind's `LockedHint` when restarted.
 
-Still COSMIC in this session, deliberately and for now: the COSMIC file
-dialog and screenshot portals (ledger 0039). The login screen left too:
-greetd runs tuigreet on the console (ledger 0045). Every other piece is
-toolkit-free: no GTK or Qt joins the session. The COSMIC packages the
-session no longer needs stay installed while the fallback sessions
-exist, and cosmic-osd and swaylock as the rescues for the canvas's agent
-and lock; their removal follows once this session has been lived in.
+Nothing COSMIC runs in this session any more: the COSMIC file dialog and
+screenshot portals left with the rewiring of ledger 0039, the login
+screen before that (greetd runs tuigreet on the console, ledger 0045).
+GTK joins the session only as portal-gtk's dialogs; the COSMIC
+applications that remain (ledger 0047) are applications, started by the
+user. The tools the canvas
+replaced stayed installed as its rescues until it had been lived in,
+then left (ledger 0050).
 
-Check: the session entry, every unit (present, gated; the shell units
-enabled, the two rescues not), the idle line's before-sleep hold,
-swaylock's config and the `swaylock` PAM stack, the shim, the packages
-(and that mako is gone), the portal routing and the baked binds.
+Check: the session entry, every unit (present, gated, enabled), the idle
+line's before-sleep hold, the shim, the packages (and that mako,
+swaylock, swaybg, cosmic-osd and chayang are gone), the portal routing
+and the baked binds.
 Post-boot: the VM harness boots the session with
 `TOPAZ_TEST_SESSION=topaz-niri` and asserts the bar runs from its
 installed set and owns the notification name, locks and unlocks it at

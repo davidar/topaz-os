@@ -33,12 +33,12 @@ In broad strokes:
   niri is built from source with every hardcoded gesture, input, layout and animation
   constant promoted to config and blur masked by each surface's own shape.
 - **No COSMIC session** — the COSMIC desktop the image started with is gone with the
-  forks it needed (ledger 0047); the COSMIC apps and its portal backend stay as plain
-  Fedora packages. GNOME remains the fallback session — pick at
+  forks it needed (ledger 0047); the COSMIC apps stay as plain Fedora packages,
+  nothing COSMIC runs in the session (ledgers 0039, 0050). GNOME remains the fallback session — pick at
   the login screen (greetd running tuigreet on the console; ledger 0045).
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
-  fingerprint support with fingerprint-friendly PAM and COSMIC lock-screen unlock.
+  fingerprint support with fingerprint-friendly PAM and fingerprint unlock at the lock screen.
 - **No memory-thrash lockups** — MGLRU `min_ttl_ms` (ChromeOS's policy) kills runaway
   allocations in ~1s instead of thrashing; SysRq enabled as the manual escape hatch.
 - **Swap reaches the disk** — zswap compresses cold pages in RAM and drains the oldest

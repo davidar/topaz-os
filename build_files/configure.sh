@@ -102,33 +102,30 @@ grep -q '^# enable_partial_images = "false"$' /usr/share/containers/storage.conf
 sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
-### niri session portals: gtk first, ScreenCast and Settings on gnome,
-### FileChooser and Screenshot from COSMIC (ledger 0039)
+### niri session portals: gtk first; ScreenCast, Screenshot and Settings
+### on gnome (ledger 0039)
 # The frontend routes by what a backend's .portal file DECLARES, and
-# portal-gnome declares fourteen interfaces while exporting only Settings
-# when not on GNOME — so upstream's gnome-first default sends FileChooser
-# (and everything else both files declare) into "no such interface" with
-# no fallback. Put gtk, which exports what it declares, first; route
-# ScreenCast explicitly to gnome (its backend consumes the Mutter API
-# `niri --session` registers); route Settings to gnome as well: its
-# backend answers color-scheme and accent-color from gsettings, the one
-# theme switch this session has now that no COSMIC shell writes
-# cosmic-config (ledger 0047). FileChooser goes to portal-cosmic: its
-# dialog (COSMIC Files in dialog mode) is an ordinary window that works
-# under niri. Screenshot goes to portal-cosmic as well: it captures
-# through ext-image-copy-capture-v1, which the topaz niri build
-# implements (ledger 0037); ScreenCast stays on gnome until the dmabuf
-# path of that implementation is verified on real hardware. Guard: fail
-# the build if upstream's file gains its own preferences or changes
-# shape.
+# portal-gnome declares eighteen interfaces while exporting only the few
+# it can serve off GNOME — so upstream's gnome-first default sends
+# FileChooser (and everything else both files declare) into "no such
+# interface" with no fallback. Put gtk, which exports what it declares,
+# first, so FileChooser and the other dialogs are portal-gtk's; route
+# the three portal-gnome does serve here explicitly, since each is the
+# load-bearing route and should not be an accident of list order:
+# ScreenCast and Screenshot consume the Mutter ScreenCast and Shell
+# Screenshot D-Bus APIs `niri --session` registers, and Settings answers
+# color-scheme and accent-color from gsettings, the one theme switch
+# this session has now that no COSMIC shell writes cosmic-config (ledger
+# 0047). Guard: fail the build if upstream's file gains its own
+# preferences or changes shape.
 grep -q '^default=gnome;gtk;$' /usr/share/xdg-desktop-portal/niri-portals.conf
 ! grep -qE 'portal\.(Settings|ScreenCast|Screenshot|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
 sed -i 's/^default=gnome;gtk;$/default=gtk;gnome;/' \
     /usr/share/xdg-desktop-portal/niri-portals.conf
 printf '%s\n' \
-    'org.freedesktop.impl.portal.FileChooser=cosmic;gtk;' \
+    'org.freedesktop.impl.portal.FileChooser=gtk;' \
     'org.freedesktop.impl.portal.ScreenCast=gnome;' \
-    'org.freedesktop.impl.portal.Screenshot=cosmic;gnome;' \
+    'org.freedesktop.impl.portal.Screenshot=gnome;' \
     'org.freedesktop.impl.portal.Settings=gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
@@ -138,29 +135,26 @@ printf '%s\n' \
 # each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC session is
 # untouched. Portals: niri --session resets XDG_CURRENT_DESKTOP to niri,
 # so the session shares niri-portals.conf above. Preset shipped in
-# system_files; enabled here as well. Not enabled: topaz-locker.service
-# and topaz-polkit-agent.service, the swaylock and cosmic-osd rescues
-# for the canvas's lock and polkit sidecars (ledger 0049), which nothing
-# starts unless a user asks for them.
+# system_files; enabled here as well.
 systemctl --global enable \
     caustics-bar.service caustics-canvas.service topaz-idle.service \
     topaz-background.service topaz-clipboard.service
 
-### The lock screen's PAM stack (ledgers 0041, 0049)
-# The canvas's lock sidecar authenticates through the `swaylock` PAM
-# service, as swaylock did. Fedora's file includes `login`, whose
-# system-auth stack runs pam_fprintd (5 s timeout) before the password
-# module: every unlock would wait those 5 s with no fingerprint prompt on
-# screen. password-auth is the same stack without the fingerprint module.
-grep -qE '^auth\s+include\s+login$' /etc/pam.d/swaylock
+### The lock screen's PAM stack (ledgers 0049, 0050)
+# The canvas's lock sidecar authenticates through the shipped
+# /etc/pam.d/caustics-lock, which includes password-auth: the system-auth
+# stack without pam_fprintd, whose 5 s timeout every unlock would
+# otherwise wait out with no fingerprint prompt on screen (the lock takes
+# fingerprints through fprintd itself). Guards: the shipped file is in
+# place and names that stack, and the base's password-auth still carries
+# the password module and no fingerprint one.
+grep -qE '^auth\s+include\s+password-auth$' /etc/pam.d/caustics-lock
+! test -e /etc/pam.d/swaylock
 grep -qE '^auth\s+sufficient\s+pam_unix\.so' /etc/pam.d/password-auth
 if grep -q pam_fprintd /etc/pam.d/password-auth; then
-    echo "password-auth now carries pam_fprintd; swaylock's stack needs another base" >&2
+    echo "password-auth now carries pam_fprintd; the lock's stack needs another base" >&2
     exit 1
 fi
-printf '%s\n' '#%PAM-1.0' \
-    '# topaz-os: password-auth rather than login, so no fingerprint wait (ledger 0041)' \
-    'auth       include      password-auth' > /etc/pam.d/swaylock
 
 ### greetd with tuigreet as the display manager (ledger 0045)
 # The base image logs in through GDM. greetd (a dependency of tuigreet)
@@ -182,9 +176,9 @@ systemctl enable greetd.service
 # runs ahead of the password module; tuigreet runs the conversation in
 # order, so every login would wait those 5 s before the password prompt,
 # for a fingerprint that cannot unlock the keyring anyway. password-auth
-# is the same stack without the fingerprint module (as for swaylock
+# is the same stack without the fingerprint module (as for the lock
 # above). The session half keeps system-auth and the keyring module, so
-# the typed password unlocks the keyring. Guards as for swaylock.
+# the typed password unlocks the keyring. Guards as for the lock.
 grep -qE '^auth\s+substack\s+system-auth$' /etc/pam.d/greetd
 sed -i -E 's/^(auth\s+substack\s+)system-auth$/\1password-auth/' /etc/pam.d/greetd
 grep -qE '^auth\s+substack\s+password-auth$' /etc/pam.d/greetd

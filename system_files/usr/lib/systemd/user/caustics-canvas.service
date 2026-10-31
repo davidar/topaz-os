@@ -21,9 +21,13 @@ Environment=RUST_LOG=info
 # The sidecars: the compiled-in three (wallpaper, reload, glyphs) and the
 # two the canvas starts only when named, the polkit agent and the lock.
 # Naming them here is what makes the canvas this session's agent and
-# locker (ledger 0049); the previous ones, topaz-polkit-agent.service
-# and topaz-locker.service, stay installed and idle as the rescues.
+# locker (ledger 0049); the tools that held those jobs before, cosmic-osd
+# and swaylock, are gone from the image (ledger 0050).
 Environment=CAUSTICS_SIDECARS="caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock"
+# The lock authenticates through its own PAM service, /etc/pam.d/caustics-lock
+# (shipped here); the sidecar's default, `swaylock`, named a file that
+# only existed while swaylock was installed.
+Environment=CAUSTICS_LOCK_PAM_SERVICE=caustics-lock
 # No CAUSTICS_DIR: the baked canvas runs its compiled-in caustic and the
 # reload sidecar idles.
 StandardOutput=journal
