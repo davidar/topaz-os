@@ -119,7 +119,9 @@ cmd_check() {
                  ! test -e /usr/libexec/topaz/cosmic-shim &&
                  ! test -e /usr/lib/systemd/user/topaz-session-shutdown.target &&
                  ! test -e /usr/share/polkit-1/rules.d/60-topaz-cosmic-greeter-fprintd.rules &&
-                 for p in cosmic-osd xdg-desktop-portal-cosmic cosmic-files cosmic-settings cosmic-launcher; do
+                 ! rpm -q xdg-desktop-portal-cosmic > /dev/null 2>&1 &&
+                 ! rpm -q cosmic-screenshot > /dev/null 2>&1 &&
+                 for p in cosmic-files cosmic-settings cosmic-launcher; do
                      rpm -q $p > /dev/null 2>&1 || exit 1
                  done'
     chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
@@ -146,30 +148,19 @@ cmd_check() {
                  ! test -e /usr/share/wayland-sessions/topaz-niri.desktop &&
                  test -x /usr/bin/niri-session &&
                  test -f /usr/lib/systemd/user/niri.service &&
-                 for u in caustics-bar.service caustics-canvas.service topaz-locker.service topaz-idle.service \
-                          topaz-polkit-agent.service topaz-background.service \
-                          topaz-clipboard.service; do
-                     test -f /usr/lib/systemd/user/$u || exit 1
-                     grep -q "^ConditionEnvironment=XDG_SESSION_DESKTOP=topaz$" /usr/lib/systemd/user/$u || exit 1
-                 done &&
                  for u in caustics-bar.service caustics-canvas.service topaz-idle.service \
                           topaz-background.service topaz-clipboard.service; do
+                     test -f /usr/lib/systemd/user/$u || exit 1
+                     grep -q "^ConditionEnvironment=XDG_SESSION_DESKTOP=topaz$" /usr/lib/systemd/user/$u || exit 1
                      test -L /etc/systemd/user/graphical-session.target.wants/$u || exit 1
                  done &&
-                 for u in topaz-locker.service topaz-polkit-agent.service; do
-                     ! test -e /etc/systemd/user/graphical-session.target.wants/$u || exit 1
+                 for f in /usr/lib/systemd/user/topaz-locker.service /usr/lib/systemd/user/topaz-polkit-agent.service \
+                          /usr/libexec/topaz/locker /etc/swaylock/config /etc/pam.d/swaylock; do
+                     ! test -e $f || exit 1
                  done &&
-                 grep -q "^ExecStart=/usr/libexec/topaz/locker$" /usr/lib/systemd/user/topaz-locker.service &&
-                 grep -q "^Type=notify$" /usr/lib/systemd/user/topaz-locker.service &&
-                 grep -q "^ExecStartPost=-caustics-canvasctl undim$" /usr/lib/systemd/user/topaz-locker.service &&
-                 test -x /usr/libexec/topaz/locker &&
-                 grep -q "swaylock --ready-fd" /usr/libexec/topaz/locker &&
-                 ! grep -q "^\[Install\]" /usr/lib/systemd/user/topaz-locker.service &&
                  i=$(/usr/libexec/topaz/idle --print | tr "\n" " ") &&
                  [[ "$i" == "swayidle -w before-sleep caustics-canvasctl lock --wait "* ]] &&
                  [[ "$i" != *topaz-locker* && "$i" != *" lock systemctl"* ]] &&
-                 test -f /etc/swaylock/config &&
-                 grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/swaylock &&
                  ! grep -q pam_fprintd /etc/pam.d/password-auth &&
                  ! test -e /usr/lib/systemd/user/topaz-notifications.service &&
                  ! command -v mako > /dev/null &&
@@ -179,8 +170,11 @@ cmd_check() {
                  test -x /usr/bin/topaz-osd &&
                  ! { grep -hvE "^\s*(#|//)" /usr/bin/topaz-osd /etc/niri/config.kdl | grep -q brightnessctl; } &&
                  grep -q "login1.Session SetBrightness" /usr/bin/topaz-osd &&
-                 for b in swayidle swaylock swaybg fuzzel cliphist wl-paste cosmic-osd busctl; do
+                 for b in swayidle fuzzel cliphist wl-paste busctl; do
                      command -v $b > /dev/null || exit 1
+                 done &&
+                 for b in swaylock swaybg cosmic-osd chayang; do
+                     ! command -v $b > /dev/null || exit 1
                  done &&
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
@@ -276,8 +270,9 @@ cmd_check() {
     # naming the polkit agent and the lock, the links the units and the
     # scripts start it and its client by, the client running at all (its
     # usage line) outside a session, and what the two sinks need: the
-    # setuid polkit helper, libpam, the `swaylock` PAM stack the lock
-    # authenticates through, and libxkbcommon for the prompt's keymap.
+    # setuid polkit helper, libpam, the lock's own PAM service (named on
+    # the unit, shipped in /etc/pam.d, on the fingerprint-free stack) and
+    # libxkbcommon for the prompt's keymap.
     chk "caustics canvas: the unit, its restart rule, its sidecars, the links and the client (ledger 0049)" \
         bash -c 'set -o pipefail
                  u=/usr/lib/systemd/user/caustics-canvas.service
@@ -287,6 +282,7 @@ cmd_check() {
                  ! grep -q "^RestartPreventExitStatus" $u &&
                  ! grep -q "CAUSTICS_DIR=" $u &&
                  grep -q "^Environment=CAUSTICS_SIDECARS=\"caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock\"$" $u &&
+                 grep -q "^Environment=CAUSTICS_LOCK_PAM_SERVICE=caustics-lock$" $u &&
                  test -L /etc/systemd/user/graphical-session.target.wants/caustics-canvas.service &&
                  set_dir=$(dirname "$(readlink -f /usr/bin/caustics-bar)") &&
                  [ "$(readlink -f /usr/bin/caustics-canvas)" = "$set_dir/caustics-canvas" ] &&
@@ -294,7 +290,8 @@ cmd_check() {
                  { caustics-canvasctl 2>&1 || true; } | grep -q "^usage: caustics-canvasctl" &&
                  test -u /usr/lib/polkit-1/polkit-agent-helper-1 &&
                  test -f /usr/lib64/libpam.so.0 &&
-                 grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/swaylock &&
+                 grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/caustics-lock &&
+                 ! grep -q pam_fprintd /etc/pam.d/password-auth &&
                  test -f /usr/lib64/libxkbcommon.so.0'
     chk "every spawn-at-startup target in the baked niri config exists" \
         bash -c 'set -o pipefail
@@ -306,24 +303,30 @@ cmd_check() {
                          *) command -v "$cmd" >/dev/null ;;
                          esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
                      done'
-    chk "niri session portals: gtk first, ScreenCast and Settings on gnome, FileChooser and Screenshot from COSMIC (ledger 0039)" \
+    chk "niri session portals: gtk first; ScreenCast, Screenshot and Settings on gnome (ledger 0039)" \
         bash -c 'grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "^org.freedesktop.impl.portal.FileChooser=cosmic;gtk;$" \
+                 grep -q "^org.freedesktop.impl.portal.FileChooser=gtk;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.ScreenCast=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "^org.freedesktop.impl.portal.Screenshot=cosmic;gnome;$" \
+                 grep -q "^org.freedesktop.impl.portal.Screenshot=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.Settings=gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
-                 grep -q "CosmicFilesDialog" /etc/niri/config.kdl &&
+                 ! grep -q "Cosmic" /etc/niri/config.kdl &&
+                 grep -qF "portal\\.desktop\\.gtk" /etc/niri/config.kdl &&
                  grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/gtk.portal &&
                  grep -q "impl.portal.ScreenCast" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
-                 grep -q "impl.portal.FileChooser" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
-                 grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
+                 grep -q "impl.portal.Screenshot" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
-                 test -x /usr/libexec/xdg-desktop-portal-cosmic'
+                 ! test -e /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
+                 ! test -e /usr/libexec/xdg-desktop-portal-cosmic'
+    chk "terminal settings tools: one packaged tool per domain the shell leaves to a terminal (ledger 0051)" \
+        bash -c 'for b in nmtui wiremix kanshi wlr-randr wlsunset grim slurp wf-recorder btop ncdu gdu bashmount; do
+                     command -v $b > /dev/null || { echo "missing: $b" >&2; exit 1; }
+                 done &&
+                 ! command -v brightnessctl > /dev/null'
     chk "greetd with tuigreet is the display manager (ledger 0045)" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&

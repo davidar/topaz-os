@@ -30,9 +30,8 @@ through `caustics-canvasctl`: a static entry is a cut to its image, a
 transition a fade to its target over the XML's own duration, so the
 session blends day into night over the same hours GNOME does. The unit
 orders itself after the canvas's, and the script retries its first
-request until the canvas's socket answers. swaybg stays installed as the
-rescue: with `caustics-canvas.service` masked, a drop-in on this unit
-puts it back.
+request until the canvas's socket answers. swaybg stayed installed as
+the rescue until the canvas had been lived in, then left (ledger 0050).
 
 One knob, in the session's knob file (ledger 0046): `TOPAZ_WALLPAPER`
 names an image, or another timed XML, in place of the base image's

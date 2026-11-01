@@ -35,11 +35,10 @@ locked() { [[ "$(lock_line)" == "locked=yes"* ]]; }
 unlocked() { [[ "$(lock_line)" == "locked=no"* ]]; }
 attempts() { lock_line | sed -n 's/.* attempts=//p'; }
 # The canvas is resident: it must come through the cycle as the same
-# process, with no restart, and the swaylock rescue unit must stay idle.
+# process, with no restart.
 canvas_state() { tssh systemctl --user show caustics-canvas.service -p ActiveState -p NRestarts -p MainPID; }
 before=$(canvas_state)
 check "caustics-canvas.service active before the test" contains "$before" ActiveState=active
-check "topaz-locker.service idle (the rescue locker)" locker_idle
 check "session not locked before the test" unlocked
 
 tssh loginctl lock-session "$sid"
@@ -76,7 +75,6 @@ fi
 after=$(canvas_state)
 check "canvas came through the cycle as the same process (no restart)" test "$before" = "$after"
 [[ "$before" = "$after" ]] || printf 'canvas before:\n%s\nafter:\n%s\n' "$before" "$after"
-check "topaz-locker.service still idle (the rescue locker)" locker_idle
 check_not "no coredumps during the suite" \
     tssh coredumpctl -q --no-pager list --since "@$t0"
 console_screendump lock-unlock 3-unlocked

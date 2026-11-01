@@ -53,7 +53,7 @@ password module, and tuigreet runs that conversation in order: every
 login would wait 5 s before the password prompt, for a fingerprint that
 cannot unlock the keyring anyway (GDM and cosmic-greeter ran the two in
 parallel). The auth stack substacks `password-auth` instead — the same
-stack without the fingerprint module, as swaylock's does (ledger 0041);
+stack without the fingerprint module, as the lock screen's does (ledger 0049);
 the session stack keeps `system-auth` and `pam_gnome_keyring`, so the
 typed password unlocks the keyring. Fingerprint stays for unlocking,
 once the session has a locker that offers it.

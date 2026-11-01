@@ -3,8 +3,7 @@
 enable speech-dispatcher.socket
 # niri (topaz) session shell (ledgers 0041, 0044, 0049): every unit is
 # gated on XDG_SESSION_DESKTOP=topaz, so enabling them is harmless
-# elsewhere. (topaz-locker.service and topaz-polkit-agent.service are not
-# among them: the canvas locks and prompts, and those two are the rescues.)
+# elsewhere.
 enable caustics-bar.service
 enable caustics-canvas.service
 enable topaz-idle.service

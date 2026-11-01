@@ -282,12 +282,8 @@ layout {
 // Portal dialogs (file chooser, access prompts, print) are transient
 // dialogs from another process, so niri can't tie them to their parent
 // window and would tile them; float them instead (ledger 0039).
-// CosmicFilesDialog = COSMIC Files in dialog mode, spawned by
-// portal-cosmic's FileChooser; CosmicPortal = its other dialogs;
-// the gtk id covers everything portal-gtk serves.
+// The gtk id covers every dialog portal-gtk serves (ledger 0039).
 window-rule {
-    match app-id=r#"^com\.system76\.CosmicFilesDialog$"#
-    match app-id=r#"^com\.system76\.CosmicPortal$"#
     match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
     open-floating true
 }
@@ -405,11 +401,11 @@ binds {
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
     // fuzzel is the launcher of the niri (topaz) session (ledger 0041).
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
-    // Lock through logind: the session's locker (swayidle starting
-    // topaz-locker.service in niri (topaz), ledger 0041) answers the
-    // session's Lock signal. Spawning a locker directly here would take
-    // the session lock outside that path and leave niri locked with
-    // nothing to unlock it.
+    // Lock through logind: the session's locker (the caustics canvas's
+    // lock sidecar in niri (topaz), ledger 0049) hears the session's
+    // Lock signal. Spawning a locker directly here would take the
+    // session lock outside that path and leave niri locked with nothing
+    // to unlock it.
     Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn "loginctl" "lock-session"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.

@@ -35,10 +35,12 @@ podman run --rm "$base" bash -euo pipefail -c '
         # can never grow the image unreviewed. Wanted weak dependencies
         # are named explicitly at the end of this transaction.
         #
-        # COSMIC applications and the two session pieces the niri (topaz)
-        # session keeps (ledger 0041): cosmic-osd as its polkit agent and
-        # the COSMIC portal backend. No COSMIC session or shell (ledger
-        # 0047): cosmic-session and everything only it needed are gone.
+        # COSMIC applications, as ordinary packages; no COSMIC session,
+        # shell or session piece (ledger 0047): cosmic-session and
+        # everything only it needed are gone, cosmic-osd left with the
+        # polkit agent of the canvas (ledger 0050) and the COSMIC portal
+        # backend with the portal rewiring onto gtk and gnome (ledger
+        # 0039), taking cosmic-screenshot, its one client, with it.
         # cosmic-settings is the network and Bluetooth UI of the niri
         # (topaz) session (the bar shows state; joining a network needs
         # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
@@ -50,12 +52,9 @@ podman run --rm "$base" bash -euo pipefail -c '
             cosmic-term \
             cosmic-edit \
             cosmic-store \
-            cosmic-screenshot \
             cosmic-settings \
             cosmic-launcher \
-            cosmic-osd \
-            cosmic-icon-theme \
-            xdg-desktop-portal-cosmic
+            cosmic-icon-theme
         # Wanted weak dependencies, promoted to explicit intent: playerctl
         # for media-key bindings. (The Qt theming and spell-checking
         # packages left with the kde-connect subtree — its apps were the
@@ -69,16 +68,36 @@ podman run --rm "$base" bash -euo pipefail -c '
             niri \
             xwayland-satellite
         # The "niri (topaz)" session (ledger 0041): the systemd session that
-        # ships with niri, the caustics bar (built from source, ledger 0044)
-        # and standalone pieces for everything cosmic-session used to
-        # supervise; notifications come from the bar, the lock screen is
-        # swaylock.
+        # ships with niri, the caustics bar and canvas (built from source,
+        # ledgers 0044, 0049) and standalone pieces for the rest of what
+        # cosmic-session used to supervise; notifications come from the
+        # bar, the wallpaper, the lock screen and the polkit prompt from the
+        # canvas (swaybg, swaylock and cosmic-osd, its rescues, left in
+        # ledger 0050).
         dnf5 -y install --setopt=install_weak_deps=False \
             swayidle \
-            swaylock \
-            swaybg \
             fuzzel \
             cliphist
+        # Terminal settings tools (ledger 0051): the session has no settings
+        # application and no toolkit; what the bar and the canvas do not
+        # cover is done in a terminal, locally or over ssh. One tool per
+        # domain, all packaged: network connections, audio routing, output
+        # layout and hotplug profiles, colour temperature, screenshots and
+        # recording, processes, disk usage and removable mounts. Nothing is
+        # enabled; kanshi and wlsunset are daemons a user starts.
+        dnf5 -y install --setopt=install_weak_deps=False \
+            NetworkManager-tui \
+            wiremix \
+            kanshi \
+            wlr-randr \
+            wlsunset \
+            grim \
+            slurp \
+            wf-recorder \
+            btop \
+            ncdu \
+            gdu \
+            bashmount
         # The display manager (ledger 0045): tuigreet pulls greetd in.
         dnf5 -y install --setopt=install_weak_deps=False tuigreet
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
