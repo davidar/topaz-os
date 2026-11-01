@@ -320,16 +320,22 @@ wait_session_painted() {
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
     # The topaz session's bar, and the canvas with the schedule's first
-    # picture drawn (ledgers 0044, 0049). The host's own journal line says
-    # so; `caustics-canvasctl status` is the wallpaper sidecar's answer,
-    # given while the host is still compiling its pipelines — over two
-    # minutes on the software renderer of a CI runner — and the host takes
-    # no sidecar's word, a lock's included, until that is done. The lines
+    # picture drawn and every pipeline built (ledgers 0044, 0049). The
+    # host's own journal lines say so; `caustics-canvasctl status` is the
+    # wallpaper sidecar's answer, given while the host is still compiling.
+    # The picture is drawn as soon as the first pipeline is built; the text
+    # shaper is built last, over a minute later on the software renderer of
+    # a CI runner, and until then the host can stall inside the GPU driver
+    # (a swapchain configure waits for the warming dispatch) and read
+    # nothing meanwhile: in run 41262191471 niri locked a second after
+    # logind's Lock, but the canvas and its lock sidecar reported it 13 s
+    # later, when the compile ended, past lock-unlock's window. The lines
     # are matched by the host's pid, so a canvas of an earlier login
     # (relogin-cycle) does not count.
     local deadline=$((SECONDS + ${1:-300}))
     local shell='pgrep -x caustics-bar >/dev/null &&
-        journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -q "canvas: show .* into slot"'
+        journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -q "canvas: show .* into slot" &&
+        journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -qE "pipelines: all [0-9]+ built"'
     until tssh "$shell" 2>/dev/null; do
         ((SECONDS < deadline)) || { echo "timed out waiting for the shell to paint" >&2; return 1; }
         sleep 3
