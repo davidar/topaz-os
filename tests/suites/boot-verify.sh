@@ -73,6 +73,14 @@ check "caustics-polkit is the session's polkit agent" \
     tssh 'journalctl --user -b -u caustics-canvas.service | grep -q "caustics-polkit: the authentication agent of session"'
 check "caustics-lock answers, unlocked" \
     tssh 'caustics-canvasctl status | grep -q "^locked=no "'
+# The two sinks the unit names besides them: the secret agent registered
+# with NetworkManager (which runs in the guest), the pairing sink serving
+# its socket. The bar's BlueZ agent is not checked here: the guest has no
+# adapter, so bluetoothd never starts and the sidecar says `absent: bluez`.
+check "caustics-secrets is the session's NetworkManager secret agent" \
+    tssh 'journalctl --user -b -u caustics-canvas.service | grep -q "caustics-secrets: the secret agent caustics.secrets of this user, registered with org.freedesktop.NetworkManager"'
+check "caustics-pairing serves its socket" \
+    tssh 'journalctl --user -b -u caustics-canvas.service | grep -q "caustics-pairing: serving /run/user/[0-9]*/caustics-pairing.sock"'
 check_not "chayang absent (the canvas dims)" tssh command -v chayang
 check "notification daemon on the bus is caustics-notify" \
     tssh 'pid=$(busctl --user status org.freedesktop.Notifications | sed -n "s/^PID=//p"); [ "$(cat /proc/$pid/comm)" = caustics-notify ]'

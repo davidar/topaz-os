@@ -15,9 +15,9 @@ name: Verify VM boot
 #
 # The runner has no GPU, so the harness hosts the guest's GL on llvmpipe
 # via SDL's offscreen driver; KVM is available on standard GitHub
-# runners. The whole harness runs rootful: bootc-image-builder needs
-# root anyway, and a single root container storage halves the disk
-# footprint of the 13 GB image.
+# runners. The whole harness runs rootful: bootc install needs root and
+# the host's loop devices anyway, and a single root container storage
+# keeps one copy of the 13 GB image.
 
 on:
   workflow_call:
@@ -42,8 +42,7 @@ env:
 jobs:
   verify-vm:
     name: Boot and verify in QEMU
-    # Same runner as build.yml. The rootful bootc-image-builder path needs
-    # the AppArmor step below on this image.
+    # Same runner as build.yml.
     runs-on: ubuntu-26.04
     timeout-minutes: 60
 
@@ -54,9 +53,28 @@ jobs:
       - name: Maximize build space
         uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6
 
+      # GitHub serves two runner images under this label, with 72 GB and
+      # 145 GB roots (47 GB and 119 GB free after the step above). The
+      # disk build holds the image in root storage (10 GB), the layers
+      # bootc stages while it imports them (13 GB) and the raw disk it
+      # writes (14 GB), plus the pulls and packages; about 40 GB at the
+      # peak. Run 41163359324 landed on the small image when the
+      # bootc-image-builder path still peaked at 49 GB and died of ENOSPC
+      # twenty minutes in; if the runner is too small, say so here and
+      # name it.
+      - name: Check free disk space
+        run: |
+          echo "runner image: ${ImageOS:-?} ${ImageVersion:-?}"
+          df -h /
+          free_mb=$(df -m --output=avail / | tail -1 | tr -d ' ')
+          if [ "$free_mb" -lt 40000 ]; then
+            echo "::error::${free_mb} MB free on /, the disk build needs about 40 GB (runner image ${ImageOS:-?} ${ImageVersion:-?})"
+            exit 1
+          fi
+
       # Same sampler as build.yml: the disk-build peak (image in root
-      # storage + osbuild tree + raw disk + qcow2) is the tight resource
-      # here — if the job dies of exhaustion, let it name itself.
+      # storage + bootc's staged layers + the raw disk) is the tight
+      # resource here — if the job dies of exhaustion, let it name itself.
       - name: Start resource sampler
         run: |
           cat > ${RUNNER_TEMP}/sample.sh <<'EOF'
@@ -85,18 +103,6 @@ jobs:
         run: |
           sudo podman pull "$TEST_IMAGE"
           sudo podman tag "$TEST_IMAGE" localhost/topaz-os:test
-
-      - name: Unload the bwrap AppArmor profile
-        # Ubuntu's bwrap-userns-restrict profile attaches by executable
-        # path to every /usr/bin/bwrap exec, even inside the unconfined
-        # privileged builder container, and its unpriv_bwrap child profile
-        # denies chown and sys_admin, which is how osbuild runs its stages.
-        # The 26.04 runner image enforces it (run 39098996641; probe
-        # 39100359279 named it, run 39103374038 built a disk without it).
-        run: |
-          if [ -f /etc/apparmor.d/bwrap-userns-restrict ]; then
-            sudo apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
-          fi
 
       - name: Boot and verify
         # The niri (topaz) session, the one machines run (ledger 0041),

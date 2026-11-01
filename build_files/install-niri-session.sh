@@ -22,7 +22,7 @@ fi
 install -m0755 /niri-build/niri /usr/bin/niri
 
 ### caustics bar and canvas (ledgers 0044, 0049)
-# One set: the sixteen binaries under /usr/lib/caustics-bar/<abi-hash>/
+# One set: the nineteen binaries under /usr/lib/caustics-bar/<abi-hash>/
 # and, in /usr/bin, a symlink into it for each binary something
 # outside the set starts by name: the bar and the canvas (their units)
 # and the canvas's client (the wallpaper and idle scripts). Each host
