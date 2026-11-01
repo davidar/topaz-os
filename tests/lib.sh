@@ -27,8 +27,7 @@ mkdir -p "$RUN_ART"
 
 BASE_IMAGE="${TOPAZ_TEST_BASE_IMAGE:-localhost/topaz-os:test}"
 TEST_IMAGE="localhost/topaz-os-test:latest"
-BIB_IMAGE="${TOPAZ_TEST_BIB_IMAGE:-quay.io/centos-bootc/bootc-image-builder:latest}"
-DISK="$ART/disk.qcow2"
+DISK="$ART/disk.raw"
 SSH_PORT="${TOPAZ_TEST_SSH_PORT:-$((2233 + TOPAZ_TEST_ID))}"
 SSH_KEY="$ART/id_ed25519"
 QMP_SOCK="$RUN_ART/qmp.sock"
@@ -51,8 +50,10 @@ OVMF_VARS="${OVMF_CODE/CODE/VARS}"
 build_image() {
     local extra="${TOPAZ_TEST_EXTRA:-$ART/extra-empty}"
     [[ -n "${TOPAZ_TEST_EXTRA:-}" ]] || mkdir -p "$extra"
+    ensure_key
     podman build --build-arg "BASE=$BASE_IMAGE" \
         --build-arg "TOPAZ_TEST_SESSION=${TOPAZ_TEST_SESSION:-topaz-niri}" -t "$TEST_IMAGE" \
+        --build-arg "TOPAZ_TEST_SSH_PUBKEY=$(cat "$SSH_KEY.pub")" \
         --build-context "extra=$extra" \
         -f "$TESTS_DIR/Containerfile.test" "$TESTS_DIR"
 }
@@ -69,47 +70,68 @@ disk_stale() {
     [[ -z "$built" || "$built" != "$current" ]]
 }
 
-# Rootful step: bootc-image-builder reads the image from root container
-# storage and runs privileged. Everything else in the harness is rootless.
-# The rootful commands run in a single escalated shell so the escalation
-# prompt fires exactly once, up front — set TOPAZ_TEST_SUDO=pkexec to
-# authorize via the polkit dialog instead of sudo.
+# Rootful step: install-disk.sh partitions a sparse raw file and runs
+# `bootc install to-filesystem` into it, from the test image's own
+# container the way the bootc documentation shows, which needs the host's
+# loop devices and the root container storage the image sits in.
+# Everything else in the harness is rootless. The rootful commands run in
+# a single escalated shell so the escalation prompt fires exactly once, up
+# front — set TOPAZ_TEST_SUDO=pkexec to authorize via the polkit dialog
+# instead of sudo.
+#
+# QEMU boots the raw file as is, `-snapshot` keeps the guests' writes out
+# of it, and the host filesystem stores only the written blocks.
+# bootc-image-builder did this job before; it extracted the image a second
+# time as osbuild's build root, converted the raw disk to qcow2 and copied
+# that out, and the copy was the peak that overran the smaller GitHub
+# runners (run 41163359324).
 build_disk() {
-    ensure_key
-    sed "s|@SSH_PUBKEY@|$(cat "$SSH_KEY.pub")|" \
-        "$TESTS_DIR/disk-test.toml.in" >"$ART/disk-test.toml"
-
     # TMPDIR for the image copy matters: the transfer stages ~13 GB and
     # /tmp is tmpfs. All paths and ids are expanded here and passed as
     # arguments — the escalated shell starts from a clean environment.
-    local tmp="$ART/scp-tmp" out="$ART/bib-out"
+    local tmp="$ART/scp-tmp" out="$ART/disk-out"
     mkdir -p "$tmp" "$out"
     # shellcheck disable=SC2016  # the escalated shell expands its own args
     "${TOPAZ_TEST_SUDO:-sudo}" bash -euo pipefail -c '
-        tmp="$1" test_image="$2" bib_image="$3" toml="$4" out="$5" uid="$6" owner="$7"
+        tmp="$1" test_image="$2" out="$3" uid="$4" owner="$5" script="$6" image_id="$7"
+        # What root wrote, root removes, on failure too: the scp staging
+        # (13 GB a run) and a half-written disk are not the user'\''s to
+        # delete afterwards.
+        trap '\''rm -rf "$tmp"; [ -f "$out/disk.raw" ] && chown "$owner" "$out/disk.raw"; rm -f "$out"/container_images_*'\'' EXIT
         # pkexec starts us in root'\''s 0700 home; podman image scp re-execs
         # its rootless side as the user, which must be able to chdir back
         # to the inherited cwd. Every path below is absolute anyway.
         cd /
         # An already-root caller (CI runs the whole harness rootful) built
-        # the image straight into root storage — no cross-user copy.
-        if [ "$uid" != 0 ]; then
+        # the image straight into root storage — no cross-user copy; nor
+        # when root storage already holds this very image from a previous
+        # run (13 GB staged for nothing otherwise).
+        if [ "$uid" != 0 ] && \
+           [ "$(podman image inspect -f "{{.Id}}" "$test_image" 2>/dev/null)" != "$image_id" ]; then
             env TMPDIR="$tmp" podman image scp \
                 "$uid@localhost::$test_image" "root@localhost::$test_image"
+            # Freed before the install, which stages as much again.
+            rm -rf "$tmp"
         fi
-        podman run --rm --privileged --pull=newer --net=host \
+        rm -f "$out/disk.raw"
+        # bootc stages the 13 GB of layers it imports under TMPDIR; in the
+        # output directory they sit beside the disk and leave with it,
+        # instead of filling the writable layer of the container in root
+        # storage (an ENOSPC there corrupts the podman database). No
+        # apostrophes in this quoted script. `z` relabels the mounts for
+        # SELinux hosts; the script is read-only.
+        podman run --rm --privileged --pid=host --ipc=host \
             --security-opt label=type:unconfined_t \
-            -v "$toml:/config.toml:ro" \
-            -v "$out:/output" \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            "$bib_image" --type qcow2 --use-librepo=True --rootfs=btrfs \
-            "$test_image"
-        chown -R "$owner" "$out"
-    ' build-disk-rootful "$tmp" "$TEST_IMAGE" "$BIB_IMAGE" \
-        "$ART/disk-test.toml" "$out" "$(id -u)" "$(id -u):$(id -g)"
+            -v /dev:/dev -v /var/lib/containers:/var/lib/containers \
+            -v "$out:/output:z" -v "$script:/run/install-disk.sh:ro,z" \
+            -e TMPDIR=/output \
+            "$test_image" bash /run/install-disk.sh /output/disk.raw
+    ' build-disk-rootful "$tmp" "$TEST_IMAGE" "$out" "$(id -u)" "$(id -u):$(id -g)" \
+        "$TESTS_DIR/install-disk.sh" "$(podman image inspect -f '{{.Id}}' "$TEST_IMAGE")"
     rm -rf "$tmp"
-    mv -f "$out/qcow2/disk.qcow2" "$DISK"
+    mv -f "$out/disk.raw" "$DISK"
     rm -rf "$out"
+    echo "test disk $DISK: $(du -h "$DISK" | cut -f1) written of $(du -h --apparent-size "$DISK" | cut -f1)"
     podman image inspect -f '{{.Id}}' "$TEST_IMAGE" >"$ART/disk.image-id"
 }
 
@@ -178,7 +200,7 @@ vm_start() {
         -smp "${TOPAZ_TEST_CPUS:-4}" -m "${TOPAZ_TEST_RAM:-8G}" \
         -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
         -drive "if=pflash,format=raw,file=$RUN_ART/OVMF_VARS.fd" \
-        -drive "file=$DISK,if=virtio,format=qcow2,discard=unmap" \
+        -drive "file=$DISK,if=virtio,format=raw,discard=unmap" \
         "${snapshot[@]}" \
         "${gpu[@]}" \
         -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${SSH_PORT}-:22" \
