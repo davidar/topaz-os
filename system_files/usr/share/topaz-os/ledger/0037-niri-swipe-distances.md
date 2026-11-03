@@ -21,8 +21,7 @@ apply either — the gesture deliberately uses unaccelerated deltas). The
 upstream pull request that would add gesture settings (niri-wm/niri#3771)
 has sat as a large draft for months without maintainer engagement.
 
-An audit of the source (`~/cosmic-debug/niri-config-sweep.md` on the
-development machine) found 41 such constants; the 28 that are behavioural
+An audit of the source found 41 such constants; the 28 that are behavioural
 rather than implementation detail are promoted to config keys here, each
 defaulting to the upstream value and merged and hot-reloaded like every
 other niri option:
