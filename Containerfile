@@ -13,6 +13,15 @@ FROM scratch AS ctx-files
 COPY build_files/configure.sh /
 COPY system_files /system_files
 
+# One context per builder stage as well: each carries the stage's
+# toolchain lock (ledger 0052), so a toolchain update rebuilds only the
+# binaries compiled with it.
+FROM scratch AS ctx-niri-build
+COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_files/niri-build.lock /
+
+FROM scratch AS ctx-caustics-build
+COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_files/caustics-build.lock /
+
 # niri itself, built from the topaz fork at a pinned commit on top of the
 # upstream release Fedora packages (ledger 0037): hardcoded gesture,
 # input, layout and animation constants promoted to config keys that
@@ -23,15 +32,15 @@ COPY system_files /system_files
 # release must match the base image's (currently 44): a newer builder
 # links against a newer glibc than the image ships, and the binary fails
 # to load. `topaz check` asserts every fork-built binary's libraries
-# resolve, so a mismatched bump fails the build, not the login.
+# resolve, so a mismatched bump fails the build, not the login. The
+# toolchain is the exact closure of build_files/niri-build.lock (ledger
+# 0052), resolved by `just lock` against this stage's fedora digest, and
+# the stage records the rustc it installed for `topaz check`.
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
 ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
-RUN dnf -y install gcc cargo rust clang glibc-devel pkgconf-pkg-config \
-    git-core cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel \
-    glib2-devel gtk4-devel libadwaita-devel libdisplay-info-devel \
-    libinput-devel pipewire-devel libseat-devel systemd-devel pango-devel \
-    wayland-devel libxkbcommon-devel && dnf clean all
+RUN --mount=type=bind,from=ctx-niri-build,source=/,target=/ctx \
+    /ctx/install-builder.sh /ctx/niri-build.lock
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$NIRI_REPO" "$NIRI_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
@@ -41,7 +50,8 @@ RUN git init -q /src && \
     CARGO_PROFILE_RELEASE_STRIP=true \
         cargo build --release --manifest-path=/src/Cargo.toml && \
     install -Dm0755 /src/target/release/niri /out/niri && \
-    printf 'niri_repo=%s\nniri_ref=%s\n' "$NIRI_REPO" "$NIRI_REF" > /out/build-info
+    printf 'niri_repo=%s\nniri_ref=%s\nniri_rustc=%s\n' "$NIRI_REPO" "$NIRI_REF" \
+        "$(rpm -q --qf '%{VERSION}-%{RELEASE}' rust)" > /out/build-info
 
 # caustics, the bar and the canvas of the niri (topaz) session (ledgers
 # 0044, 0049), built at a pinned commit of https://github.com/davidar/caustics.
@@ -51,11 +61,13 @@ RUN git init -q /src && \
 # one; the shaders are compiled in, no sources ship). The build script
 # fetches the Slang release the bindings were generated against and checks
 # it against the SHA-256 recorded in the crate, so that download is as
-# pinned as a crate's.
+# pinned as a crate's. The toolchain is the exact closure of
+# build_files/caustics-build.lock (ledger 0052).
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
 ARG CAUSTICS_REF=4c1396045e59748f0707ecb7d35eef8e136f7db0
-RUN dnf -y install gcc cargo rust git-core pkgconf-pkg-config && dnf clean all
+RUN --mount=type=bind,from=ctx-caustics-build,source=/,target=/ctx \
+    /ctx/install-builder.sh /ctx/caustics-build.lock
 RUN git init -q /src && \
     git -C /src fetch --depth=1 "$CAUSTICS_REPO" "$CAUSTICS_REF" && \
     git -C /src checkout -q FETCH_HEAD && \
@@ -70,8 +82,9 @@ RUN git init -q /src && \
              caustics-canvasctl caustics-polkit caustics-lock; do \
         install -Dm0755 "/src/target/release/$b" "/out/lib/caustics-bar/$set_hash/$b" || exit 1; \
     done && \
-    printf 'caustics_repo=%s\ncaustics_ref=%s\ncaustics_set=%s\n' \
-        "$CAUSTICS_REPO" "$CAUSTICS_REF" "$set_hash" > /out/build-info
+    printf 'caustics_repo=%s\ncaustics_ref=%s\ncaustics_set=%s\ncaustics_rustc=%s\n' \
+        "$CAUSTICS_REPO" "$CAUSTICS_REF" "$set_hash" \
+        "$(rpm -q --qf '%{VERSION}-%{RELEASE}' rust)" > /out/build-info
 
 # Base: Bluefin DX with NVIDIA open kernel modules
 FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:aee8749cf8dbbb8ebbec67b60d0473ba7727689fb515e03292ea06140f0c4caa

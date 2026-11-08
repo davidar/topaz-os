@@ -41,3 +41,9 @@ done
 { cat /niri-build/build-info; echo "niri_base=$niri_base_version";
   cat /caustics-build/build-info; } \
     > /usr/share/topaz-os/niri-session-build
+
+### Builder toolchain locks (ledger 0052)
+# Each stage's lock ships beside the package lock, so `topaz check` can
+# hold the rustc the stage recorded against the build the lock names.
+install -m0644 /niri-build/niri-build.lock /caustics-build/caustics-build.lock \
+    /usr/share/topaz-os/

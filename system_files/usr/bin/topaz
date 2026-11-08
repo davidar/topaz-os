@@ -130,6 +130,19 @@ cmd_check() {
                  [ "$(rpm -q --qf %{VERSION} niri)" = \
                    "$(sed -n "s/^niri_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
                  ! ldd /usr/bin/niri | grep -q "not found"'
+    # The compilers are locked like the packages (ledger 0052): each
+    # builder stage recorded the rustc it installed, that build is the
+    # one the stage's shipped lock names, and the binary carries the
+    # Fedora build stamp rustc embeds.
+    chk "fork-built binaries carry their locked rustc (ledger 0052)" \
+        bash -c 'info=/usr/share/topaz-os/niri-session-build
+                 for pair in niri:/usr/bin/niri caustics:/usr/bin/caustics-bar; do
+                     name=${pair%%:*}; bin=${pair#*:}
+                     evr=$(sed -n "s/^${name}_rustc=//p" "$info")
+                     [ -n "$evr" ] || exit 1
+                     grep -q "^+rust-0:${evr}\.x86_64 " "/usr/share/topaz-os/${name}-build.lock" || exit 1
+                     grep -aqF "(Fedora ${evr})" "$bin" || exit 1
+                 done'
     chk "baked niri config is valid and carries no COSMIC session plumbing" \
         bash -c '! grep -q "^include " /etc/niri/config.kdl &&
                  ! grep -q "alternative-startup\|import-environment\|cosmic-shim\|trust-sandbox-engine" /etc/niri/config.kdl &&
