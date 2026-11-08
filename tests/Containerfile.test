@@ -7,12 +7,17 @@ ARG BASE=localhost/topaz-os:test
 FROM $BASE
 # Which session the autologin runs: topaz-niri is the only one today.
 ARG TOPAZ_TEST_SESSION=topaz-niri
+# The public key that may log in as tester; lib.sh passes the checkout's.
+ARG TOPAZ_TEST_SSH_PUBKEY
 
 # One RUN, one layer: on the CI runner each step's commit over the
 # ~400-layer chunked base costs ~5 minutes, so the COPYs ride the same
 # layer via a bind-mounted context instead of steps of their own.
-# The tester user itself is injected at disk-build time (disk-test.toml),
-# not here — the image layer ships no users and /var stays empty.
+# The tester login lives here too, since bootc install builds the disk
+# from the image as it stands (lib.sh build_disk): the user record in
+# /etc, the harness's per-checkout public key under /etc/ssh so sshd finds
+# it without a home directory, and a tmpfiles rule that makes the home at
+# boot — /var stays empty in the layer.
 #
 # A companion repo's payload rides the same layer: lib.sh passes the
 # directory named by TOPAZ_TEST_EXTRA as the `extra` build context (an empty
@@ -41,6 +46,18 @@ RUN --mount=type=bind,source=files,target=/run/test-files,z \
     grep -q '^ *skip-at-startup$' /etc/niri/config.kdl && \
     echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/50-topaz-test && \
     chmod 0440 /etc/sudoers.d/50-topaz-test && \
+    # The login user: no password (the console suites set one), no home
+    # in the image (tmpfiles makes it at boot), the key readable by sshd
+    # from /etc through a drop-in. An empty key argument fails the build.
+    [ -n "$TOPAZ_TEST_SSH_PUBKEY" ] && \
+    useradd -M -u 1000 -G wheel -d /var/home/tester -s /bin/bash tester && \
+    install -d -m 0755 /etc/ssh/authorized_keys.d && \
+    echo "$TOPAZ_TEST_SSH_PUBKEY" > /etc/ssh/authorized_keys.d/tester && \
+    chmod 0644 /etc/ssh/authorized_keys.d/tester && \
+    printf 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/authorized_keys.d/%%u\n' \
+        > /etc/ssh/sshd_config.d/10-topaz-test.conf && \
+    mkdir -p /etc/tmpfiles.d && \
+    echo 'd /var/home/tester 0700 tester tester -' > /etc/tmpfiles.d/topaz-test-home.conf && \
     if [ -n "$(ls -A /run/test-extra)" ]; then \
         (cd /run/test-extra && ./install.sh); \
     fi

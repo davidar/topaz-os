@@ -12,8 +12,12 @@ Quick start (from the repo root, with `localhost/topaz-os:test` built):
 
     bash tests/run.sh all          # or: just verify-vm
 
-The disk build step runs bootc-image-builder as rootful podman (sudo);
-everything else is rootless. Artifacts live in `tests/.artifacts/`
+The disk build step runs as rootful podman (sudo): `install-disk.sh`
+partitions a sparse raw file the way installers partition machines (BIOS
+stub, ESP, ext4 `/boot`, btrfs root on a `root` subvolume, the layout
+`disk_config/disk.toml` gets from bootc-image-builder) and runs `bootc
+install to-filesystem` into it from the test image's own container.
+Everything else is rootless. Artifacts live in `tests/.artifacts/`
 (gitignored): the test disk, per-checkout ssh key, serial log, and
 screendumps.
 
@@ -45,10 +49,13 @@ Pieces:
 
 - `Containerfile.test` — derived test image, never published: a greetd
   `initial_session` appended to the shipped config (autologin into the
-  chosen session on the first boot), sshd, passwordless sudo.
-- `disk-test.toml.in` — bootc-image-builder config template; the runner
-  injects the ssh public key and a `tester` login user at disk-build
-  time so the image layer ships no users and `/var` stays empty.
+  chosen session on the first boot), sshd, passwordless sudo, and the
+  `tester` login itself (uid 1000, wheel) with the per-checkout ssh public
+  key under `/etc/ssh`; its home is made by tmpfiles at boot so `/var`
+  stays empty.
+- `install-disk.sh` — the disk build proper, run as root inside the test
+  image's container: partition table, filesystems, `bootc install
+  to-filesystem`, the ESP's fstab line.
 - `run.sh`, `lib.sh`, `qmp.py`, `screendump.py`, `png_mean.py` — VM
   lifecycle, ssh plumbing, QMP control, VNC frame capture, a screenshot
   brightness probe, and the assertion helpers suites use.

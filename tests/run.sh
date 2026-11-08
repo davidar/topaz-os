@@ -17,7 +17,7 @@ usage() {
 #usage#                 in that one guest, shut down; exits non-zero if any
 #usage#                 failed (default: boot-verify; disk build needs sudo)
 #usage#   image         build the derived test image (rootless podman)
-#usage#   disk          build the test qcow2 via bootc-image-builder (sudo)
+#usage#   disk          build the test disk with bootc install to-disk (sudo)
 #usage#   start | stop | status
 #usage#   ssh [cmd...]  shell into the running VM as the test user
 #usage#   suite <name>  run tests/suites/<name>.sh against the running VM
