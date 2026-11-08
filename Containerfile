@@ -55,7 +55,7 @@ RUN git init -q /src && \
 
 # caustics, the bar and the canvas of the niri (topaz) session (ledgers
 # 0044, 0049), built at a pinned commit of https://github.com/davidar/caustics.
-# The two hosts and their sidecars, sixteen binaries, are one set, installed
+# The two hosts and their sidecars, nineteen binaries, are one set, installed
 # under a directory named by the ABI hash the bar prints, as the project's
 # own install script lays them out (its BINARIES list is the authoritative
 # one; the shaders are compiled in, no sources ship). The build script
@@ -65,7 +65,7 @@ RUN git init -q /src && \
 # build_files/caustics-build.lock (ledger 0052).
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
-ARG CAUSTICS_REF=4c1396045e59748f0707ecb7d35eef8e136f7db0
+ARG CAUSTICS_REF=883032d6a2058cee011f5b18215a40b87d272518
 RUN --mount=type=bind,from=ctx-caustics-build,source=/,target=/ctx \
     /ctx/install-builder.sh /ctx/caustics-build.lock
 RUN git init -q /src && \
@@ -77,9 +77,10 @@ RUN git init -q /src && \
     set_hash="$(/src/target/release/caustics-bar --abi-hash)" && \
     [ "${#set_hash}" -eq 16 ] && \
     for b in caustics-bar caustics-sysmon caustics-tray caustics-power caustics-audio \
-             caustics-network caustics-bluetooth caustics-notify caustics-apps \
-             caustics-glyphs caustics-reload caustics-canvas caustics-wallpaper \
-             caustics-canvasctl caustics-polkit caustics-lock; do \
+             caustics-network caustics-bluetooth caustics-notify caustics-displays \
+             caustics-apps caustics-glyphs caustics-reload caustics-canvas \
+             caustics-wallpaper caustics-canvasctl caustics-polkit caustics-lock \
+             caustics-secrets caustics-pairing; do \
         install -Dm0755 "/src/target/release/$b" "/out/lib/caustics-bar/$set_hash/$b" || exit 1; \
     done && \
     printf 'caustics_repo=%s\ncaustics_ref=%s\ncaustics_set=%s\ncaustics_rustc=%s\n' \
