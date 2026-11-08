@@ -65,7 +65,7 @@ RUN git init -q /src && \
 # build_files/caustics-build.lock (ledger 0052).
 FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
-ARG CAUSTICS_REF=883032d6a2058cee011f5b18215a40b87d272518
+ARG CAUSTICS_REF=b7ff845af7ea3ca8a9b850e8d1f4616024b9abeb
 RUN --mount=type=bind,from=ctx-caustics-build,source=/,target=/ctx \
     /ctx/install-builder.sh /ctx/caustics-build.lock
 RUN git init -q /src && \

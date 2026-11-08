@@ -218,7 +218,9 @@ cmd_check() {
     # The wallpaper follows the base image's own choice and schedule, on
     # the canvas: the month's timed XML Bluefin pins for GNOME, read by
     # the script at noon and at 22:00 of the build day, must name a day
-    # and a night image that exist; a knob naming a plain image is shown
+    # and a night image that exist in a format the canvas decodes (JPEG
+    # XL most months; SVG since Bluefin's November 2026 artwork, which
+    # the canvas renders itself); a knob naming a plain image is shown
     # as is; and a probe schedule of two statics and two transitions
     # resolves a transition to its target, the seconds of fade left and
     # the seconds until the image changes again.
@@ -239,8 +241,8 @@ cmd_check() {
                  [[ "$xml" == /usr/share/backgrounds/bluefin/*.xml ]] && test -f "$xml" &&
                  day=$(TOPAZ_BACKGROUND_NOW=$(date -d "today 12:00" +%s) /usr/libexec/topaz/background --print | sed -n 1p) &&
                  night=$(TOPAZ_BACKGROUND_NOW=$(date -d "today 22:00" +%s) /usr/libexec/topaz/background --print | sed -n 1p) &&
-                 [[ "$day" == *-day.jxl ]] && test -f "$day" &&
-                 [[ "$night" == *-night.jxl ]] && test -f "$night" &&
+                 [[ "$day" == *-day.jxl || "$day" == *-day.svg ]] && test -f "$day" &&
+                 [[ "$night" == *-night.jxl || "$night" == *-night.svg ]] && test -f "$night" &&
                  [ "$(TOPAZ_WALLPAPER="$night" /usr/libexec/topaz/background --print | sed -n 1p)" = "$night" ] &&
                  probe=$(mktemp --suffix=.xml) &&
                  printf "%s\n" "<background><starttime><hour>0</hour><minute>0</minute><second>0</second></starttime>" \
