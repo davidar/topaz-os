@@ -70,13 +70,21 @@
     },
     {
       // The builder stages must stay on the same Fedora release as the
-      // base image: a newer builder links niri, chayang and the caustics
-      // bar against a newer glibc than the image ships, and the binaries
+      // base image: a newer builder links niri and the caustics set
+      // against a newer glibc than the image ships, and the binaries
       // fail to load at login.
       // Bump this manually whenever the base image moves to a new release.
       "enabled": false,
       "matchPackageNames": ["registry.fedoraproject.org/fedora"],
       "matchUpdateTypes": ["major"],
+    },
+    {
+      // The builder stages' digest is owned by refresh-inputs.yml too: the
+      // toolchain locks (ledger 0052) are resolved against it and must move
+      // with it.
+      "enabled": false,
+      "matchPackageNames": ["registry.fedoraproject.org/fedora"],
+      "matchUpdateTypes": ["digest"],
     },
   ]
 }
