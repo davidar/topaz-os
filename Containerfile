@@ -75,7 +75,7 @@ RUN git init -q /src && \
         "$CAUSTICS_REPO" "$CAUSTICS_REF" "$set_hash" > /out/build-info
 
 # Base: Bluefin DX with NVIDIA open kernel modules
-FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:aee8749cf8dbbb8ebbec67b60d0473ba7727689fb515e03292ea06140f0c4caa
+FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:28880e9bdcfcda660e5aca9319a86d7f5e8fbfa9ca0c7df98e445ef674d1c4aa
 
 # The image ships as ordinary content-keyed OCI layers — no rechunking.
 # Each RUN below is one layer, ordered least- to most-frequently changing,
