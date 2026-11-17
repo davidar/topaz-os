@@ -36,7 +36,7 @@ COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_file
 # toolchain is the exact closure of build_files/niri-build.lock (ledger
 # 0052), resolved by `just lock` against this stage's fedora digest, and
 # the stage records the rustc it installed for `topaz check`.
-FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS niri-build
+FROM registry.fedoraproject.org/fedora:44@sha256:98b558564d3510363f0f706a44b1ee9de461b030373d741c5729ae3f24d8cb26 AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
 ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
 RUN --mount=type=bind,from=ctx-niri-build,source=/,target=/ctx \
@@ -63,7 +63,7 @@ RUN git init -q /src && \
 # it against the SHA-256 recorded in the crate, so that download is as
 # pinned as a crate's. The toolchain is the exact closure of
 # build_files/caustics-build.lock (ledger 0052).
-FROM registry.fedoraproject.org/fedora:44@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a AS caustics-build
+FROM registry.fedoraproject.org/fedora:44@sha256:98b558564d3510363f0f706a44b1ee9de461b030373d741c5729ae3f24d8cb26 AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
 ARG CAUSTICS_REF=b7ff845af7ea3ca8a9b850e8d1f4616024b9abeb
 RUN --mount=type=bind,from=ctx-caustics-build,source=/,target=/ctx \
@@ -88,7 +88,7 @@ RUN git init -q /src && \
         "$(rpm -q --qf '%{VERSION}-%{RELEASE}' rust)" > /out/build-info
 
 # Base: Bluefin DX with NVIDIA open kernel modules
-FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:b0efd3cb043dd6de68a0aa264e488275da9dff59715f3e215dd0560ce69c1169
+FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:9e9a3c3545f513dbc1ea51995a976f9c926f32cd729f59d3aba57d1ecc600fa8
 
 # The image ships as ordinary content-keyed OCI layers — no rechunking.
 # Each RUN below is one layer, ordered least- to most-frequently changing,
