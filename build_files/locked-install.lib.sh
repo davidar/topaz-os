@@ -77,6 +77,49 @@ clamp_install_times() {
 # installs skip repository signature policy, so the local check is
 # turned on explicitly; the keys are in the rpm database from the base
 # image and the COPR enablement above.
+#
+# koji's archive is permanent for the build outputs only. The signed
+# copies are pruned days after a build is superseded (2026-11-17: a
+# nine-day-old lock named a bluez build whose data/signed directory was
+# already empty), while the signature itself stays, detached, under
+# data/sigcache/<key id>. koji_fetch therefore takes the signed copy
+# when it is still there and otherwise rebuilds it: an rpm is a 96-byte
+# lead, the signature header, the main header and the payload, and the
+# cached file is the signed copy's signature header, so replacing the
+# unsigned build's signature header with it gives the signed package.
+# Nothing here is trusted for that: the install below checks the
+# signature of whatever this wrote.
+#
+#   koji_fetch <build url> <key id> <arch> <file name> <output path>
+koji_fetch() {
+    local build=$1 keyid=$2 arch=$3 name=$4 out=$5
+    if curl -fsSL -o "$out" "${build}/data/signed/${keyid}/${arch}/${name}" 2> /dev/null; then
+        return 0
+    fi
+    echo "koji has pruned the signed copy of ${name}; splicing its cached signature" >&2
+    curl -fsSL -o "${out}.unsigned" "${build}/${arch}/${name}"
+    curl -fsSL -o "${out}.sighdr" "${build}/data/sigcache/${keyid}/${arch}/${name}.sig"
+    # Signature header: 16 bytes of preamble (index count at offset 8,
+    # data size at offset 12, big-endian), 16 bytes per index entry, the
+    # data, then padding to a multiple of 8. It starts after the lead.
+    local nindex hsize old
+    nindex=$(be32 "${out}.unsigned" 104)
+    hsize=$(be32 "${out}.unsigned" 108)
+    old=$(( (16 + 16 * nindex + hsize + 7) / 8 * 8 ))
+    {
+        head -c 96 "${out}.unsigned"
+        cat "${out}.sighdr"
+        tail -c +$(( 96 + old + 1 )) "${out}.unsigned"
+    } > "$out"
+    rm -f "${out}.unsigned" "${out}.sighdr"
+}
+
+# The big-endian 32-bit integer at byte offset $2 of file $1.
+be32() {
+    od -An -tu1 -j "$2" -N 4 "$1" \
+        | awk '{ print (($1 * 256 + $2) * 256 + $3) * 256 + $4 }'
+}
+
 locked_install() {
     local lock=$1
     shift
@@ -92,8 +135,9 @@ locked_install() {
         $(cut -d' ' -f1 /tmp/lock.adds) | LC_ALL=C sort -u > /tmp/repo.nvras
     # koji keeps the unsigned build outputs under the arch directory and
     # the signed copies under data/signed/<key id>; the local signature
-    # check below needs the signed ones. The key id is the short id of
-    # the release primary key already in the rpm database.
+    # check below needs the signed ones (koji_fetch, further down, for
+    # builds whose signed copy koji has pruned). The key id is the short
+    # id of the release primary key already in the rpm database.
     local keyid
     keyid=$(rpm -q gpg-pubkey --qf '%{VERSION} %{SUMMARY}\n' \
         | awk -v key="fedora-$(. /etc/os-release && echo "$VERSION_ID")-primary" \
@@ -113,8 +157,8 @@ locked_install() {
             srcname=${rest%-*}
             arch=${nvra##*.}
             echo "locked ${nvra} is no longer on the mirrors; using koji" >&2
-            curl -fsSL -o "${dest}/${nvra}.rpm" \
-                "https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}/data/signed/${keyid}/${arch}/${nvra}.rpm"
+            koji_fetch "https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}" \
+                "$keyid" "$arch" "${nvra}.rpm" "${dest}/${nvra}.rpm"
         fi
     done < /tmp/lock.adds
     if [ ${#mirror[@]} -gt 0 ]; then

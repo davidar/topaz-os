@@ -27,7 +27,8 @@ merged.
 
 Since 2026-10-25 the install is two phases: the closure is downloaded
 (from the mirrors, or koji's signed copies for builds the mirrors have
-dropped) and then installed from those files with every repository
+dropped; where koji has pruned the signed copy, the unsigned build with
+koji's cached signature header spliced back on) and then installed from those files with every repository
 disabled and the local signature check on. Nothing is resolved at
 install time any more: a package the transaction needs but the image
 must not ship (cosmic-initial-setup, ledger 0025) is recorded as a
