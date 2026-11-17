@@ -5,7 +5,7 @@ status: active
 paths:
   - /etc/systemd/system/display-manager.service
   - /etc/greetd/config.toml
-  - /etc/pam.d/greetd
+  - /usr/lib/pam.d/greetd
   - /usr/lib/tmpfiles.d/topaz-greetd-home.conf
   - /usr/share/wayland-sessions/topaz.desktop
 ---
@@ -47,14 +47,14 @@ units are gated on `XDG_SESSION_DESKTOP=topaz` (ledger 0041), so its
 entry is now `topaz.desktop` (was `topaz-niri.desktop`; `DesktopNames`
 stays `topaz`, so either greeter starts the same units).
 
-Password only. Fedora's `/etc/pam.d/greetd` substacks `system-auth`,
+Password only. Fedora's `/usr/lib/pam.d/greetd` substacks `system-auth`,
 which carries `pam_fprintd.so timeout=5` (ledger 0006) ahead of the
 password module, and tuigreet runs that conversation in order: every
 login would wait 5 s before the password prompt, for a fingerprint that
 cannot unlock the keyring anyway (GDM and cosmic-greeter ran the two in
 parallel). The auth stack substacks `password-auth` instead — the same
 stack without the fingerprint module, as the lock screen's does (ledger 0049);
-the session stack keeps `system-auth` and `pam_gnome_keyring`, so the
+the session stack keeps `system-auth` and the keyring module (`pam_oo7` since Fedora 45), so the
 typed password unlocks the keyring. Fingerprint stays for unlocking,
 once the session has a locker that offers it.
 

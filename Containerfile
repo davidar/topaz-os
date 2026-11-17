@@ -29,14 +29,14 @@ COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_file
 # each surface's own alpha, a trust list for sandbox engines, and the
 # ext-image-copy-capture protocols so the screenshot portal can capture.
 # Nothing in the build embeds a timestamp or a path. The builder's Fedora
-# release must match the base image's (currently 44): a newer builder
+# release must match the base image's (currently 45): a newer builder
 # links against a newer glibc than the image ships, and the binary fails
 # to load. `topaz check` asserts every fork-built binary's libraries
 # resolve, so a mismatched bump fails the build, not the login. The
 # toolchain is the exact closure of build_files/niri-build.lock (ledger
 # 0052), resolved by `just lock` against this stage's fedora digest, and
 # the stage records the rustc it installed for `topaz check`.
-FROM registry.fedoraproject.org/fedora:44@sha256:98b558564d3510363f0f706a44b1ee9de461b030373d741c5729ae3f24d8cb26 AS niri-build
+FROM registry.fedoraproject.org/fedora:45@sha256:8430348a73c5a0e607b5de2cf9dd4741d9aa0891bbce3108588298102015f8c6 AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
 ARG NIRI_REF=bc9985a31b4527132226249dcda664aa1c713101
 RUN --mount=type=bind,from=ctx-niri-build,source=/,target=/ctx \
@@ -63,7 +63,7 @@ RUN git init -q /src && \
 # it against the SHA-256 recorded in the crate, so that download is as
 # pinned as a crate's. The toolchain is the exact closure of
 # build_files/caustics-build.lock (ledger 0052).
-FROM registry.fedoraproject.org/fedora:44@sha256:98b558564d3510363f0f706a44b1ee9de461b030373d741c5729ae3f24d8cb26 AS caustics-build
+FROM registry.fedoraproject.org/fedora:45@sha256:8430348a73c5a0e607b5de2cf9dd4741d9aa0891bbce3108588298102015f8c6 AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
 ARG CAUSTICS_REF=b7ff845af7ea3ca8a9b850e8d1f4616024b9abeb
 RUN --mount=type=bind,from=ctx-caustics-build,source=/,target=/ctx \

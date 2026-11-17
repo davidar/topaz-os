@@ -179,10 +179,10 @@ systemctl enable greetd.service
 # is the same stack without the fingerprint module (as for the lock
 # above). The session half keeps system-auth and the keyring module, so
 # the typed password unlocks the keyring. Guards as for the lock.
-grep -qE '^auth\s+substack\s+system-auth$' /etc/pam.d/greetd
-sed -i -E 's/^(auth\s+substack\s+)system-auth$/\1password-auth/' /etc/pam.d/greetd
-grep -qE '^auth\s+substack\s+password-auth$' /etc/pam.d/greetd
-if grep -qE '^auth\s+.*system-auth' /etc/pam.d/greetd; then
+grep -qE '^auth\s+substack\s+system-auth$' /usr/lib/pam.d/greetd
+sed -i -E 's/^(auth\s+substack\s+)system-auth$/\1password-auth/' /usr/lib/pam.d/greetd
+grep -qE '^auth\s+substack\s+password-auth$' /usr/lib/pam.d/greetd
+if grep -qE '^auth\s+.*system-auth' /usr/lib/pam.d/greetd; then
     echo "greetd's auth stack still reaches system-auth (pam_fprintd)" >&2
     exit 1
 fi
