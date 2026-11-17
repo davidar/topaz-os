@@ -1,13 +1,15 @@
-# Weekly refresh of the image's two repository-tracking inputs (ledger 0022).
+# Weekly refresh of the image's repository-tracking inputs (ledgers 0022,
+# 0052).
 #
 # The base image digest and the package lockfile must move atomically: the
 # lock records the package delta relative to the pinned base, so bumping
 # one without the other fails the build's lockfile assertion by design.
-# Renovate cannot regenerate rpm lockfiles, so digest updates for the base
-# image are disabled in renovate.json5 and owned here instead: this
-# workflow resolves the current base digest, replays the package
-# transactions against it, and opens one pull request carrying both
-# changes — always self-consistent, CI-green on arrival.
+# The same holds for the builder stages' fedora digest and their toolchain
+# locks. Renovate cannot regenerate rpm lockfiles, so digest updates for
+# both images are disabled in renovate.json5 and owned here instead: this
+# workflow resolves the current digests, replays the package transactions
+# against them, and opens one pull request carrying every change —
+# always self-consistent, CI-green on arrival.
 #
 # Scheduled a day ahead of build.yml's Saturday reproducibility rebuild.
 #
@@ -49,7 +51,23 @@ jobs:
               Containerfile
           echo "Base digest: ${digest}"
 
-      - name: Regenerate lockfile against the (possibly bumped) base
+      - name: Bump the builder stages' fedora digest
+        run: |
+          set -euo pipefail
+          # Both builder stages start from one fedora tag at one digest;
+          # their toolchain locks (ledger 0052) are resolved against it.
+          # The tag itself (the release) moves by hand with the base's.
+          tag=$(grep -oP '^FROM \Kregistry\.fedoraproject\.org/fedora:[0-9]+(?=@sha256:[0-9a-f]+ AS )' Containerfile | sort -u)
+          [ "$(wc -l <<< "$tag")" -eq 1 ]
+          # The index digest, as Renovate pinned it (plain inspect's
+          # .Digest names the amd64 child).
+          digest=sha256:$(skopeo inspect --no-tags --raw "docker://${tag}" | sha256sum | cut -d' ' -f1)
+          sed -E -i \
+              "s|(registry\.fedoraproject\.org/fedora:[0-9]+@)sha256:[0-9a-f]+|\1${digest}|" \
+              Containerfile
+          echo "Builder digest: ${tag}@${digest}"
+
+      - name: Regenerate the lockfiles against the (possibly bumped) images
         run: bash build_files/gen-lockfile.sh
 
       - name: Open a pull request if any input moved
@@ -57,27 +75,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- Containerfile 'build_files/packages*.lock'; then
-            echo "Base digest and lockfile unchanged; nothing to do."
+          if git diff --quiet -- Containerfile 'build_files/*.lock'; then
+            echo "Digests and lockfiles unchanged; nothing to do."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="refresh-inputs-$(date -u +%Y%m%d)"
           git checkout -b "$branch"
-          git add Containerfile 'build_files/packages*.lock'
-          git commit -m "Refresh base image digest and package lockfiles"
+          git add Containerfile 'build_files/*.lock'
+          git commit -m "Refresh image digests and lockfiles"
           git push -u origin "$branch"
           {
-            echo "Automated weekly input refresh (see ledger 0022)."
+            echo "Automated weekly input refresh (see ledgers 0022 and 0052)."
             echo
             echo '```'
-            git diff HEAD~1 --stat -- Containerfile 'build_files/packages*.lock'
+            git diff HEAD~1 --stat -- Containerfile 'build_files/*.lock'
             echo '```'
             echo
-            echo "Base digest and package lockfile move together so the"
-            echo "build's lockfile assertion holds. A CI build for this"
-            echo "branch is dispatched by the workflow that opened this PR."
+            echo "Each image digest and the lockfiles resolved against it"
+            echo "move together so the build's lockfile assertions hold. A CI"
+            echo "build for this branch is dispatched by the workflow that"
+            echo "opened this PR."
           } > /tmp/pr-body.md
           gh pr create \
             --title "Refresh image inputs ($(date -u +%Y-%m-%d))" \

@@ -15,7 +15,8 @@ pins one of the month-named timed wallpapers under
 `/usr/share/backgrounds/bluefin/` (`picture-uri-dark`), and GNOME reads
 that XML — a day image, a night image, a start time and two cross-fades
 — on its clock. A new month's artwork arrives with the next base image,
-not at runtime.
+not at runtime, and in whatever format Bluefin chose: JPEG XL most
+months, SVG from November 2026, both decoded by the canvas itself.
 
 The niri (topaz) session (ledger 0041) draws its wallpaper on the
 caustics canvas (ledger 0049), which shows one picture at a time and
@@ -42,7 +43,8 @@ Check: the script drives the canvas and not swaybg, the unit is ordered
 after the canvas's, the knob is documented, the override names an
 existing XML under the Bluefin artwork directory, the script's `--print`
 at noon and at 22:00 of the build day resolves to a day and a night
-image that exist, a knob naming a plain image is printed back unchanged,
+image that exist in a format the canvas decodes, a knob naming a plain
+image is printed back unchanged,
 and a probe schedule resolves a transition to its target with the
 seconds of fade left. Post-boot: the canvas reports the schedule's image
 after login, and the picture changes at the schedule's times.

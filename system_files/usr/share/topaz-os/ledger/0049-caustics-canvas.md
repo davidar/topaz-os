@@ -23,8 +23,9 @@ and their sidecars are one contract.
 
 Its sidecars do the talking. `caustics-wallpaper` owns a socket,
 `$XDG_RUNTIME_DIR/caustics-canvas.sock`, that scripts drive through
-`caustics-canvasctl`: `show <image> [fade <seconds>]` decodes a PNG, JPEG
-or JPEG XL and cross-fades to it (the wallpaper schedule, ledger 0048),
+`caustics-canvasctl`: `show <image> [fade <seconds>]` decodes a PNG, JPEG,
+JPEG XL or SVG (rendered once, at the size the output shows) and
+cross-fades to it (the wallpaper schedule, ledger 0048),
 `dim <alpha> over <seconds> [--wait]` is the warning before the idle lock
 (ledger 0046; `--wait` exits with chayang's codes: 0 at depth, 2
 cancelled by input, 1 could not), `status` reports what is shown.

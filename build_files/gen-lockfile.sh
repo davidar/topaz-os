@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Regenerate build_files/packages.lock (ledger 0022).
+# Regenerate build_files/packages.lock (ledger 0022) and the builder
+# stages' toolchain locks (ledger 0052).
 #
 # This file defines the image's package INTENT: the named packages below
 # are resolved (with all dependencies) against the Containerfile's pinned
@@ -11,6 +12,10 @@
 # mirrors have since dropped from koji (whose archive paths derive from
 # the source rpm field). Repository drift therefore cannot change or break
 # a build; it only ever appears as a reviewable diff of this file.
+#
+# The same holds for the compilers: each builder stage's packages are
+# resolved against the Containerfile's pinned fedora digest and recorded
+# in build_files/<stage>.lock, which the stage installs exactly.
 #
 # Usage: just lock   (or: bash build_files/gen-lockfile.sh)
 
@@ -126,3 +131,46 @@ echo "Wrote build_files/packages.lock:" >&2
     grep -c '^-' build_files/packages.lock | xargs echo "  removed:" >&2
     grep -c '^~' build_files/packages.lock | xargs echo "  transient:" >&2
 } || true
+
+# Builder toolchains (ledger 0052). The fork-built niri and the caustics
+# set are compiled in fedora stages whose packages used to come from a
+# bare `dnf install`: the compiler moved with Fedora's updates repository,
+# invisibly, because the build cache kept the old stage until a cold
+# rebuild (the reproducibility rebuild of 2026-11-07 compiled every Rust
+# binary with a rustc one point release newer than the published image's).
+# Each stage's packages are resolved here against the Containerfile's
+# pinned fedora digest, weak dependencies off like the image's, and
+# recorded as a lock of their own, which the stage installs exactly
+# (build_files/install-builder.sh). The package names are the stage's
+# intent; this is the only place they are written.
+builder_lock() { # <stage> <packages...>
+    local stage=$1 image
+    shift
+    image=$(grep -oP "^FROM \Kregistry\.fedoraproject\.org/fedora:\S+(?= AS ${stage}$)" Containerfile)
+    echo "Resolving the $stage toolchain against: $image" >&2
+    podman run --rm "$image" bash -euo pipefail -c '
+        census() {
+            rpm -qa --qf "%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH} %{SOURCERPM}\n" \
+                | grep -v "^gpg-pubkey" | LC_ALL=C sort
+        }
+        census > /tmp/pre
+        dnf5 -y install --setopt=install_weak_deps=False "$@" >&2
+        census > /tmp/post
+        LC_ALL=C comm -13 /tmp/pre /tmp/post | sed "s/^/+/"
+        LC_ALL=C comm -23 /tmp/pre /tmp/post | sed "s/^/-/"
+    ' builder-lock "$@" > "build_files/$stage.lock"
+    echo "Wrote build_files/$stage.lock: $(grep -c '^+' "build_files/$stage.lock") added" >&2
+}
+
+# diffutils is for the install script's own delta assertion (the fedora
+# image ships without it); the rest is each stage's build.
+# niri (ledger 0037): Rust plus the C libraries its crates bind.
+builder_lock niri-build \
+    diffutils gcc cargo rust clang glibc-devel pkgconf-pkg-config git-core \
+    cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel glib2-devel \
+    gtk4-devel libadwaita-devel libdisplay-info-devel libinput-devel \
+    pipewire-devel libseat-devel systemd-devel pango-devel wayland-devel \
+    libxkbcommon-devel
+# caustics (ledgers 0044, 0049): Rust and a C compiler for its build
+# scripts; gcc requires glibc-devel, so the headers come with it.
+builder_lock caustics-build diffutils gcc cargo rust git-core pkgconf-pkg-config
