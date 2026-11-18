@@ -454,6 +454,14 @@ cmd_check() {
                  test -L /etc/systemd/user/default.target.wants/oo7-daemon.service &&
                  grep -q "^enable oo7-daemon.service$" /usr/lib/systemd/user-preset/45-topaz.preset &&
                  grep -qE "^-?session\s+optional\s+pam_oo7\.so\s+auto_start$" /usr/lib/pam.d/greetd'
+    # oo7-daemon asks to lock its memory and is refused (the user manager's
+    # 8 MiB RLIMIT_MEMLOCK), and this image swaps to a file on disk, so an
+    # unlocked keyring could be written there in the clear. A drop-in
+    # forbids swap for the daemon's cgroup instead. Post-boot:
+    # memory.swap.max of the unit's cgroup reads 0.
+    chk "the keyring daemon's memory is never swapped" \
+        grep -qx 'MemorySwapMax=0' \
+            /usr/lib/systemd/user/oo7-daemon.service.d/10-topaz-no-swap.conf
     # ddcutil's and OpenRGB's udev rules gave the seated user an ACL on
     # every /dev/i2c-*, the DDC/CI buses behind the display connectors
     # included. On this hardware (Radeon 780M, PSR-capable eDP) a raw AUX
