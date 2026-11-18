@@ -1,6 +1,5 @@
 [Unit]
 Description=Create the disk swapfile for zswap
-Documentation=file:///usr/share/topaz-os/ledger/0042-zswap-disk-swap.md
 ConditionPathExists=!/var/swap/swapfile
 # Swap activates before sysinit.target, so this runs outside the default
 # dependency set: only /var is needed.

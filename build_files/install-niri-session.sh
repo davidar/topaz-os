@@ -6,7 +6,7 @@
 
 set -ouex pipefail
 
-### niri topaz fork (ledger 0037)
+### niri topaz fork
 # The packaged niri binary is replaced by the topaz fork, built on the
 # same upstream release. Everything else from the niri package (session
 # files, systemd units, default config, docs) stays. Guard: fail loudly
@@ -21,7 +21,7 @@ if [ "$packaged_niri" != "$niri_base_version" ]; then
 fi
 install -m0755 /niri-build/niri /usr/bin/niri
 
-### caustics bar and canvas (ledgers 0044, 0049)
+### caustics bar and canvas
 # One set: the nineteen binaries under /usr/lib/caustics-bar/<abi-hash>/
 # and, in /usr/bin, a symlink into it for each binary something
 # outside the set starts by name: the bar and the canvas (their units)
@@ -42,7 +42,7 @@ done
   cat /caustics-build/build-info; } \
     > /usr/share/topaz-os/niri-session-build
 
-### Builder toolchain locks (ledger 0052)
+### Builder toolchain locks
 # Each stage's lock ships beside the package lock, so `topaz check` can
 # hold the rustc the stage recorded against the build the lock names.
 install -m0644 /niri-build/niri-build.lock /caustics-build/caustics-build.lock \

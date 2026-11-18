@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Suite: the idle path of the niri (topaz) session (ledgers 0046, 0049).
+# Suite: the idle path of the niri (topaz) session.
 # The knob file retunes swayidle's stages; the canvas dims the screen
 # before the idle lock; a keypress during the dim cancels that lock; an
 # undisturbed dim ends in the lock, which a typed password clears. Runs
@@ -27,7 +27,7 @@ check "test password set" set_test_password
 knobs=/home/tester/.config/topaz/session.conf
 idle_argv() { tssh pgrep -u tester -a -x swayidle 2>/dev/null; }
 argv_has() { contains "$(idle_argv)" "$1"; }
-# The canvas reports its own state (ledger 0049): the wallpaper line
+# The canvas reports its own state: the wallpaper line
 # begins with the dim's, the lock's line says whether the session is
 # locked. An unreachable canvas matches nothing, so every probe fails
 # closed.

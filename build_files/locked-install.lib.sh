@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Shared machinery for the package layers (ledgers 0020, 0022). Each
+# Shared machinery for the package layers. Each
 # package layer is one RUN installing one exact-NEVRA lockfile, and every
 # RUN commits whatever it leaves behind — so each layer must end in a
 # committable state itself: reproducible rpm metadata, canonical scriptlet
@@ -34,7 +34,7 @@ census() {
     grep -v '^gpg-pubkey' <<< "$pkgs" | LC_ALL=C sort
 }
 
-### Reproducible package installs, prologue (ledger 0020)
+### Reproducible package installs, prologue
 # rpm stamps wall-clock INSTALLTIME/INSTALLTID into the rpm database, so
 # two builds of an identical package set differ byte-wise. rpm honors
 # SOURCE_DATE_EPOCH at install time; clamp it to the newest install time
@@ -72,7 +72,7 @@ clamp_install_times() {
 # every package whatever served it, and doing so with every repository
 # disabled proves the lock is a closure instead of asserting it after
 # the fact. Packages the transaction needs but the image must not ship
-# (cosmic-initial-setup, ledger 0025) are in the lock as transients (~):
+# (once cosmic-initial-setup) are in the lock as transients (~):
 # installed here, removed by the layer script before the census. File
 # installs skip repository signature policy, so the local check is
 # turned on explicitly; the keys are in the rpm database from the base
@@ -182,7 +182,7 @@ locked_install() {
     fi
 }
 
-### Locked package set, epilogue (ledger 0022)
+### Locked package set, epilogue
 # Assert that this layer's delta over the pre-install census ($2) is
 # byte-for-byte the committed lockfile ($1) — weak deps, conflicts and
 # scriptlet side effects included — and ship the delta in the image so
@@ -210,7 +210,7 @@ verify_layer_delta() {
 # Leave the layer committable: reproducible rpm databases, canonical
 # scriptlet output, no /var or /run debris.
 commit_clean_layer() {
-    ### Reproducible package installs, epilogue (ledger 0020)
+    ### Reproducible package installs, epilogue
     # rpm leaves its sqlite databases in WAL journal mode. A WAL database
     # is unreadable without its -wal/-shm sidecars, and those are
     # nondeterministic runtime state the image must not ship — but dropping
@@ -300,7 +300,7 @@ if verdict != "ok":
         [ -d /etc/selinux/targeted/active/modules/200/greetd ]
     fi
 
-    ### Empty /var (ledger 0024)
+    ### Empty /var
     # /var is machine state: the image ships none (only an empty /var/tmp,
     # matching the base), and everything a dnf run leaves there is a
     # reproducibility hazard (countme cookies roll a random request budget

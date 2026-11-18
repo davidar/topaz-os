@@ -9,15 +9,13 @@ hybrid AMD+NVIDIA laptops. Built from the Universal Blue
 
 ## What's different from Bluefin DX
 
-Every deliberate deviation from the base image is recorded in a provenance ledger
-shipped inside the image (`/usr/share/topaz-os/ledger/`) — what changed, why, and the
-evidence — and `topaz check` verifies the deviations at build time, so an image that no
-longer matches its own ledger fails to build. The ledger, not this README, is the
-authoritative list:
+Every deliberate deviation from the base image is asserted by `topaz check`, which
+runs at build time, so an image that no longer matches its checks fails to build. The
+check script ([`/usr/bin/topaz`](system_files/usr/bin/topaz)) is also the record: the
+comment above each check says what the deviation is and why. It, not this README, is
+the authoritative list:
 
 ```
-$ topaz ledger                        # list all recorded deviations
-$ topaz why /usr/lib/environment.d/50-gsk-renderer.conf   # why does this file deviate?
 $ topaz check                         # verify the deviations actually hold
 ```
 
@@ -33,9 +31,9 @@ In broad strokes:
   niri is built from source with every hardcoded gesture, input, layout and animation
   constant promoted to config and blur masked by each surface's own shape.
 - **No COSMIC session** — the COSMIC desktop the image started with is gone with the
-  forks it needed (ledger 0047); the COSMIC apps stay as plain Fedora packages,
-  nothing COSMIC runs in the session (ledgers 0039, 0050). GNOME remains the fallback session — pick at
-  the login screen (greetd running tuigreet on the console; ledger 0045).
+  forks it needed; the COSMIC apps stay as plain Fedora packages,
+  nothing COSMIC runs in the session. GNOME remains the fallback session — pick at
+  the login screen (greetd running tuigreet on the console).
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and fingerprint unlock at the lock screen.

@@ -1,61 +1,24 @@
 #!/bin/bash
 # topaz — the topaz-os system companion.
 #
-#   topaz why <path>     Why does this file deviate from the base image?
-#   topaz ledger         List all recorded deviations
-#   topaz check          Verify the image's recorded deviations actually hold
+#   topaz check          Verify every deliberate deviation from the base image holds
 #   topaz dev ...        Transient /usr overlay for locally built binaries
 #   topaz pull [image]   Fetch a big update in parallel and stage it for reboot
+#
+# cmd_check is also the record of what this image changes and why: each
+# check asserts one deliberate deviation from the base image, and the
+# comment above it says what the deviation is for. A change that can be
+# verified at build time adds its check here, with its reason.
 set -euo pipefail
 
-LEDGER_DIR="${TOPAZ_LEDGER_DIR:-/usr/share/topaz-os/ledger}"
 DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
-strip_frontmatter() {
-    awk 'BEGIN{fm=0} /^---$/{fm++; next} fm!=1{print}' "$1"
-}
-
-entry_title() {
-    awk '/^title:/{sub(/^title: */, ""); print; exit}' "$1"
-}
-
-cmd_ledger() {
-    local f
-    for f in "$LEDGER_DIR"/*.md; do
-        [ -e "$f" ] || { echo "No ledger entries found in $LEDGER_DIR"; exit 1; }
-        printf '%s  %s\n' "$(basename "$f" .md)" "$(entry_title "$f")"
-    done
-}
-
-cmd_why() {
-    local query="${1%/}" f found=0
-    for f in "$LEDGER_DIR"/*.md; do
-        [ -e "$f" ] || break
-        if awk -v q="$query" '
-            BEGIN{fm=0; hit=1}
-            /^---$/{fm++; next}
-            fm==1 && /^  - /{sub(/^  - /,""); if ($0==q) {hit=0; exit}}
-            END{exit hit}
-            ' "$f"; then
-            found=1
-            strip_frontmatter "$f"
-            echo
-        fi
-    done
-    if [ "$found" -eq 0 ]; then
-        echo "No ledger entry covers '$query'."
-        echo "It likely comes from the base image (see: https://docs.projectbluefin.io/)"
-        echo "or was changed locally on this machine outside the image."
-        exit 1
-    fi
-}
-
-# --- checks: each recorded deviation must actually hold on this system ------
+# --- checks: each deviation must actually hold on this system ---------------
 
 fails=0
 chk() { # chk <description> <command...>
@@ -69,12 +32,25 @@ chk() { # chk <description> <command...>
 }
 
 cmd_check() {
-    # Kernel releases with a known regression on this hardware are held out
-    # of the image (ledger 0040): the pattern is the denylist, the ledger
-    # entry says why and when to drop it. The weekly input refresh goes
-    # red instead of shipping such a kernel.
-    chk "kernel is not a known-bad release: 7.1.6/7.1.7 amdgpu scanout corruption (ledger 0040)" \
+    # Kernel releases with a known regression on this hardware are refused:
+    # the pattern is the denylist. The weekly input refresh goes red
+    # instead of shipping such a kernel, and on a booted machine a failure
+    # means the running kernel is one this image would refuse.
+    #   7.1.6, 7.1.7: amdgpu scanout corruption on the Radeon 780M (blocks
+    #   of noise during large redraws; Red Hat bug 2512106), fixed in
+    #   7.1.8. Drop the pattern once no base can carry them.
+    # The base follows Bluefin's `latest` (Fedora's own kernel), not
+    # `stable`: the CoreOS soak behind `stable` catches server regressions,
+    # not desktop-GPU ones, and it delayed that fix by two weeks.
+    chk "kernel is not a known-bad release: 7.1.6/7.1.7 amdgpu scanout corruption" \
         bash -c '! rpm -q kernel --qf "%{VERSION}-%{RELEASE}\n" | grep -qE "^7\.1\.[67]-"'
+    # Memory exhaustion resolves in about a second instead of thrashing for
+    # a minute. MGLRU min_ttl_ms=1000: the kernel OOM-kills the top
+    # consumer rather than evict a working set younger than a second
+    # (ChromeOS's value; mainline leaves it off). SysRq: Alt+PrtSc+F is a
+    # manual kernel-level kill that works with userspace frozen.
+    # systemd-oomd acts on 5 s of pressure, not 20. earlyoom was removed:
+    # it watches MemAvailable, which stays high through a thrash spiral.
     chk "MGLRU anti-thrash threshold ships (kill fast instead of thrashing)" \
         grep -q 'min_ttl_ms - - - - 1000' /usr/lib/tmpfiles.d/topaz-mglru.conf
     chk "SysRq is fully enabled (manual OOM kill escape hatch)" \
@@ -82,28 +58,52 @@ cmd_check() {
     chk "systemd-oomd acts on 5s of sustained pressure" \
         grep -qx 'DefaultMemoryPressureDurationSec=5s' \
             /usr/lib/systemd/oomd.conf.d/topaz.conf
-    chk "no zram device: the generator config defines none (ledger 0042)" \
+    # Swap is zswap (zstd, LRU shrinker) over a disk swapfile created on
+    # first boot, not Fedora's zram. A zram pool is RAM: cold pages never
+    # leave memory, and once the pool is full the OOM killer is the only
+    # release valve. The comment-only zram-generator.conf overrides the
+    # packaged default and defines no device (zram under zswap would
+    # compress every page twice). Post-boot: `swapon --show` lists
+    # /var/swap/swapfile and no zram device.
+    chk "no zram device: the generator config defines none" \
         bash -c 'test -f /etc/systemd/zram-generator.conf &&
                  ! grep -q "^\[" /etc/systemd/zram-generator.conf'
-    chk "zswap is enabled with zstd and the LRU shrinker (ledger 0042)" \
+    chk "zswap is enabled with zstd and the LRU shrinker" \
         bash -c 'f=/usr/lib/tmpfiles.d/topaz-zswap.conf &&
                  grep -q "parameters/compressor - - - - zstd" "$f" &&
                  grep -q "parameters/shrinker_enabled - - - - Y" "$f" &&
                  grep -q "parameters/enabled - - - - Y" "$f"'
-    chk "disk swapfile unit is enabled and its creator is executable (ledger 0042)" \
+    chk "disk swapfile unit is enabled and its creator is executable" \
         bash -c 'ls /etc/systemd/system/swap.target.wants/var-swap-swapfile.swap >/dev/null 2>&1 &&
                  test -x /usr/libexec/topaz/swapfile'
+    # GTK4's Vulkan renderer enumerates Vulkan devices at startup, and the
+    # NVIDIA driver powers a suspended dGPU on to answer: about 2 s added
+    # to every GTK4 app launch on a hybrid laptop. The GL renderer does not
+    # enumerate. Revisit if NVIDIA ships enumeration without the wake-up.
     chk "GTK4 GL renderer default is present" \
         grep -qx 'GSK_RENDERER=gl' /usr/lib/environment.d/50-gsk-renderer.conf
+    # The Goodix 27c6:550a fingerprint sensor has no driver in upstream
+    # libfprint; libfprint-tod and the Goodix TOD driver (a pinned-version
+    # COPR) replace it.
     chk "Goodix fingerprint TOD driver is installed" \
         rpm -q libfprint-tod-goodix
+    # GRUB titles boot entries with os-release's PRETTY_NAME; inherited
+    # verbatim, this image and its Bluefin rollback were identical lines in
+    # the boot menu. Only NAME and PRETTY_NAME change: ID and the rest stay
+    # Bluefin's, so Universal Blue tooling keeps treating it as a
+    # derivative.
     chk "os-release identifies the image as topaz-os" \
         bash -c 'grep -q "^NAME=\"topaz-os\"" /usr/lib/os-release &&
                  grep -q "^PRETTY_NAME=\"topaz-os " /usr/lib/os-release'
-    # No COSMIC session or shell, no fork-built COSMIC binary (ledger
-    # 0047): the packages the image once forked are absent, and so is
-    # everything that existed only for the sessions they served.
-    chk "no COSMIC session, shell or fork remains (ledger 0047)" \
+    # No COSMIC session or shell and no fork-built COSMIC binary. The daily
+    # session runs none of them, and the four forks the COSMIC sessions
+    # needed (cosmic-comp with smithay, greeter, applets, idle) cost a
+    # rebase at every Fedora COSMIC release. The packages the image once
+    # forked are absent, and so is everything that existed only for the
+    # sessions they served. The applications stay as ordinary packages
+    # (files, settings and the launcher stand for them here); GNOME is the
+    # fallback session.
+    chk "no COSMIC session, shell or fork remains" \
         bash -c 'for p in cosmic-session cosmic-comp cosmic-greeter cosmic-applets \
                           cosmic-idle cosmic-panel cosmic-bg cosmic-notifications \
                           cosmic-initial-setup cosmic-wallpapers; do
@@ -124,17 +124,32 @@ cmd_check() {
                  for p in cosmic-files cosmic-settings cosmic-launcher; do
                      rpm -q $p > /dev/null 2>&1 || exit 1
                  done'
-    chk "niri is the topaz build: tunables, masked blur, trusted sandboxes (ledger 0037)" \
+    # /usr/bin/niri is built from the topaz fork (github.com/davidar/niri)
+    # at a pinned commit on the release Fedora packages; the rest of the
+    # niri package is unchanged. The fork turns 28 compile-time constants
+    # (swipe distances, finger counts, thresholds) into config keys, masks
+    # background blur by the surface's own alpha, keeps a lock in flight
+    # across a skipped frame (a suspend otherwise resumed unlocked),
+    # reports a spawn that fails to exec instead of deadlocking, and adds
+    # the ext-image-copy-capture protocols and a has-sibling window
+    # matcher. The build fails when Fedora's niri moves past the fork's
+    # base (rebase, then move NIRI_REF), and the builder's Fedora release
+    # must match the image's or the binary fails to load (glibc): hence
+    # the version and library assertions.
+    chk "niri is the topaz build: tunables, masked blur, trusted sandboxes" \
         bash -c 'test -f /usr/share/topaz-os/niri-session-build &&
                  rpm -Vf /usr/bin/niri | grep "/usr/bin/niri$" | grep -q 5 &&
                  [ "$(rpm -q --qf %{VERSION} niri)" = \
                    "$(sed -n "s/^niri_base=//p" /usr/share/topaz-os/niri-session-build)" ] &&
                  ! ldd /usr/bin/niri | grep -q "not found"'
-    # The compilers are locked like the packages (ledger 0052): each
-    # builder stage recorded the rustc it installed, that build is the
-    # one the stage's shipped lock names, and the binary carries the
-    # Fedora build stamp rustc embeds.
-    chk "fork-built binaries carry their locked rustc (ledger 0052)" \
+    # The compilers are locked like the packages. An unpinned `dnf install`
+    # in the builder stages let a cached stage ship a niri compiled by an
+    # older rustc than a cold rebuild installs, and every Rust layer failed
+    # the weekly reproducibility check. Each stage now installs exactly its
+    # own lock (niri-build.lock, caustics-build.lock) and records the rustc
+    # it got: that build is the one the shipped lock names, and the binary
+    # carries the Fedora build stamp rustc embeds.
+    chk "fork-built binaries carry their locked rustc" \
         bash -c 'info=/usr/share/topaz-os/niri-session-build
                  for pair in niri:/usr/bin/niri caustics:/usr/bin/caustics-bar; do
                      name=${pair%%:*}; bin=${pair#*:}
@@ -143,6 +158,11 @@ cmd_check() {
                      grep -q "^+rust-0:${evr}\.x86_64 " "/usr/share/topaz-os/${name}-build.lock" || exit 1
                      grep -aqF "(Fedora ${evr})" "$bin" || exit 1
                  done'
+    # /etc/niri/config.kdl, the fallback for accounts without a config of
+    # their own, is niri's default plus the session's binds and the fork's
+    # keys at their upstream defaults, so the knobs are documented where
+    # they are set. The lock bind goes through logind: the lock client is
+    # resident and hears the signal.
     chk "baked niri config is valid and carries no COSMIC session plumbing" \
         bash -c '! grep -q "^include " /etc/niri/config.kdl &&
                  ! grep -q "alternative-startup\|import-environment\|cosmic-shim\|trust-sandbox-engine" /etc/niri/config.kdl &&
@@ -152,10 +172,17 @@ cmd_check() {
                  grep -q "has-sibling=true" /etc/niri/config.kdl &&
                  ! grep -q "spawn \"cosmic-greeter\"" /etc/niri/config.kdl &&
                  niri validate -c /etc/niri/config.kdl'
-    # niri 26.04 skips a startup spawn whose binary is missing without a
-    # word (the spawner deadlocks on the exec error), so resolve every
-    # target here instead of finding out at login.
-    chk "niri (topaz) session: entry, units, shims and packages are in place (ledger 0041)" \
+    # The niri (topaz) session: niri's own systemd session with the
+    # caustics bar and canvas and toolkit-free tools (swayidle, fuzzel,
+    # cliphist, topaz-osd) as user units wanted by
+    # graphical-session.target, each gated on XDG_SESSION_DESKTOP=topaz so
+    # the GNOME session is untouched. No COSMIC shell process runs in it:
+    # the shell's pieces had accumulated forks and incidents for no gain
+    # over tools every other niri setup uses. Brightness goes through
+    # logind's SetBrightness (no brightnessctl, no udev rule). What the
+    # bar and canvas replaced (swaylock, swaybg, cosmic-osd, chayang,
+    # mako, wob and their units) must stay gone.
+    chk "niri (topaz) session: entry, units, shims and packages are in place" \
         bash -c 'grep -q "^Exec=/usr/bin/niri-session$" /usr/share/wayland-sessions/topaz.desktop &&
                  grep -q "^DesktopNames=topaz$" /usr/share/wayland-sessions/topaz.desktop &&
                  ! test -e /usr/share/wayland-sessions/topaz-niri.desktop &&
@@ -192,7 +219,13 @@ cmd_check() {
                  ! test -e /usr/share/xdg-desktop-portal/topaz-portals.conf &&
                  grep -q "spawn \"fuzzel\"" /etc/niri/config.kdl &&
                  grep -q "spawn \"topaz-osd\" \"volume\" \"up\"" /etc/niri/config.kdl'
-    chk "idle stages from one knob file, with the canvas's dim before the lock (ledger 0046)" \
+    # swayidle's stages come from one knob file (~/.config/topaz/
+    # session.conf: TOPAZ_IDLE_LOCK, _WARN, _BLANK, _SUSPEND; 0 switches a
+    # stage off; the shipped example documents each). The canvas dims the
+    # screen for the warning period before the lock. Input cancels the dim
+    # and that lock; a canvas that cannot be asked locks anyway, so a
+    # missing warning fails toward a locked screen, never an open one.
+    chk "idle stages from one knob file, with the canvas's dim before the lock" \
         bash -c '! command -v chayang > /dev/null &&
                  ! grep -q chayang /usr/share/topaz-os/niri-session-build &&
                  test -x /usr/libexec/topaz/idle &&
@@ -228,7 +261,12 @@ cmd_check() {
     # line-buffers a pipe, so they are three writes: `head -1` can exit
     # between them and kill the script with SIGPIPE (it did, on the CI
     # guest). sed and tr read to EOF and cannot.
-    chk "wallpaper follows the base image's timed schedule on the canvas (ledger 0048)" \
+    # GNOME gets its wallpaper from the base image for free: Bluefin pins
+    # the month's timed XML (a day image, a night image, two cross-fades)
+    # in a gschema override. The session reads the same override and
+    # drives the canvas from it, so it needs no per-user state;
+    # TOPAZ_WALLPAPER in the knob file names another image or XML.
+    chk "wallpaper follows the base image's timed schedule on the canvas" \
         bash -c 'set -o pipefail
                  test -x /usr/libexec/topaz/background &&
                  grep -q "caustics-canvasctl show" /usr/libexec/topaz/background &&
@@ -256,7 +294,18 @@ cmd_check() {
                  [ "$(at 01:15)" = "/b.jxl 4500 900 " ] &&
                  [ "$(at 02:45)" = "/a.jxl 4500 900 " ] &&
                  rm -f "$probe"'
-    chk "caustics bar: one set of nineteen binaries, the link into it, the unit and its GPU wrapper (ledger 0044)" \
+    # caustics (github.com/davidar/caustics), the session's bar, is built
+    # from source at a pinned commit: no distribution packages it. The
+    # bar, the canvas and their sidecars install as one set under
+    # /usr/lib/caustics-bar/<abi-hash>/, and a host refuses a sidecar from
+    # another set, so exactly one set ships and nothing else is in it. The
+    # shaders are compiled in (no CAUSTICS_DIR, no /usr/share/caustics).
+    # The caustics-gpu wrapper pins the Vulkan loader to the integrated
+    # GPU's driver, because enumerating the discrete GPU's driver can wake
+    # it for the life of the session; the test VM draws with lavapipe.
+    # The bar restarts on a crash but not on exit 2 (it refuses to run)
+    # or 3 (the GPU device is gone).
+    chk "caustics bar: one set of nineteen binaries, the link into it, the unit and its GPU wrapper" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)
                  [ "${#sets[@]}" -eq 1 ] || exit 1
@@ -290,7 +339,19 @@ cmd_check() {
     # setuid polkit helper, libpam, the lock's own PAM service (named on
     # the unit, shipped in /etc/pam.d, on the fingerprint-free stack) and
     # libxkbcommon for the prompt's keymap.
-    chk "caustics canvas: the unit, its restart rule, its sidecars, the links and the client (ledger 0049)" \
+    # The caustics canvas draws the wallpaper, the idle dim, the polkit
+    # prompt and the lock screen: one process for what swaybg, chayang,
+    # cosmic-osd and swaylock did. It restarts on every exit, because a
+    # locked session must get its lock client back (the compositor keeps
+    # the session locked meanwhile, and the canvas re-locks from logind's
+    # LockedHint). The polkit agent, the lock, the secret agent and the
+    # pairing sink start only when the unit names them: two agents or two
+    # lockers on one session fight. The lock's PAM service is its own file
+    # on password-auth: the sidecar's default name, swaylock, would fall
+    # to PAM's deny-all `other` now that swaylock is gone, and
+    # system-auth's pam_fprintd would add 5 s to every unlock (the lock
+    # takes fingerprints through fprintd itself).
+    chk "caustics canvas: the unit, its restart rule, its sidecars, the links and the client" \
         bash -c 'set -o pipefail
                  u=/usr/lib/systemd/user/caustics-canvas.service
                  grep -q "^ConditionEnvironment=XDG_SESSION_DESKTOP=topaz$" $u &&
@@ -310,6 +371,9 @@ cmd_check() {
                  grep -qE "^auth\s+include\s+password-auth$" /etc/pam.d/caustics-lock &&
                  ! grep -q pam_fprintd /etc/pam.d/password-auth &&
                  test -f /usr/lib64/libxkbcommon.so.0'
+    # niri 26.04 skips a startup spawn whose binary is missing without a
+    # word (the spawner deadlocks on the exec error), so resolve every
+    # target here instead of finding out at login.
     chk "every spawn-at-startup target in the baked niri config exists" \
         bash -c 'set -o pipefail
                  { grep -h "^spawn-at-startup " /etc/niri/*.kdl || true; } |
@@ -320,7 +384,18 @@ cmd_check() {
                          *) command -v "$cmd" >/dev/null ;;
                          esac || { echo "missing spawn target: $cmd" >&2; exit 1; }
                      done'
-    chk "niri session portals: gtk first; ScreenCast, Screenshot and Settings on gnome (ledger 0039)" \
+    # xdg-desktop-portal routes an interface to the first backend whose
+    # .portal file declares it and never probes what the backend exports.
+    # portal-gnome declares far more than it serves outside GNOME, so the
+    # packaged default=gnome;gtk; sent FileChooser into "no such
+    # interface". The default is gtk first, with ScreenCast, Screenshot
+    # and Settings named for gnome: niri implements the Mutter ScreenCast
+    # and Shell Screenshot D-Bus APIs that backend drives, and its
+    # Settings answers from gsettings. The baked niri config floats
+    # portal dialogs by app-id, since niri cannot tie them to a parent.
+    # Post-boot: a file dialog, a screen-share picker, a portal
+    # screenshot.
+    chk "niri session portals: gtk first; ScreenCast, Screenshot and Settings on gnome" \
         bash -c 'grep -q "^default=gtk;gnome;$" \
                      /usr/share/xdg-desktop-portal/niri-portals.conf &&
                  grep -q "^org.freedesktop.impl.portal.FileChooser=gtk;$" \
@@ -339,12 +414,25 @@ cmd_check() {
                  grep -q "impl.portal.Settings" /usr/share/xdg-desktop-portal/portals/gnome.portal &&
                  ! test -e /usr/share/xdg-desktop-portal/portals/cosmic.portal &&
                  ! test -e /usr/libexec/xdg-desktop-portal-cosmic'
-    chk "terminal settings tools: one packaged tool per domain the shell leaves to a terminal (ledger 0051)" \
+    # The session has no settings application. The bar and the canvas
+    # cover the daily cases and the rest is done in a terminal, which also
+    # works over ssh: one packaged tool per domain, nothing enabled.
+    chk "terminal settings tools: one packaged tool per domain the shell leaves to a terminal" \
         bash -c 'for b in nmtui wiremix kanshi wlr-randr wlsunset grim slurp wf-recorder btop ncdu gdu bashmount; do
                      command -v $b > /dev/null || { echo "missing: $b" >&2; exit 1; }
                  done &&
                  ! command -v brightnessctl > /dev/null'
-    chk "greetd with tuigreet is the display manager (ledger 0045)" \
+    # greetd runs tuigreet on VT 1 in place of GDM. A terminal greeter
+    # shares no compositor, toolkit or GPU driver with the sessions it
+    # starts, so a broken session cannot take the login screen with it.
+    # Its auth stack is password-auth, not system-auth: tuigreet runs the
+    # PAM conversation in order, so pam_fprintd's 5 s would precede every
+    # password prompt, for a fingerprint that cannot unlock the keyring.
+    # Fedora's tuigreet keeps its remember-records in the greeter's home,
+    # which an empty /var leaves root-owned: hence the tmpfiles rule.
+    # Rescue: VT 2, `systemctl disable greetd && systemctl enable gdm`,
+    # reboot.
+    chk "greetd with tuigreet is the display manager" \
         bash -c '[ "$(basename "$(readlink /etc/systemd/system/display-manager.service)")" = greetd.service ] &&
                  ! systemctl is-enabled gdm.service > /dev/null 2>&1 &&
                  grep -q "^vt = 1$" /etc/greetd/config.toml &&
@@ -354,16 +442,42 @@ cmd_check() {
                  grep -q "^d /var/lib/greetd 0755 greetd greetd" /usr/lib/tmpfiles.d/topaz-greetd-home.conf &&
                  grep -qE "^auth\s+substack\s+password-auth$" /usr/lib/pam.d/greetd &&
                  ! grep -qE "^auth\s+.*system-auth" /usr/lib/pam.d/greetd'
-    chk "Secret Service starts in every session: oo7-daemon is enabled for all users (ledger 0053)" \
+    # Since Fedora 45 the keyring is oo7. pam_oo7 does not start the
+    # daemon; only GNOME's session target does, and nothing D-Bus-activates
+    # org.freedesktop.secrets. Outside GNOME the login password went to a
+    # helper that timed out, and applications had no keyring. The unit is
+    # enabled for every user. Post-boot (hardware): a password login
+    # unlocks the login collection without a prompt.
+    chk "Secret Service starts in every session: oo7-daemon is enabled for all users" \
         bash -c 'test -x /usr/libexec/oo7-daemon &&
                  grep -q "^BusName=org.freedesktop.secrets$" /usr/lib/systemd/user/oo7-daemon.service &&
                  test -L /etc/systemd/user/default.target.wants/oo7-daemon.service &&
                  grep -q "^enable oo7-daemon.service$" /usr/lib/systemd/user-preset/45-topaz.preset &&
                  grep -qE "^-?session\s+optional\s+pam_oo7\.so\s+auto_start$" /usr/lib/pam.d/greetd'
+    # ddcutil's and OpenRGB's udev rules gave the seated user an ACL on
+    # every /dev/i2c-*, the DDC/CI buses behind the display connectors
+    # included. On this hardware (Radeon 780M, PSR-capable eDP) a raw AUX
+    # transaction to a disconnected port before the panel's first PSR
+    # arming hangs that arming for good, and cosmic-settings-daemon probed
+    # every bus at login: sessions froze at the first idle moment. No rule
+    # may grant the access; `sudo ddcutil` still works.
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
+    # Panel Self Refresh is off (amdgpu.dcdebugmask=0x10). With the i2c
+    # door closed the same DMCUB wedge (flip_done timed out, display dead
+    # until reboot) still struck mid-session, and a hard freeze also
+    # discards a staged update. With PSR never armed, its entry cannot
+    # hang. Costs about 1 W on a static screen; revisit when amdgpu or
+    # DMUB is fixed. Post-boot: grep amdgpu.dcdebugmask /proc/cmdline.
     chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \
         grep -q 'amdgpu.dcdebugmask=0x10' /usr/lib/bootc/kargs.d/10-topaz-display.toml
+    # PAM runs pam_fprintd ahead of the password module, and its default
+    # timeout is 30 s: half a minute before a password can be typed. A
+    # custom authselect profile symlinks every file to the base `local`
+    # profile, so upstream changes flow through, except system-auth,
+    # which is patched to timeout=5. The state file is compared exactly
+    # because the CI build environment once committed it torn (new size,
+    # old blocks) with every tool exiting 0.
     chk "fingerprint PAM timeout is 5s" \
         grep -q 'pam_fprintd.so timeout=5' /etc/pam.d/system-auth
     chk "authselect profile symlinks to the base profile" \
@@ -371,48 +485,88 @@ cmd_check() {
     chk "authselect state file records the custom profile" \
         bash -c '[ "$(cat /etc/authselect/authselect.conf)" = "$(printf \
             "custom/local-custom\nwith-fingerprint\nwith-silent-lastlog\nwith-mdns4")" ]'
+    # Playwright and other automation hardcode /opt/google/chrome/chrome.
+    # Chrome here is a Flatpak, so a tmpfiles.d rule links that path to
+    # the Flatpak's exported wrapper at boot (a dangling link is
+    # harmless).
     chk "Playwright Chrome path rule is present" \
         test -f /usr/lib/tmpfiles.d/topaz-chrome-path.conf
+    # supergfxd (GPU mode switching on hybrid laptops) ships in the base
+    # with its service off; a preset enables it so a fresh install has
+    # it.
     chk "supergfxd is enabled" \
         bash -c 'ls /etc/systemd/system/*.wants/supergfxd.service >/dev/null 2>&1'
+    # Fedora ships speech-dispatcher's socket disabled, which costs
+    # Flatpak browsers their text-to-speech.
     chk "speech-dispatcher user preset is present" \
         grep -q 'enable speech-dispatcher.socket' /usr/lib/systemd/user-preset/45-topaz.preset
+    # Userland (per-user services, recipes, installers) lives in the
+    # topaz-home companion repo and updates at git speed; the image keeps
+    # what needs atomic updates and rollback. Its one hook here is the
+    # `ujust topaz-home` recipe, which clones and never applies.
     chk "topaz-home bootstrap recipe is present" \
         bash -c 'test -f /usr/share/ublue-os/just/60-custom.just &&
                  grep -q "^topaz-home" \
                      /usr/share/ublue-os/just/60-custom.just'
-    # the zone dir is root-only readable, so unprivileged runs (nightshift)
-    # skip the grep; the build gate runs as root and asserts it
-    chk "KDE Connect firewall ports are open (ledger 0030)" \
+    # KDE Connect runs in a distrobox (topaz-home) that shares the host's
+    # network namespace, so pairing still needs the host firewall to pass
+    # its ports: host state a per-user recipe cannot own.
+    # The zone dir is root-only readable, so unprivileged runs skip the
+    # grep; the build gate runs as root and asserts it.
+    chk "KDE Connect firewall ports are open" \
         bash -c '[ ! -r /etc/firewalld/zones/FedoraWorkstation.xml ] ||
                  grep -q "service name=\"kdeconnect\"" \
                      /etc/firewalld/zones/FedoraWorkstation.xml'
-    chk "ledger entries are well-formed" \
-        bash -c 'for f in "'"$LEDGER_DIR"'"/*.md; do
-                     grep -q "^title:" "$f" && grep -q "^paths:" "$f" || exit 1
-                 done'
+    # `topaz dev` daily-drives locally built binaries on a transient /usr
+    # overlay (bootc usroverlay) that a reboot discards.
     chk "bootc is available for dev overlays" \
         command -v bootc
+    # Updates. CI rewrites the image into ~400 content-based layers
+    # (chunkah, roughly one per package) and publishes them zstd:chunked
+    # to quay.io, which serves the multi-range requests partial pulls
+    # need (GHCR answers 501). The client half is here: partial pulls
+    # switched on in containers-storage, and `topaz pull`, which fetches
+    # with podman (parallel and partial) and hands the result to bootc,
+    # whose own fetcher is serial and whole-layer (bootc#20). The timer
+    # stages the update at 03:30, ahead of uupd's window, and the service
+    # retries because a missed run fires at resume, seconds before the
+    # network is back.
     chk "podman, jq and skopeo are present for parallel pulls (topaz pull)" \
         bash -c 'command -v podman && command -v jq && command -v skopeo'
-    chk "partial image pulls are enabled in containers-storage (ledger 0031)" \
+    chk "partial image pulls are enabled in containers-storage" \
         grep -qx 'enable_partial_images = "true"' /usr/share/containers/storage.conf
-    chk "topaz-pull.timer stages updates ahead of uupd (ledger 0032)" \
+    chk "topaz-pull.timer stages updates ahead of uupd" \
         bash -c 'ls /etc/systemd/system/timers.target.wants/topaz-pull.timer >/dev/null 2>&1'
-    chk "topaz-pull.service retries a pull that fires into a resume (ledger 0032)" \
+    chk "topaz-pull.service retries a pull that fires into a resume" \
         bash -c 'grep -qx "Restart=on-failure" /usr/lib/systemd/system/topaz-pull.service &&
                  grep -qx "StartLimitBurst=5" /usr/lib/systemd/system/topaz-pull.service'
+    # Reproducibility: the same commit must rebuild to the same bytes, so
+    # any difference between two builds is a finding. rpm install times
+    # are clamped to SOURCE_DATE_EPOCH (derived from the base image,
+    # recorded in this one) plus an install-order ordinal.
     chk "package install metadata is reproducible" \
         bash -c 'sde=$(cat /usr/share/topaz-os/source-date-epoch) &&
                  for p in cosmic-files nethogs; do
                      t=$(rpm -q --qf "%{INSTALLTIME}" "$p")
                      [ $((t - sde)) -ge 0 ] && [ $((t - sde)) -lt 1000 ] || exit 1
                  done'
+    # sqlite WAL sidecars hold runtime state and any rpm query recreates
+    # them, but a WAL database without them cannot be opened from
+    # read-only /usr. The build converts the database to DELETE journal
+    # mode after its last write.
     chk "rpm database is readable from read-only /usr (DELETE journal mode)" \
         bash -c '[ "$(od -A n -j 18 -N 2 -t u1 /usr/share/rpm/rpmdb.sqlite |
                       tr -s " ")" = " 1 1" ]'
+    # authselect snapshots what it replaces into a randomly named
+    # directory; the build passes --nobackup.
     chk "no build-time authselect backup is baked into the image" \
         bash -c '! ls /usr/lib/authselect/backups/ 2>/dev/null | grep -q .'
+    # The CI build environment has committed files torn through overlayfs
+    # copy-ups (NUL-tailed catalogs, a SELinux module store abandoned
+    # mid-transaction with greetd's policy missing) while every tool
+    # exited 0, so these verify the state the tools should have left. On
+    # a booted machine the module store is root-only: an unprivileged run
+    # reports that check failed.
     chk "XML catalogs are intact (well-formed XML)" \
         bash -c 'xmllint --noout /etc/xml/catalog &&
                  xmllint --noout /etc/sgml/docbook/xmlcatalog'
@@ -421,16 +575,25 @@ cmd_check() {
                  ! test -e /etc/selinux/targeted/tmp &&
                  ! test -e /etc/selinux/final/targeted &&
                  test -d /etc/selinux/targeted/active/modules/200/greetd'
+    # buildah sometimes commits the empty /ctx bind-mount target; the
+    # build gate removes it, and a non-empty one fails here.
     chk "no leftover build-mount debris in the image root" \
         bash -c '! test -e /ctx'
-    # the files exist only while some dependency pulls docbook-dtds
-    # (none does since the kde-connect subtree left); absent is canonical
+    # libxml2 writes SGML catalogs in per-process hash order; the build
+    # sorts them. The files exist only while some dependency pulls
+    # docbook-dtds (none does since the kde-connect subtree left); absent
+    # is canonical.
     chk "sgml catalogs are in canonical order" \
         bash -c 'for f in /etc/sgml/catalog /etc/sgml/*.cat; do
                      [ -e "$f" ] || continue
                      [ -L "$f" ] && continue
                      LC_ALL=C sort -C "$f" || exit 1
                  done'
+    # The build installs exactly the closure in packages.lock: one +NEVRA
+    # or -NEVRA line per package relative to the pinned base, weak
+    # dependencies off, from downloaded files, with koji as the source
+    # for builds the mirrors have dropped. Repository state can neither
+    # change nor break a build; updates arrive as a reviewed lock diff.
     chk "installed package set matches the shipped lockfile" \
         bash -c 'lock=/usr/share/topaz-os/packages.lock
                  rpm -q $(sed -n "s/^+//p" "$lock" | cut -d" " -f1) \
@@ -440,27 +603,40 @@ cmd_check() {
                      | grep -qv "is not installed" && exit 1; true'
     # Mirror repository names drift under an unchanged lock (updates →
     # updates-archive → koji); the locked install records @commandline
-    # instead so the libdnf5 state reproduces (ledger 0020).
+    # instead so the libdnf5 state reproduces.
     chk "libdnf5 names no mirror repository for locked packages" \
         bash -c 'sed -n "s/^+//p" /usr/share/topaz-os/packages.lock \
                      | cut -d" " -f1 | sed "s/-0:/-/" \
                      | grep -F -f - /usr/lib/sysimage/libdnf5/nevras.toml \
                      | grep -qE "from_repo = \"(fedora|updates|updates-archive|updates-testing)\"" \
                      && exit 1; true'
-    chk "trimmed app-suite packages are absent (ledger 0025)" \
+    # cosmic-initial-setup and cosmic-wallpapers rode in on cosmic-session
+    # and served nothing here; neither may return.
+    chk "trimmed app-suite packages are absent" \
         bash -c '! rpm -q cosmic-initial-setup > /dev/null 2>&1 &&
                  ! rpm -q cosmic-wallpapers > /dev/null 2>&1'
+    # Base-image udev rules name the Debian-style plugdev group, which
+    # Fedora lacks: about 100 "Failed to resolve group" errors at every
+    # rules load.
     chk "plugdev group is declared for base-image udev rules" \
         grep -q '^g plugdev' /usr/lib/sysusers.d/topaz-plugdev.conf
+    # Flatpak system monitors (Mission Center) delegate per-process
+    # network attribution to a host nethogs carrying these capabilities;
+    # their own setcap helper cannot write an immutable /usr.
     chk "nethogs holds packet-capture file capabilities" \
         bash -c '[ "$(getcap /usr/sbin/nethogs)" = \
             "/usr/sbin/nethogs cap_dac_read_search,cap_net_admin,cap_net_raw,cap_sys_ptrace=ep" ]'
+    # /var is machine state: the image's copy is materialised once at
+    # install and never updated, so anything shipped there is dead weight
+    # and a reproducibility hazard (dnf's countme cookies are random).
+    # The one functional item, the greetd package's portal mask, is a
+    # tmpfiles.d rule instead.
     chk "greeter portal mask ships declaratively (tmpfiles.d, not /var content)" \
         grep -q 'xdg-desktop-portal.service - - - - /dev/null' \
             /usr/lib/tmpfiles.d/topaz-greetd-portal-mask.conf
     # Build-container only: a booted machine's /var is legitimate machine
     # state; the image must ship none (only an empty /var/tmp, matching
-    # the base — build debris there churns rebuilds, see ledger 0024).
+    # the base — build debris there churns rebuilds).
     if [ ! -e /run/ostree-booted ]; then
         # List offenders before the verdict — chk swallows command output,
         # and a bare FAIL from a remote build log is undebuggable.
@@ -477,9 +653,9 @@ cmd_check() {
     fi
     echo
     if [ "$fails" -eq 0 ]; then
-        echo "All recorded deviations hold."
+        echo "All deviations hold."
     else
-        echo "$fails check(s) failed — the image no longer matches its ledger."
+        echo "$fails check(s) failed — the image no longer matches what it claims."
         exit 1
     fi
 }
@@ -552,7 +728,7 @@ cmd_dev() {
 
 # --- pull: parallel-fetch big updates, then stage them via bootc ------------
 # bootc downloads layers serially through its image proxy (bootc#20), which
-# wastes most of a fast link — and content-based layers (ledger 0028) add a
+# wastes most of a fast link — and content-based layers add a
 # round trip per layer. podman downloads layers in parallel. For big pulls
 # (tag switches, the first fetch after a layer-scheme change — not small
 # incremental updates, where serial is fine) this fetches with podman into
@@ -617,7 +793,7 @@ cmd_pull() {
     echo "Repointing the origin at the registry (all layers already imported)…"
     bootc switch "$image"
     # The fresh podman copy stays: it is the delta base for the next
-    # partial pull (ledger 0031) — worth its ~5 GiB standing cost in /var.
+    # partial pull — worth its ~5 GiB standing cost in /var.
     # Only the copy it supersedes is reclaimed.
     if [ -n "$old_id" ] && [ "$old_id" != "$new_id" ]; then
         echo "Reclaiming the superseded delta base…"
@@ -630,8 +806,6 @@ cmd_pull() {
 }
 
 case "${1:-}" in
-    why)        [ $# -ge 2 ] || usage 1; cmd_why "$2" ;;
-    ledger)     cmd_ledger ;;
     check)      cmd_check ;;
     dev)        shift; cmd_dev "$@" ;;
     pull)       shift; cmd_pull "$@" ;;

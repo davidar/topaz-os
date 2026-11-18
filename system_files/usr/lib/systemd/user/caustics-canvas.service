@@ -1,9 +1,9 @@
 [Unit]
 Description=caustics canvas for the niri (topaz) session
 # The canvas is the session's wallpaper on every output, cross-faded on
-# command by its wallpaper sidecar (ledger 0049); the idle fade, the
+# command by its wallpaper sidecar; the idle fade, the
 # polkit prompt and the lock screen are its later jobs. Gated like the
-# bar (ledger 0044): a unit of the same name under ~/.config/systemd/user
+# bar: a unit of the same name under ~/.config/systemd/user
 # replaces this one wholesale, which is how a checkout installs itself.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target
@@ -22,9 +22,9 @@ Environment=RUST_LOG=info
 # four the canvas starts only when named: the polkit agent, the lock,
 # NetworkManager's secret agent and the Bluetooth pairing sink. Naming
 # them here is what makes the canvas this session's agent, locker and
-# the prompt for a Wi-Fi passphrase or a PIN to type (ledger 0049); the
+# the prompt for a Wi-Fi passphrase or a PIN to type; the
 # tools that held the first two jobs before, cosmic-osd and swaylock, are
-# gone from the image (ledger 0050).
+# gone from the image.
 Environment=CAUSTICS_SIDECARS="caustics-wallpaper caustics-reload caustics-glyphs caustics-polkit caustics-lock caustics-secrets caustics-pairing"
 # The lock authenticates through its own PAM service, /etc/pam.d/caustics-lock
 # (shipped here); the sidecar's default, `swaylock`, named a file that

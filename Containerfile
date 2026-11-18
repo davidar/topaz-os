@@ -14,7 +14,7 @@ COPY build_files/configure.sh /
 COPY system_files /system_files
 
 # One context per builder stage as well: each carries the stage's
-# toolchain lock (ledger 0052), so a toolchain update rebuilds only the
+# toolchain lock, so a toolchain update rebuilds only the
 # binaries compiled with it.
 FROM scratch AS ctx-niri-build
 COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_files/niri-build.lock /
@@ -23,7 +23,7 @@ FROM scratch AS ctx-caustics-build
 COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_files/caustics-build.lock /
 
 # niri itself, built from the topaz fork at a pinned commit on top of the
-# upstream release Fedora packages (ledger 0037): hardcoded gesture,
+# upstream release Fedora packages: hardcoded gesture,
 # input, layout and animation constants promoted to config keys that
 # hot-reload like the rest of niri's config, background effects masked by
 # each surface's own alpha, a trust list for sandbox engines, and the
@@ -33,8 +33,8 @@ COPY build_files/install-builder.sh build_files/locked-install.lib.sh build_file
 # links against a newer glibc than the image ships, and the binary fails
 # to load. `topaz check` asserts every fork-built binary's libraries
 # resolve, so a mismatched bump fails the build, not the login. The
-# toolchain is the exact closure of build_files/niri-build.lock (ledger
-# 0052), resolved by `just lock` against this stage's fedora digest, and
+# toolchain is the exact closure of build_files/niri-build.lock,
+# resolved by `just lock` against this stage's fedora digest, and
 # the stage records the rustc it installed for `topaz check`.
 FROM registry.fedoraproject.org/fedora:45@sha256:8430348a73c5a0e607b5de2cf9dd4741d9aa0891bbce3108588298102015f8c6 AS niri-build
 ARG NIRI_REPO=https://github.com/davidar/niri.git
@@ -53,8 +53,8 @@ RUN git init -q /src && \
     printf 'niri_repo=%s\nniri_ref=%s\nniri_rustc=%s\n' "$NIRI_REPO" "$NIRI_REF" \
         "$(rpm -q --qf '%{VERSION}-%{RELEASE}' rust)" > /out/build-info
 
-# caustics, the bar and the canvas of the niri (topaz) session (ledgers
-# 0044, 0049), built at a pinned commit of https://github.com/davidar/caustics.
+# caustics, the bar and the canvas of the niri (topaz) session,
+# built at a pinned commit of https://github.com/davidar/caustics.
 # The two hosts and their sidecars, nineteen binaries, are one set, installed
 # under a directory named by the ABI hash the bar prints, as the project's
 # own install script lays them out (its BINARIES list is the authoritative
@@ -62,7 +62,7 @@ RUN git init -q /src && \
 # fetches the Slang release the bindings were generated against and checks
 # it against the SHA-256 recorded in the crate, so that download is as
 # pinned as a crate's. The toolchain is the exact closure of
-# build_files/caustics-build.lock (ledger 0052).
+# build_files/caustics-build.lock.
 FROM registry.fedoraproject.org/fedora:45@sha256:8430348a73c5a0e607b5de2cf9dd4741d9aa0891bbce3108588298102015f8c6 AS caustics-build
 ARG CAUSTICS_REPO=https://github.com/davidar/caustics.git
 ARG CAUSTICS_REF=b7ff845af7ea3ca8a9b850e8d1f4616024b9abeb
@@ -100,7 +100,7 @@ FROM ghcr.io/ublue-os/bluefin-dx-nvidia-open:latest@sha256:9e9a3c3545f513dbc1ea5
 # never churn a digest — the same canonicalization ostree applies on
 # deployment anyway.
 
-# Locked package set (ledger 0022), plus everything derived purely
+# Locked package set, plus everything derived purely
 # from it: nethogs capabilities, reproducibility fixups, /var scrub.
 RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/install-packages.sh \
     --mount=type=bind,from=ctx-packages,source=/locked-install.lib.sh,target=/ctx/locked-install.lib.sh \
@@ -108,9 +108,8 @@ RUN --mount=type=bind,from=ctx-packages,source=/install-packages.sh,target=/ctx/
     --mount=type=tmpfs,dst=/tmp \
     /ctx/install-packages.sh
 
-# The fork-built niri from the niri-build stage (ledger 0037) and the
-# caustics set, bar and canvas, from the caustics-build stage (ledgers
-# 0044, 0049)
+# The fork-built niri from the niri-build stage and the
+# caustics set, bar and canvas, from the caustics-build stage
 RUN --mount=type=bind,from=ctx-niri-session,source=/install-niri-session.sh,target=/ctx/install-niri-session.sh \
     --mount=type=bind,from=niri-build,source=/out,target=/niri-build \
     --mount=type=bind,from=caustics-build,source=/out,target=/caustics-build \
@@ -123,11 +122,11 @@ RUN --mount=type=bind,from=ctx-files,source=/configure.sh,target=/ctx/configure.
     /ctx/configure.sh
 
 # Verify final image and contents are correct, and that the image still
-# matches the claims in its provenance ledger. Lint warnings are fatal:
+# matches what `topaz check` claims of it. Lint warnings are fatal:
 # stray /var and /run content is exactly the build debris that made
-# rebuilds nondeterministic (ledger 0024), so new debris fails the build.
+# rebuilds nondeterministic, so new debris fails the build.
 # The sidecar assertion holds because the databases are in DELETE journal
-# mode (ledger 0020) — the check's own rpm queries no longer create them.
+# mode — the check's own rpm queries no longer create them.
 # One RUN: anything a gate command created would die in this same layer.
 # The rmdir first: buildah sometimes commits the /ctx bind-mount target
 # directory left over from the earlier steps (empty, harmless, but it

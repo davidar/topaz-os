@@ -1,5 +1,5 @@
 #!/bin/bash
-# topaz-idle.service's ExecStart (ledger 0046): swayidle, with its stages
+# topaz-idle.service's ExecStart: swayidle, with its stages
 # assembled from the session knobs so that the lock, the dim that warns
 # of it, the screen blank and the suspend are each one number in
 # ~/.config/topaz/session.conf (the unit reads it as an EnvironmentFile;
@@ -29,7 +29,7 @@ warn=$(knob TOPAZ_IDLE_WARN 30)
 blank=$(knob TOPAZ_IDLE_BLANK 600)
 suspend=$(knob TOPAZ_IDLE_SUSPEND 1800)
 
-# The lock is the canvas's (ledger 0049): its lock sidecar hears logind's
+# The lock is the canvas's: its lock sidecar hears logind's
 # Lock signal itself, so the idle lock and the Super+Alt+L bind both go
 # through `loginctl lock-session` and no `lock` event is needed here.
 # Before sleep, -w holds the suspend until the command returns, and

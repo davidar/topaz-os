@@ -25,7 +25,7 @@ check "graphical session on seat0" test -n "$sid"
 t0=$(tssh date +%s)
 check "test password set" set_test_password
 
-# What a working lock looks like from outside (ledger 0049): the canvas's
+# What a working lock looks like from outside: the canvas's
 # lock sidecar hears logind's Lock signal, the canvas takes the session
 # lock, and `caustics-canvasctl status` ends with the lock's line —
 # locked yes or no, and the failed attempts of the lock held or last held.

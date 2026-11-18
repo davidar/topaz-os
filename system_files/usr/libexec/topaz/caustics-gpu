@@ -1,5 +1,5 @@
 #!/bin/bash
-# Starts a caustics host (the bar, ledger 0044; the canvas, ledger 0049)
+# Starts a caustics host (the bar or the canvas)
 # for the niri (topaz) session: caustics-gpu <binary> [args...].
 #
 # On a hybrid laptop the Vulkan loader loads every installed driver and

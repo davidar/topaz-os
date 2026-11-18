@@ -30,7 +30,7 @@ on:
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
-  # Canonical publish target (ledger 0033). quay serves the multi-range
+  # Canonical publish target. quay serves the multi-range
   # blob requests that zstd:chunked partial pulls are made of; GHCR
   # rejects them (501), so it is kept as a best-effort mirror instead.
   # Publishing away from GitHub also keeps machine updates available
@@ -175,7 +175,7 @@ jobs:
             ${IMAGE_NAME} \
             ${DEFAULT_TAG}
 
-      # Rewrite the gated build into content-based layers (ledger 0028):
+      # Rewrite the gated build into content-based layers:
       # roughly one layer per package, the rpm database in its own, so
       # machines download only the packages that changed instead of whole
       # locked-install layers. The Containerfile's coarse layers remain the
@@ -342,8 +342,8 @@ jobs:
       # These `if` statements are so that pull requests for your custom images do not make it publish any packages under your name without you knowing
       # They also check if the runner is on the default branch so that things like the merge queue (if you enable it), are going to work
       #
-      # The push recompresses the chunked image as zstd:chunked (ledger
-      # 0031): identical layers (diff_ids unchanged — the reproducibility
+      # The push recompresses the chunked image as zstd:chunked:
+      # identical layers (diff_ids unchanged — the reproducibility
       # comparison above is deliberately compression-independent), but
       # each blob gains a table of contents that lets podman fetch only
       # the files it does not already have. Recompressing all ~400 layers
@@ -361,7 +361,7 @@ jobs:
       # this digest. Machines follow :latest, so a build that fails to
       # boot never reaches one. Signing happens after, against the
       # pushed digest — sign what you publish. quay is the canonical
-      # target (ledger 0033): it serves the multi-range requests partial
+      # target: it serves the multi-range requests partial
       # pulls need; the GHCR mirror step below is best-effort.
       - name: Push To Quay
         if: github.event_name != 'pull_request' && env.REPRO_CHECK != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)

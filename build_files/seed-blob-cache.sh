@@ -1,7 +1,7 @@
 #!/bin/bash
 # Seed a containers blob-info-cache so `skopeo copy --dest-compress-format
 # zstd:chunked` reuses the published image's blobs instead of recompressing
-# every layer on every push (ledger 0031).
+# every layer on every push.
 #
 #   seed-blob-cache.sh <chunked-oci-dir> <published-ref> <cache-dir>
 #

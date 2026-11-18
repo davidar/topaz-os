@@ -125,7 +125,7 @@ build $target_image=image_name $tag=default_tag:
 lock:
     bash build_files/gen-lockfile.sh
 
-# Rewrite a built image into content-based layers (ledger 0028)
+# Rewrite a built image into content-based layers
 chunk $target_image=image_name $tag=default_tag $outdir="chunked-oci":
     #!/usr/bin/env bash
     set -euox pipefail

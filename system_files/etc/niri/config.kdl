@@ -68,7 +68,7 @@ input {
     // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
     // focus-follows-mouse max-scroll-amount="0%"
 
-    // topaz build of niri (ledger 0037): upstream hardcodes 400.
+    // topaz build of niri: upstream hardcodes 400.
     double-click-time-ms 400
 }
 
@@ -264,7 +264,7 @@ layout {
         // bottom 64
     }
 
-    // topaz build of niri (ledger 0037): upstream compile-time constants,
+    // topaz build of niri: upstream compile-time constants,
     // shown at their upstream values. Logical pixels unless noted.
     interactive-move-threshold 256      // drag distance before a tiled window detaches
     interactive-move-opacity 0.75       // tile opacity while being dragged over the layout
@@ -281,8 +281,8 @@ layout {
 
 // Portal dialogs (file chooser, access prompts, print) are transient
 // dialogs from another process, so niri can't tie them to their parent
-// window and would tile them; float them instead (ledger 0039).
-// The gtk id covers every dialog portal-gtk serves (ledger 0039).
+// window and would tile them; float them instead.
+// The gtk id covers every dialog portal-gtk serves.
 window-rule {
     match app-id=r#"^org\.freedesktop\.impl\.portal\.desktop\.gtk$"#
     open-floating true
@@ -321,7 +321,7 @@ animations {
     // Slow down all animations by this factor. Values below 1 speed them up instead.
     // slowdown 3.0
 
-    // topaz build of niri (ledger 0037): the open/close curve shape (the
+    // topaz build of niri: the open/close curve shape (the
     // timing above was already configurable). Upstream values.
     window-open {
         scale-from 0.5
@@ -357,7 +357,7 @@ window-rule {
 // Float Firefox's secondary windows (extension popouts, page popups).
 // They set no xdg parent and no fixed size, so upstream niri tiles them
 // into a new column; `has-sibling` is a topaz fork matcher that is true
-// for a window whose client already had one mapped (ledger 0037).
+// for a window whose client already had one mapped.
 window-rule {
     match app-id=r#"firefox$"# has-sibling=true
     open-floating true
@@ -399,10 +399,10 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     Mod+T hotkey-overlay-title="Open a Terminal: cosmic-term" { spawn "cosmic-term"; }
-    // fuzzel is the launcher of the niri (topaz) session (ledger 0041).
+    // fuzzel is the launcher of the niri (topaz) session.
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     // Lock through logind: the session's locker (the caustics canvas's
-    // lock sidecar in niri (topaz), ledger 0049) hears the session's
+    // lock sidecar in niri (topaz)) hears the session's
     // Lock signal. Spawning a locker directly here would take the
     // session lock outside that path and leave niri locked with nothing
     // to unlock it.
@@ -418,7 +418,7 @@ binds {
     // Using spawn-sh allows to pass multiple arguments together with the command.
     // "-l 1.0" limits the volume to 100%.
     // topaz-osd applies the change; in the niri (topaz) session the bar
-    // notices it and shows the toast (ledger 0041).
+    // notices it and shows the toast.
     XF86AudioRaiseVolume allow-when-locked=true { spawn "topaz-osd" "volume" "up"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "topaz-osd" "volume" "down"; }
     XF86AudioMute        allow-when-locked=true { spawn "topaz-osd" "volume" "mute"; }
@@ -680,7 +680,7 @@ binds {
 // ext-background-effect, and rounded corners requested through the
 // zcosmic corner-radius protocol — which only cosmic-comp implements.
 // On niri the corner request goes nowhere. The topaz build of niri
-// (ledger 0037) masks every background effect by the surface's own
+// masks every background effect by the surface's own
 // alpha, so the blur follows the rounded shape the client actually
 // painted and no corner radius needs restating here.
 window-rule {
@@ -711,7 +711,7 @@ layer-rule {
     }
 }
 
-// topaz build of niri (ledger 0037): gesture, overview, window-switcher and
+// topaz build of niri: gesture, overview, window-switcher and
 // timeout constants that upstream compiles in, shown at their upstream
 // values. Everything hot-reloads.
 gestures {

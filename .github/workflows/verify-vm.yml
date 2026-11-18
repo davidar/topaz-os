@@ -105,7 +105,7 @@ jobs:
           sudo podman tag "$TEST_IMAGE" localhost/topaz-os:test
 
       - name: Boot and verify
-        # The niri (topaz) session, the one machines run (ledger 0041),
+        # The niri (topaz) session, the one machines run,
         # and every suite in one booted guest: the post-boot state, a
         # lock and unlock, the fade before the idle lock with its knob
         # file, then a logout and login. relogin-cycle goes last because

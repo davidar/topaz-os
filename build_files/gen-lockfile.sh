@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Regenerate build_files/packages.lock (ledger 0022) and the builder
-# stages' toolchain locks (ledger 0052).
+# Regenerate build_files/packages.lock and the builder
+# stages' toolchain locks.
 #
 # This file defines the image's package INTENT: the named packages below
 # are resolved (with all dependencies) against the Containerfile's pinned
@@ -41,11 +41,11 @@ podman run --rm "$base" bash -euo pipefail -c '
         # are named explicitly at the end of this transaction.
         #
         # COSMIC applications, as ordinary packages; no COSMIC session,
-        # shell or session piece (ledger 0047): cosmic-session and
+        # shell or session piece: cosmic-session and
         # everything only it needed are gone, cosmic-osd left with the
-        # polkit agent of the canvas (ledger 0050) and the COSMIC portal
-        # backend with the portal rewiring onto gtk and gnome (ledger
-        # 0039), taking cosmic-screenshot, its one client, with it.
+        # polkit agent of the canvas and the COSMIC portal
+        # backend with the portal rewiring onto gtk and gnome,
+        # taking cosmic-screenshot, its one client, with it.
         # cosmic-settings is the network and Bluetooth UI of the niri
         # (topaz) session (the bar shows state; joining a network needs
         # this); it hard-requires cosmic-settings-daemon and cosmic-randr,
@@ -67,23 +67,22 @@ podman run --rm "$base" bash -euo pipefail -c '
         # kdeconnect recipe installs them in its container.)
         dnf5 -y install --setopt=install_weak_deps=False \
             playerctl
-        # niri (ledger 0037), with xwayland-satellite for X11 clients (niri
+        # niri, with xwayland-satellite for X11 clients (niri
         # has no built-in XWayland).
         dnf5 -y install --setopt=install_weak_deps=False \
             niri \
             xwayland-satellite
-        # The "niri (topaz)" session (ledger 0041): the systemd session that
-        # ships with niri, the caustics bar and canvas (built from source,
-        # ledgers 0044, 0049) and standalone pieces for the rest of what
+        # The "niri (topaz)" session: the systemd session that
+        # ships with niri, the caustics bar and canvas (built from source)
+        # and standalone pieces for the rest of what
         # cosmic-session used to supervise; notifications come from the
         # bar, the wallpaper, the lock screen and the polkit prompt from the
-        # canvas (swaybg, swaylock and cosmic-osd, its rescues, left in
-        # ledger 0050).
+        # canvas (swaybg, swaylock and cosmic-osd, its rescues, have left).
         dnf5 -y install --setopt=install_weak_deps=False \
             swayidle \
             fuzzel \
             cliphist
-        # Terminal settings tools (ledger 0051): the session has no settings
+        # Terminal settings tools: the session has no settings
         # application and no toolkit; what the bar and the canvas do not
         # cover is done in a terminal, locally or over ssh. One tool per
         # domain, all packaged: network connections, audio routing, output
@@ -103,7 +102,7 @@ podman run --rm "$base" bash -euo pipefail -c '
             ncdu \
             gdu \
             bashmount
-        # The display manager (ledger 0045): tuigreet pulls greetd in.
+        # The display manager: tuigreet pulls greetd in.
         dnf5 -y install --setopt=install_weak_deps=False tuigreet
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
@@ -114,7 +113,7 @@ podman run --rm "$base" bash -euo pipefail -c '
         # the lock then records it as a transient (~) so the install can
         # fetch the exact build without resolving anything. Nothing needs
         # that today (the last case, cosmic-initial-setup, left with
-        # cosmic-session — ledger 0047); the machinery stays.
+        # cosmic-session); the machinery stays.
         census > /tmp/mid
     } >&2
 
@@ -132,7 +131,7 @@ echo "Wrote build_files/packages.lock:" >&2
     grep -c '^~' build_files/packages.lock | xargs echo "  transient:" >&2
 } || true
 
-# Builder toolchains (ledger 0052). The fork-built niri and the caustics
+# Builder toolchains. The fork-built niri and the caustics
 # set are compiled in fedora stages whose packages used to come from a
 # bare `dnf install`: the compiler moved with Fedora's updates repository,
 # invisibly, because the build cache kept the old stage until a cold
@@ -164,13 +163,13 @@ builder_lock() { # <stage> <packages...>
 
 # diffutils is for the install script's own delta assertion (the fedora
 # image ships without it); the rest is each stage's build.
-# niri (ledger 0037): Rust plus the C libraries its crates bind.
+# niri: Rust plus the C libraries its crates bind.
 builder_lock niri-build \
     diffutils gcc cargo rust clang glibc-devel pkgconf-pkg-config git-core \
     cairo-devel dbus-devel mesa-libgbm-devel gdk-pixbuf2-devel glib2-devel \
     gtk4-devel libadwaita-devel libdisplay-info-devel libinput-devel \
     pipewire-devel libseat-devel systemd-devel pango-devel wayland-devel \
     libxkbcommon-devel
-# caustics (ledgers 0044, 0049): Rust and a C compiler for its build
+# caustics: Rust and a C compiler for its build
 # scripts; gcc requires glibc-devel, so the headers come with it.
 builder_lock caustics-build diffutils gcc cargo rust git-core pkgconf-pkg-config

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create the disk swapfile that zswap drains cold pages to (ledger 0042).
+# Create the disk swapfile that zswap drains cold pages to.
 # Run once by topaz-swapfile.service on a machine that has none; the swap
 # unit var-swap-swapfile.swap activates it. Sized to RAM, rounded up to
 # whole GiB and capped at 32 GiB.

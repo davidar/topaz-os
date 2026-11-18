@@ -1,7 +1,7 @@
 #!/bin/bash
-# topaz-background.service's ExecStart (ledger 0048): show the wallpaper
+# topaz-background.service's ExecStart: show the wallpaper
 # the base image gives GNOME, on the schedule GNOME follows, on the
-# caustics canvas (ledger 0049).
+# caustics canvas.
 #
 # Bluefin pins one of its month-named timed wallpapers in a gschema
 # override at base-build time (picture-uri-dark); GNOME reads that XML

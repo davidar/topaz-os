@@ -1,5 +1,4 @@
-# Weekly refresh of the image's repository-tracking inputs (ledgers 0022,
-# 0052).
+# Weekly refresh of the image's repository-tracking inputs.
 #
 # The base image digest and the package lockfile must move atomically: the
 # lock records the package delta relative to the pinned base, so bumping
@@ -55,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           # Both builder stages start from one fedora tag at one digest;
-          # their toolchain locks (ledger 0052) are resolved against it.
+          # their toolchain locks are resolved against it.
           # The tag itself (the release) moves by hand with the base's.
           tag=$(grep -oP '^FROM \Kregistry\.fedoraproject\.org/fedora:[0-9]+(?=@sha256:[0-9a-f]+ AS )' Containerfile | sort -u)
           [ "$(wc -l <<< "$tag")" -eq 1 ]
@@ -87,7 +86,7 @@ jobs:
           git commit -m "Refresh image digests and lockfiles"
           git push -u origin "$branch"
           {
-            echo "Automated weekly input refresh (see ledgers 0022 and 0052)."
+            echo "Automated weekly input refresh."
             echo
             echo '```'
             git diff HEAD~1 --stat -- Containerfile 'build_files/*.lock'

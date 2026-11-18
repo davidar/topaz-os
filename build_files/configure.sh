@@ -3,7 +3,7 @@
 # Configuration layer: topaz system files plus every patch and enablement
 # applied on top of the installed package set. This is the layer that
 # changes most often, and it is kilobytes — keeping it last means a config
-# or ledger edit re-ships almost nothing.
+# or check edit re-ships almost nothing.
 
 set -ouex pipefail
 
@@ -29,8 +29,8 @@ sed -i \
 # i2c bus (including disconnected DP ports) about a second after the
 # compositor starts. On this hardware (amdgpu DCN 3.1.4, PSR eDP), a raw
 # AUX transaction to a disconnected port before the panel's first PSR
-# arming wedges that arming forever, freezing COSMIC at the first idle —
-# ledger 0013 has the full investigation. The daemon reaches /dev/i2c-*
+# arming wedges that arming forever, freezing COSMIC at the first idle.
+# The daemon reaches /dev/i2c-*
 # through seat-user ACLs granted by udev `uaccess` rules; two base-image
 # packages ship one. Closing both (and the wider unprivileged-DDC surface)
 # leaves `sudo ddcutil` and OpenRGB's non-i2c device access working. Drop
@@ -62,8 +62,8 @@ grep -Eq 'pam_fprintd\.so\s+\{include if "with-fingerprint"\}' \
 sed -i 's/pam_fprintd\.so/pam_fprintd.so timeout=5/' \
     /etc/authselect/custom/local-custom/system-auth
 # --nobackup: the automatic backup bakes a timestamped directory into the
-# image, invalidating an otherwise-unchanged layer on every rebuild
-# (ledger 0020); in a container build there is no prior state to restore.
+# image, invalidating an otherwise-unchanged layer on every rebuild;
+# in a container build there is no prior state to restore.
 authselect select custom/local-custom \
     with-fingerprint with-silent-lastlog with-mdns4 --force --nobackup
 
@@ -72,26 +72,26 @@ authselect select custom/local-custom \
 # guarantee does not depend on first-boot preset application.
 systemctl enable supergfxd.service
 
-### topaz-pull timer (ledger 0032)
+### topaz-pull timer
 # Same preset-plus-enable pattern: stage updates via topaz pull daily,
 # half an hour before uupd's bootc step (which then no-ops).
 systemctl enable topaz-pull.timer
 
-### Disk swapfile behind zswap (ledger 0042)
+### Disk swapfile behind zswap
 # The image ships no zram device; swap is zswap over a swapfile that
 # topaz-swapfile.service creates on first boot. Preset plus enable, as
 # above, so a disk without preset application still gets its swap.
 systemctl enable var-swap-swapfile.swap
 
-### KDE Connect firewall ports (ledger 0030)
+### KDE Connect firewall ports
 # KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
-# recipe; ledger 0026 records the eviction), but the container shares the
+# recipe), but the container shares the
 # host network namespace, so the host firewall must still pass its
 # discovery and transfer ports. The service definition (TCP/UDP
 # 1714-1764) ships with firewalld; open it in the default zone.
 firewall-offline-cmd --zone=FedoraWorkstation --add-service=kdeconnect
 
-### Partial image pulls (ledger 0031)
+### Partial image pulls
 # CI publishes the image as zstd:chunked (see build.yml); flip the
 # containers-storage default so podman pulls fetch only the files not
 # already present in local storage. `topaz pull` stages updates through
@@ -103,7 +103,7 @@ sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
     /usr/share/containers/storage.conf
 
 ### niri session portals: gtk first; ScreenCast, Screenshot and Settings
-### on gnome (ledger 0039)
+### on gnome
 # The frontend routes by what a backend's .portal file DECLARES, and
 # portal-gnome declares eighteen interfaces while exporting only the few
 # it can serve off GNOME — so upstream's gnome-first default sends
@@ -115,8 +115,8 @@ sed -i 's|^# enable_partial_images = "false"$|enable_partial_images = "true"|' \
 # ScreenCast and Screenshot consume the Mutter ScreenCast and Shell
 # Screenshot D-Bus APIs `niri --session` registers, and Settings answers
 # color-scheme and accent-color from gsettings, the one theme switch
-# this session has now that no COSMIC shell writes cosmic-config (ledger
-# 0047). Guard: fail the build if upstream's file gains its own
+# this session has now that no COSMIC shell writes cosmic-config.
+# Guard: fail the build if upstream's file gains its own
 # preferences or changes shape.
 grep -q '^default=gnome;gtk;$' /usr/share/xdg-desktop-portal/niri-portals.conf
 ! grep -qE 'portal\.(Settings|ScreenCast|Screenshot|FileChooser)' /usr/share/xdg-desktop-portal/niri-portals.conf
@@ -129,7 +129,7 @@ printf '%s\n' \
     'org.freedesktop.impl.portal.Settings=gnome;' \
     >> /usr/share/xdg-desktop-portal/niri-portals.conf
 
-### niri (topaz) session (ledger 0041)
+### niri (topaz) session
 # The session's shell is systemd user units wanted by
 # graphical-session.target (niri's own session integration starts it),
 # each gated on XDG_SESSION_DESKTOP=topaz so the COSMIC session is
@@ -140,7 +140,7 @@ systemctl --global enable \
     caustics-bar.service caustics-canvas.service topaz-idle.service \
     topaz-background.service topaz-clipboard.service
 
-### The lock screen's PAM stack (ledgers 0049, 0050)
+### The lock screen's PAM stack
 # The canvas's lock sidecar authenticates through the shipped
 # /etc/pam.d/caustics-lock, which includes password-auth: the system-auth
 # stack without pam_fprintd, whose 5 s timeout every unlock would
@@ -156,7 +156,7 @@ if grep -q pam_fprintd /etc/pam.d/password-auth; then
     exit 1
 fi
 
-### greetd with tuigreet as the display manager (ledger 0045)
+### greetd with tuigreet as the display manager
 # The base image logs in through GDM. greetd (a dependency of tuigreet)
 # runs tuigreet on VT 1 instead: a terminal greeter with no compositor or
 # toolkit of its own, so the login path shares nothing with the sessions
@@ -171,7 +171,7 @@ systemctl disable gdm.service
 systemctl enable greetd.service
 [ "$(readlink /etc/systemd/system/display-manager.service)" = /usr/lib/systemd/system/greetd.service ]
 
-### greetd's PAM stack: password only (ledger 0045)
+### greetd's PAM stack: password only
 # Fedora's file substacks system-auth, whose pam_fprintd (5 s timeout)
 # runs ahead of the password module; tuigreet runs the conversation in
 # order, so every login would wait those 5 s before the password prompt,
@@ -187,7 +187,7 @@ if grep -qE '^auth\s+.*system-auth' /usr/lib/pam.d/greetd; then
     exit 1
 fi
 
-### Secret Service in every session (ledger 0053)
+### Secret Service in every session
 # The base starts oo7-daemon only from gnome-session-services.target and
 # ships no D-Bus activation file for org.freedesktop.secrets, so outside
 # GNOME nothing starts it: pam_oo7 hands the login password to a helper
@@ -199,13 +199,13 @@ fi
 grep -q '^WantedBy=default.target$' /usr/lib/systemd/user/oo7-daemon.service
 grep -qE '^-?session\s+optional\s+pam_oo7\.so\s+auto_start$' /usr/lib/pam.d/greetd
 if grep -rqs '^Name=org.freedesktop.secrets$' /usr/share/dbus-1/services/; then
-    echo "the base now D-Bus-activates org.freedesktop.secrets; revisit ledger 0053" >&2
+    echo "the base now D-Bus-activates org.freedesktop.secrets; the oo7-daemon enable may be redundant" >&2
     exit 1
 fi
 systemctl --global enable oo7-daemon.service
 test -L /etc/systemd/user/default.target.wants/oo7-daemon.service
 
-### Empty /var (ledger 0024)
+### Empty /var
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's
 # xdg-desktop-portal mask, recreated at boot) is among the shipped files,

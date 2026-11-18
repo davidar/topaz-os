@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Rewrite a built image into content-based layers with chunkah
-# (ledger 0028). Runs outside the Containerfile, against the image the
+# Rewrite a built image into content-based layers with chunkah.
+# Runs outside the Containerfile, against the image the
 # build produced: the Containerfile's coarse content-keyed layers remain
 # the build-cache units, and this reshapes only the published artifact,
 # so machines download the packages that changed instead of a whole

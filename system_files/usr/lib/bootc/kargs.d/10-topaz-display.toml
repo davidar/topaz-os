@@ -1,4 +1,4 @@
-# Disable eDP Panel Self Refresh (amdgpu PSR) — see ledger 0018.
+# Disable eDP Panel Self Refresh (amdgpu PSR).
 # DMUB firmware on DCN 3.1.4 can wedge during PSR entry, permanently
 # freezing the display pipeline (flip_done never completes). Removing
 # PSR removes the wedge state; cost is ~1W while the screen is static.

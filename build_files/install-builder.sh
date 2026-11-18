@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Builder stage toolchain (ledger 0052): install exactly the closure the
+# Builder stage toolchain: install exactly the closure the
 # stage's lock records, the way the image's package layer installs its
-# own (ledger 0022), so the compiler that builds niri and the caustics
+# own, so the compiler that builds niri and the caustics
 # set is named by the tree and moves only with a reviewed lock diff.
 #
 #   install-builder.sh /ctx/<stage>.lock

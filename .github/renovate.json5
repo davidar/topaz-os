@@ -8,7 +8,7 @@
 
   "customManagers": [
     {
-      // The chunkah tool pin in the chunk step (ledger 0028). Tracks the
+      // The chunkah tool pin in the chunk step. Tracks the
       // published :latest digest — chunkah documents its bootc rechunking
       // support on main, ahead of tagged releases.
       "customType": "regex",
@@ -52,8 +52,8 @@
     },
     {
       // The base image digest is owned by .github/workflows/refresh-inputs.yml,
-      // which bumps it together with the package lockfile it invalidates
-      // (ledger 0022): the two must move atomically, and Renovate cannot
+      // which bumps it together with the package lockfile it invalidates:
+      // the two must move atomically, and Renovate cannot
       // regenerate rpm lockfiles.
       "enabled": false,
       "matchPackageNames": ["ghcr.io/ublue-os/bluefin-dx-nvidia-open"],
@@ -80,7 +80,7 @@
     },
     {
       // The builder stages' digest is owned by refresh-inputs.yml too: the
-      // toolchain locks (ledger 0052) are resolved against it and must move
+      // toolchain locks are resolved against it and must move
       // with it.
       "enabled": false,
       "matchPackageNames": ["registry.fedoraproject.org/fedora"],

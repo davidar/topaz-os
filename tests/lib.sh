@@ -320,7 +320,7 @@ wait_session_painted() {
     # shell processes coming up is the assertable half; the settle after
     # covers first-frame latency, which nothing exposes to poll on.
     # The topaz session's bar, and the canvas with the schedule's first
-    # picture drawn and every pipeline built (ledgers 0044, 0049). The
+    # picture drawn and every pipeline built. The
     # host's own journal lines say so; `caustics-canvasctl status` is the
     # wallpaper sidecar's answer, given while the host is still compiling.
     # The picture is drawn as soon as the first pipeline is built; the text
@@ -416,7 +416,7 @@ session_entry_path() {
     esac
 }
 
-# tuigreet (--remember --remember-user-session, ledger 0045) prefills the
+# tuigreet (--remember --remember-user-session) prefills the
 # last user and preselects that user's last session; with no record it
 # offers the first entry of its list, not the one under test. Write its
 # records as a previous login of that session would have left them:

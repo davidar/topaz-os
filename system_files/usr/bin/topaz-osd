@@ -1,5 +1,5 @@
 #!/bin/bash
-# Volume and brightness keys for the niri (topaz) session (ledger 0041):
+# Volume and brightness keys for the niri (topaz) session:
 # apply the change. The bar's own sidecars notice it (PipeWire events,
 # the backlight change uevent) and draw the toast; in other sessions the
 # change simply applies. Usable from any niri bind:

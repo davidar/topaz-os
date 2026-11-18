@@ -1,8 +1,8 @@
 [Unit]
 Description=caustics bar for the niri (topaz) session
 # The bar is the session's panel, dock, tray, charts, clock, notification
-# daemon and power/audio/network/Bluetooth menus (ledger 0044). Gated like
-# the rest of the session (ledger 0041) so the COSMIC sessions, which run
+# daemon and power/audio/network/Bluetooth menus. Gated like
+# the rest of the session so the COSMIC sessions, which run
 # cosmic-panel and cosmic-notifications, are untouched. A unit of the same
 # name under ~/.config/systemd/user replaces this one wholesale, which is
 # how a checkout of the project installs itself.

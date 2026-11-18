@@ -36,7 +36,7 @@ disk`. Unset, the image is unchanged.
 
 Which session the autologin runs is baked into the test image too:
 `TOPAZ_TEST_SESSION=topaz-niri tests/run.sh image` selects the niri (topaz)
-session (ledger 0041, the caustics bar and systemd user units) instead of
+session (the caustics bar and systemd user units) instead of
 the default COSMIC-on-niri one; `boot-verify` reads the choice back from
 the guest and asserts the matching shell. Pass the same variable to every
 later `run.sh` invocation, or the harness rebuilds the image for the
@@ -72,7 +72,7 @@ Pieces:
   (`png_mean.py`), cancels one fade with a keypress and lets the next end
   in the lock, then clears it with the password and removes the file.
 - `suites/relogin-cycle.sh` — logs out through niri and back in at
-  tuigreet (ledger 0045): the session teardown (ledger 0036), the greeter
+  tuigreet: the session teardown, the greeter
   coming up with the remembered user, and a real greeter login of the
   session under test (identity variables, display import, shell units,
   no failed units or coredumps, the greeter's cache rewritten).

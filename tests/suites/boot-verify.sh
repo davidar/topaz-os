@@ -16,7 +16,7 @@ echo "waiting for the shell to paint..."
 wait_session_painted || exit 1
 
 # Which session the test image autologs into (tests/Containerfile.test,
-# TOPAZ_TEST_SESSION): topaz-niri (ledger 0041) is the only one.
+# TOPAZ_TEST_SESSION): topaz-niri is the only one.
 session=$(tssh cat /etc/topaz/test-session 2>/dev/null || echo topaz-niri)
 echo "session under test: $session"
 # niri --session resets XDG_CURRENT_DESKTOP to niri; the topaz session is
@@ -30,7 +30,7 @@ check "XDG_CURRENT_DESKTOP=$expected_desktop session-wide" \
 check "XDG_SESSION_DESKTOP=topaz in the user manager (unit gate)" \
     tssh 'systemctl --user show-environment | grep -q ^XDG_SESSION_DESKTOP=topaz'
 
-# The session-env import (ledger 0036): without it portals have no display.
+# The session-env import: without it portals have no display.
 check "WAYLAND_DISPLAY imported into the user manager" \
     tssh 'systemctl --user show-environment | grep -q ^WAYLAND_DISPLAY='
 check "NIRI_SOCKET imported into the user manager" \
@@ -56,23 +56,23 @@ check "niri.service active (niri's own session integration)" \
 check "session shell units active" \
     units_active caustics-bar.service caustics-canvas.service \
         topaz-idle.service topaz-background.service topaz-clipboard.service
-# The Secret Service runs in a session that is not GNOME's (ledger 0053):
+# The Secret Service runs in a session that is not GNOME's:
 # nothing activates it on demand, so a missing enable shows up only as
 # apps with no keyring.
-check "Secret Service is up: oo7-daemon owns org.freedesktop.secrets (ledger 0053)" \
+check "Secret Service is up: oo7-daemon owns org.freedesktop.secrets" \
     tssh 'systemctl --user is-active oo7-daemon.service &&
           busctl --user status org.freedesktop.secrets > /dev/null'
-# The tools the canvas replaced are gone from the image (ledger 0050):
+# The tools the canvas replaced are gone from the image:
 # no other locker, polkit agent or wallpaper client is installed to run.
-check "no swaylock, cosmic-osd or swaybg in the image (ledger 0050)" \
+check "no swaylock, cosmic-osd or swaybg in the image" \
     is_empty tssh "command -v swaylock cosmic-osd swaybg"
 check "caustics bar runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -x caustics-bar)/exe | grep -q ^/usr/lib/caustics-bar/'
 check "caustics canvas runs from the installed set" \
     tssh 'readlink -f /proc/$(pgrep -o -x caustics-canvas)/exe | grep -q ^/usr/lib/caustics-bar/'
-check "canvas shows the schedule's wallpaper (ledger 0048)" \
+check "canvas shows the schedule's wallpaper" \
     tssh 'caustics-canvasctl status | grep -q " image=/usr/share/backgrounds/bluefin/"'
-# The two sinks the unit names (ledger 0049): the agent registered with
+# The two sinks the unit names: the agent registered with
 # polkitd for this session (its journal line), the lock answering its
 # socket and holding no lock at login.
 check "caustics-polkit is the session's polkit agent" \
@@ -95,7 +95,7 @@ check_not "cosmic-notifications absent" tssh pgrep -x cosmic-notifications
 check_not "wob absent (the bar draws the OSD)" tssh command -v wob
 check_not "cosmic-session absent" tssh pgrep -x cosmic-session
 
-# Portal wiring (ledger 0039): niri registers the Mutter ScreenCast API,
+# Portal wiring: niri registers the Mutter ScreenCast API,
 # portal-gnome consumes it; gtk backs FileChooser; the Settings route
 # answers end to end.
 check "niri owns org.gnome.Mutter.ScreenCast" \

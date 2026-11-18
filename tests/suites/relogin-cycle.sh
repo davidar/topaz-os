@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Suite: log out of the graphical session and back in through the greeter,
 # the way a user does. The autologin only ever exercises the first login of
-# a boot; this covers the teardown (ledger 0036: the session's display
+# a boot; this covers the teardown (the session's display
 # variables must leave the user manager with it) and a real tuigreet
-# login (ledger 0045), which launches the session from its .desktop entry
+# login, which launches the session from its .desktop entry
 # — a broken entry fails here, not at the console of the next person to
 # log in.
 set -uo pipefail
@@ -87,7 +87,7 @@ if [[ "$session" = topaz-niri ]]; then
     check "XDG_SESSION_DESKTOP=topaz in the user manager (unit gate)" \
         wait_for 20 tssh 'systemctl --user show-environment | grep -qx XDG_SESSION_DESKTOP=topaz'
 fi
-# The import half of ledger 0036: the new session's display, imported again.
+# The import half: the new session's display, imported again.
 for var in WAYLAND_DISPLAY NIRI_SOCKET DISPLAY; do
     check "$var imported into the user manager" wait_for 20 env_has "$var"
 done

@@ -31,7 +31,7 @@ ARG TOPAZ_TEST_SSH_PUBKEY
 RUN --mount=type=bind,source=files,target=/run/test-files,z \
     --mount=type=bind,from=extra,target=/run/test-extra,z \
     install -m 0755 /run/test-files/topaz-test-session /usr/bin/topaz-test-session && \
-    # The shipped greetd config (ledger 0045) plus an initial_session, so
+    # The shipped greetd config plus an initial_session, so
     # the first boot lands in the session under test with no one at the
     # console; the grep proves the shipped half is the one being extended.
     grep -q '^command = "tuigreet ' /etc/greetd/config.toml && \

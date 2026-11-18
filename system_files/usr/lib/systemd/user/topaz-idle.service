@@ -2,9 +2,9 @@
 Description=Idle handling (swayidle) for the niri (topaz) session
 # Dim, lock, blank, suspend; lock before any sleep. The stages are
 # assembled by /usr/libexec/topaz/idle from the knobs in
-# ~/.config/topaz/session.conf (ledger 0046; /usr/share/topaz-os/
+# ~/.config/topaz/session.conf (/usr/share/topaz-os/
 # session.conf lists them with their defaults) — no drop-in needed to
-# retune or switch one off. The canvas (ledger 0049) does the work: its
+# retune or switch one off. The canvas does the work: its
 # dim is the warning, and its lock sidecar hears logind's Lock signal
 # (`loginctl lock-session`, also what the Super+Alt+L bind does). Before
 # sleep (lid, idle, `systemctl suspend`) swayidle runs `caustics-canvasctl

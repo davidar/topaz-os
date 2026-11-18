@@ -2,9 +2,9 @@
 Description=Wallpaper schedule for the niri (topaz) session
 # The base image's own wallpaper on the base image's own schedule: the
 # script reads the month's timed wallpaper Bluefin pins for GNOME and
-# shows its day and night images on the caustics canvas (ledger 0049) at
-# the times the XML names, fading over the transitions it names (ledger
-# 0048). TOPAZ_WALLPAPER in ~/.config/topaz/session.conf (ledger 0046)
+# shows its day and night images on the caustics canvas at
+# the times the XML names, fading over the transitions it names.
+# TOPAZ_WALLPAPER in ~/.config/topaz/session.conf
 # names another image or schedule.
 ConditionEnvironment=XDG_SESSION_DESKTOP=topaz
 PartOf=graphical-session.target

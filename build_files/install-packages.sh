@@ -12,7 +12,7 @@ set -ouex pipefail
 # shellcheck source=build_files/locked-install.lib.sh
 source /ctx/locked-install.lib.sh
 
-### Reproducible package installs (ledger 0020)
+### Reproducible package installs
 clamp_install_times
 # Record the derived epoch so `topaz check` can verify installs were
 # clamped. rpm stamps each package SOURCE_DATE_EPOCH plus a small
@@ -22,13 +22,13 @@ clamp_install_times
 mkdir -p /usr/share/topaz-os
 printf '%s\n' "$SOURCE_DATE_EPOCH" > /usr/share/topaz-os/source-date-epoch
 
-### Locked package set, prologue (ledger 0022)
+### Locked package set, prologue
 census > /tmp/rpm-pre.list
 
 ### Packages: the locked set, fingerprint driver, nethogs
 dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
 
-# The libfprint-tod driver (pinned-version COPR, ledger 0003) conflicts
+# The libfprint-tod driver (pinned-version COPR) conflicts
 # with the in-tree libfprint at the file level only, which rpm accepts
 # solely when removal and install share one transaction — hence a swap
 # rather than lines in the locked install below. The COPR carries a single
@@ -41,7 +41,7 @@ locked_install /ctx/packages.lock
 
 dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 
-### nethogs (ledger 0023)
+### nethogs
 # Per-process network accounting needs packet capture, which the tool gets
 # via file capabilities instead of running as root. This is the exact
 # capability set Mission Center's own helper installer applies on mutable
@@ -51,7 +51,7 @@ dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 setcap 'cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+pe' \
     /usr/sbin/nethogs
 
-### Locked package set, epilogue (ledger 0022)
+### Locked package set, epilogue
 verify_layer_delta /ctx/packages.lock /tmp/rpm-pre.list
 
 commit_clean_layer
