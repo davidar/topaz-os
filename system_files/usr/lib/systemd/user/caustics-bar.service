@@ -15,6 +15,17 @@ StartLimitIntervalSec=60
 StartLimitBurst=10
 
 [Service]
+# The bar says when it is up: READY=1 at the first frame its whole program
+# draws. Until then the unit is `activating`, so `is-active` and an
+# After=caustics-bar.service mean "there is a bar on screen", which is
+# what a session restore waits for: the bar's pipelines compile cold after
+# a driver update, and several times slower beside a dozen applications
+# starting. No start timeout: a cold compile is seconds on a GPU and
+# minutes on a software rasteriser, and the default would kill a bar that
+# was only compiling. The wrapper execs the bar, so it is the main process.
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=infinity
 # The wrapper pins the Vulkan loader to the integrated GPU's driver on a
 # hybrid laptop, then runs /usr/bin/caustics-bar.
 ExecStart=/usr/libexec/topaz/caustics-gpu caustics-bar

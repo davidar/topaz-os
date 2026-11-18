@@ -304,7 +304,11 @@ cmd_check() {
     # GPU's driver, because enumerating the discrete GPU's driver can wake
     # it for the life of the session; the test VM draws with lavapipe.
     # The bar restarts on a crash but not on exit 2 (it refuses to run)
-    # or 3 (the GPU device is gone).
+    # or 3 (the GPU device is gone). Its unit is Type=notify with no start
+    # timeout: the bar sends READY=1 at the first frame its whole program
+    # draws, so "active" means a bar is on screen and a session restore
+    # can wait for it; a bar without the signal would sit in `activating`
+    # for ever, hence the string check on the binary.
     chk "caustics bar: one set of nineteen binaries, the link into it, the unit and its GPU wrapper" \
         bash -c 'set -o pipefail
                  sets=(/usr/lib/caustics-bar/*/)
@@ -326,6 +330,11 @@ cmd_check() {
                  ! grep -q "CAUSTICS_DIR=" /usr/lib/systemd/user/caustics-bar.service &&
                  ! test -e /usr/share/caustics &&
                  grep -q "^RestartPreventExitStatus=2 3$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -q "^Type=notify$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -q "^NotifyAccess=main$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -q "^TimeoutStartSec=infinity$" /usr/lib/systemd/user/caustics-bar.service &&
+                 grep -aq "READY=1" "${set_dir}caustics-bar" &&
+                 grep -q "^exec \"/usr/bin/\$host\" \"\$@\"$" /usr/libexec/topaz/caustics-gpu &&
                  test -x /usr/libexec/topaz/caustics-gpu &&
                  ! test -e /usr/libexec/topaz/caustics-bar &&
                  test -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json &&

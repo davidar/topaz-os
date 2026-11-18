@@ -332,8 +332,11 @@ wait_session_painted() {
     # later, when the compile ended, past lock-unlock's window. The lines
     # are matched by the host's pid, so a canvas of an earlier login
     # (relogin-cycle) does not count.
-    local deadline=$((SECONDS + ${1:-300}))
-    local shell='pgrep -x caustics-bar >/dev/null &&
+    local deadline=$((SECONDS + ${1:-600}))
+    # The bar's unit is Type=notify: it is `activating` until the bar has
+    # drawn the first frame of its whole program, minutes on the software
+    # renderer, so its being active is the bar's own "painted".
+    local shell='systemctl --user is-active -q caustics-bar.service &&
         journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -q "canvas: show .* into slot" &&
         journalctl --user -b _PID="$(pgrep -o -x caustics-canvas)" | grep -qE "pipelines: all [0-9]+ built"'
     until tssh "$shell" 2>/dev/null; do
