@@ -57,8 +57,9 @@ clamp_install_times() {
 # Recommends of a locked package must not ride along here either — the
 # census assert would fail the build on the surplus. Fedora's repositories
 # drop superseded builds, so any locked package the mirrors no longer serve
-# is fetched from koji, which keeps every build permanently at a path
-# derived from its source rpm (the lockfile's second field).
+# is fetched from Fedora's updates archive, or failing that from koji,
+# which keeps every build permanently at a path derived from its source
+# rpm (the lockfile's second field).
 #
 # Two phases, download then install, rather than one `dnf5 install`:
 # libdnf5 records the repository each package came from
@@ -143,6 +144,8 @@ locked_install() {
         | awk -v key="fedora-$(. /etc/os-release && echo "$VERSION_ID")-primary" \
               'index($0, key) { print substr($1, length($1) - 7) }')
     [ -n "$keyid" ]
+    local archive
+    archive="https://fedoraproject-updates-archive.fedoraproject.org/fedora/$(. /etc/os-release && echo "$VERSION_ID")/$(rpm -E %_arch)"
     local mirror=()
     local nevra srpm nvra src srcrel rest srcver srcname arch
     while read -r nevra srpm; do
@@ -156,9 +159,19 @@ locked_install() {
             srcver=${rest##*-}
             srcname=${rest%-*}
             arch=${nvra##*.}
-            echo "locked ${nvra} is no longer on the mirrors; using koji" >&2
-            koji_fetch "https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}" \
-                "$keyid" "$arch" "${nvra}.rpm" "${dest}/${nvra}.rpm"
+            # Fedora's updates archive first: it keeps every build that
+            # was ever in `updates`, signed, in one flat directory per
+            # release and base architecture, behind a CDN. koji is one
+            # origin and can crawl (2026-11-18: 5 KB/s, a stalled build).
+            # A stalled or missing archive copy falls through to koji.
+            if curl -fsSL --connect-timeout 20 --speed-limit 1000 --speed-time 60 \
+                -o "${dest}/${nvra}.rpm" "${archive}/${nvra}.rpm" 2> /dev/null; then
+                echo "locked ${nvra} is no longer on the mirrors; taken from the updates archive" >&2
+            else
+                echo "locked ${nvra} is no longer on the mirrors or in the updates archive; using koji" >&2
+                koji_fetch "https://kojipkgs.fedoraproject.org/packages/${srcname}/${srcver}/${srcrel}" \
+                    "$keyid" "$arch" "${nvra}.rpm" "${dest}/${nvra}.rpm"
+            fi
         fi
     done < /tmp/lock.adds
     if [ ${#mirror[@]} -gt 0 ]; then
