@@ -9,3 +9,6 @@ enable caustics-canvas.service
 enable topaz-idle.service
 enable topaz-background.service
 enable topaz-clipboard.service
+# Secret Service (ledger 0053): the base starts oo7-daemon only from
+# GNOME's session target and ships no D-Bus activation for it.
+enable oo7-daemon.service

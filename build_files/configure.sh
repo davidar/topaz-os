@@ -187,6 +187,24 @@ if grep -qE '^auth\s+.*system-auth' /usr/lib/pam.d/greetd; then
     exit 1
 fi
 
+### Secret Service in every session (ledger 0053)
+# The base starts oo7-daemon only from gnome-session-services.target and
+# ships no D-Bus activation file for org.freedesktop.secrets, so outside
+# GNOME nothing starts it: pam_oo7 hands the login password to a helper
+# that waits two minutes for a daemon and gives up, and no application
+# has a keyring. Enable the unit for every user (its own install target,
+# default.target). Guards: the unit still installs there, greetd's stack
+# still carries the PAM module that feeds it, and nothing has started
+# activating the name by itself (then this enable is redundant).
+grep -q '^WantedBy=default.target$' /usr/lib/systemd/user/oo7-daemon.service
+grep -qE '^-?session\s+optional\s+pam_oo7\.so\s+auto_start$' /usr/lib/pam.d/greetd
+if grep -rqs '^Name=org.freedesktop.secrets$' /usr/share/dbus-1/services/; then
+    echo "the base now D-Bus-activates org.freedesktop.secrets; revisit ledger 0053" >&2
+    exit 1
+fi
+systemctl --global enable oo7-daemon.service
+test -L /etc/systemd/user/default.target.wants/oo7-daemon.service
+
 ### Empty /var (ledger 0024)
 # The package layer already scrubbed its own debris; assert the tmpfiles.d
 # fragment that replaces the one functional /var item (greetd's

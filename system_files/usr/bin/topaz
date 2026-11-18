@@ -354,6 +354,12 @@ cmd_check() {
                  grep -q "^d /var/lib/greetd 0755 greetd greetd" /usr/lib/tmpfiles.d/topaz-greetd-home.conf &&
                  grep -qE "^auth\s+substack\s+password-auth$" /usr/lib/pam.d/greetd &&
                  ! grep -qE "^auth\s+.*system-auth" /usr/lib/pam.d/greetd'
+    chk "Secret Service starts in every session: oo7-daemon is enabled for all users (ledger 0053)" \
+        bash -c 'test -x /usr/libexec/oo7-daemon &&
+                 grep -q "^BusName=org.freedesktop.secrets$" /usr/lib/systemd/user/oo7-daemon.service &&
+                 test -L /etc/systemd/user/default.target.wants/oo7-daemon.service &&
+                 grep -q "^enable oo7-daemon.service$" /usr/lib/systemd/user-preset/45-topaz.preset &&
+                 grep -qE "^-?session\s+optional\s+pam_oo7\.so\s+auto_start$" /usr/lib/pam.d/greetd'
     chk "no unprivileged DDC/CI i2c access (COSMIC freeze mitigation)" \
         bash -c '! grep -h i2c /usr/lib/udev/rules.d/*.rules | grep -v "^#" | grep -q uaccess'
     chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \

@@ -56,6 +56,12 @@ check "niri.service active (niri's own session integration)" \
 check "session shell units active" \
     units_active caustics-bar.service caustics-canvas.service \
         topaz-idle.service topaz-background.service topaz-clipboard.service
+# The Secret Service runs in a session that is not GNOME's (ledger 0053):
+# nothing activates it on demand, so a missing enable shows up only as
+# apps with no keyring.
+check "Secret Service is up: oo7-daemon owns org.freedesktop.secrets (ledger 0053)" \
+    tssh 'systemctl --user is-active oo7-daemon.service &&
+          busctl --user status org.freedesktop.secrets > /dev/null'
 # The tools the canvas replaced are gone from the image (ledger 0050):
 # no other locker, polkit agent or wallpaper client is installed to run.
 check "no swaylock, cosmic-osd or swaybg in the image (ledger 0050)" \
