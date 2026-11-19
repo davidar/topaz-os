@@ -1,6 +1,6 @@
 # topaz-os development notes
 
-Custom bootc image: Bluefin DX (NVIDIA open) + COSMIC + hybrid-laptop fixes.
+Custom bootc image: Bluefin DX (NVIDIA open) + niri session + hybrid-laptop fixes.
 See README.md for what the image contains.
 
 ## Commands

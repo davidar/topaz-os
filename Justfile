@@ -143,6 +143,9 @@ chunk $target_image=image_name $tag=default_tag $outdir="chunked-oci":
         LABELS+=("--label" "org.opencontainers.image.documentation=https://raw.githubusercontent.com/{{ repo_organization }}/{{ image_name }}/${GIT_SHA}/README.md")
         LABELS+=("--label" "org.opencontainers.image.source=https://github.com/{{ repo_organization }}/{{ image_name }}/blob/${GIT_SHA}/Containerfile")
         LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/{{ image_name }}/tree/${GIT_SHA}")
+        # The base image carries its own revision label, which would
+        # otherwise pass through and name a commit of another repository.
+        LABELS+=("--label" "org.opencontainers.image.revision=$(git rev-parse HEAD)")
         LABELS+=("--label" "org.opencontainers.image.version={{ default_tag }}.${GIT_DATE}-${GIT_SHA}")
         LABELS+=("--label" "org.opencontainers.image.created=${GIT_STAMP}")
         # The same stamp again as a MANIFEST ANNOTATION: bootc derives the
