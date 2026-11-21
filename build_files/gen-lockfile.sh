@@ -104,6 +104,9 @@ podman run --rm "$base" bash -euo pipefail -c '
             bashmount
         # The display manager: tuigreet pulls greetd in.
         dnf5 -y install --setopt=install_weak_deps=False tuigreet
+        # The console font of the boot log and of the greeter: Terminus,
+        # whose 12x24 cut is the one the kernel arguments name.
+        dnf5 -y install --setopt=install_weak_deps=False terminus-fonts-console
         dnf5 -y copr enable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9

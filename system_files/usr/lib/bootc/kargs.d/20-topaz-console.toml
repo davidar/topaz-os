@@ -1,0 +1,5 @@
+# The boot log, as text: no splash, systemd's status lines, kernel
+# messages, in the Terminus 12x24 console font. Each argument also
+# overrides the `rhgb quiet` an installer may have left on the machine,
+# which this file cannot remove. The reasons are in `topaz check`.
+kargs = ["plymouth.enable=0", "systemd.show_status=true", "loglevel=7", "vconsole.font=ter-v24n"]

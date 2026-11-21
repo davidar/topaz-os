@@ -83,6 +83,17 @@ systemctl enable topaz-pull.timer
 # above, so a disk without preset application still gets its swap.
 systemctl enable var-swap-swapfile.swap
 
+### Boot log on the console
+# The kernel arguments in kargs.d/20-topaz-console.toml show the boot as
+# text. This unit lowers the kernel's console level again once the
+# greeter takes the screen. Preset plus enable, as above. Guards: the
+# base still boots behind Plymouth, whose units honour the argument that
+# turns it off, and the font the arguments name is installed.
+grep -q '^ConditionKernelCommandLine=!plymouth.enable=0$' \
+    /usr/lib/systemd/system/plymouth-start.service
+test -f /usr/lib/kbd/consolefonts/ter-v24n.psf.gz
+systemctl enable topaz-console-loglevel.service
+
 ### KDE Connect firewall ports
 # KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
 # recipe), but the container shares the

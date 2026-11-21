@@ -8,5 +8,8 @@ enable topaz-pull.timer
 disable gdm.service
 enable greetd.service
 
+# topaz-os: kernel messages on the console during boot and shutdown only
+enable topaz-console-loglevel.service
+
 # topaz-os: disk swapfile behind zswap
 enable var-swap-swapfile.swap

@@ -488,6 +488,50 @@ cmd_check() {
     # DMUB is fixed. Post-boot: grep amdgpu.dcdebugmask /proc/cmdline.
     chk "eDP Panel Self Refresh is disabled (DMUB wedge mitigation)" \
         grep -q 'amdgpu.dcdebugmask=0x10' /usr/lib/bootc/kargs.d/10-topaz-display.toml
+    # The boot is shown as text, not hidden behind a splash: Plymouth is
+    # off, systemd prints its status lines and the kernel its messages.
+    # An installer leaves `rhgb quiet` on the machine and an image cannot
+    # remove arguments it did not add, so each argument here overrides
+    # one of those (image arguments come later on the command line, and
+    # the later loglevel wins). Once the greeter is about to take the
+    # screen a unit lowers the kernel's console level to the one `quiet`
+    # gives, so nothing is written across the greeter or a text login,
+    # and raises it again for shutdown. Post-boot: the log is on screen,
+    # and the first field of /proc/sys/kernel/printk reads 3 at the
+    # greeter.
+    chk "the boot log is shown as text: no splash, systemd status and kernel messages" \
+        bash -c 'f=/usr/lib/bootc/kargs.d/20-topaz-console.toml &&
+                 grep -q "\"plymouth.enable=0\"" $f &&
+                 grep -q "\"systemd.show_status=true\"" $f &&
+                 grep -q "\"loglevel=7\"" $f &&
+                 grep -q "^ConditionKernelCommandLine=!plymouth.enable=0$" \
+                     /usr/lib/systemd/system/plymouth-start.service &&
+                 u=topaz-console-loglevel.service &&
+                 grep -qx "ExecStart=/usr/bin/dmesg --console-level crit" /usr/lib/systemd/system/$u &&
+                 grep -qx "ExecStop=/usr/bin/dmesg --console-level debug" /usr/lib/systemd/system/$u &&
+                 test -L /etc/systemd/system/multi-user.target.wants/$u'
+    # The console font is Terminus 12x24. The kernel builds in 8x16 only,
+    # a 360-column grid on a 2880-pixel panel, and the base configures no
+    # other, for the boot log, the greeter and every text console alike.
+    # It is named by a kernel argument, which systemd-vconsole-setup
+    # reads in the initramfs as in the booted system and which, unlike
+    # /etc/vconsole.conf, reaches machines whose copy of that file was
+    # written locally. For the first lines of the log to use it, the font
+    # file is appended to the base's initramfs as a second archive; the
+    # base's own bytes stay an untouched prefix (regenerating with dracut
+    # would also pull in what later base layers added). The initramfs is
+    # readable by root only, so an unprivileged run checks the rest.
+    chk "the console font is Terminus 12x24, from the first lines of the boot log" \
+        bash -c 'grep -q "\"vconsole.font=ter-v24n\"" /usr/lib/bootc/kargs.d/20-topaz-console.toml &&
+                 . /usr/share/topaz-os/initramfs-font &&
+                 [ "$font" = usr/lib/kbd/consolefonts/ter-v24n.psf.gz ] &&
+                 test -f "/$font" &&
+                 set -- /usr/lib/modules/*/initramfs.img && [ $# -eq 1 ] &&
+                 { [ ! -r "$1" ] || {
+                     set -o pipefail &&
+                     [ "$(head -c "$base_size" "$1" | sha256sum | cut -d" " -f1)" = "$base_sha256" ] &&
+                     [ "$(tail -c +$((base_size + 1)) "$1" | zstd -dc | cpio --list --quiet)" = "$font" ] &&
+                     tail -c +$((base_size + 1)) "$1" | zstd -dc | cpio --extract --to-stdout --quiet | cmp -s - "/$font"; }; }'
     # PAM runs pam_fprintd ahead of the password module, and its default
     # timeout is 30 s: half a minute before a password can be typed. A
     # custom authselect profile symlinks every file to the base `local`
