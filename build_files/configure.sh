@@ -94,6 +94,16 @@ grep -q '^ConditionKernelCommandLine=!plymouth.enable=0$' \
 test -f /usr/lib/kbd/consolefonts/ter-v24n.psf.gz
 systemctl enable topaz-console-loglevel.service
 
+### Firmware framebuffer for the early boot log
+# The base's NVIDIA arguments keep simpledrm from loading, which leaves
+# no console until the GPU driver is up. Drop that one argument (bootc
+# removes it from installed machines too); the reason is in `topaz
+# check`. Guard: the base's file still ends with it.
+grep -q ', "initcall_blacklist=simpledrm_platform_driver_init"\]$' \
+    /usr/lib/bootc/kargs.d/00-nvidia.toml
+sed -i 's/, "initcall_blacklist=simpledrm_platform_driver_init"\]$/]/' \
+    /usr/lib/bootc/kargs.d/00-nvidia.toml
+
 ### KDE Connect firewall ports
 # KDE Connect itself runs from a distrobox (topaz-home's kdeconnect
 # recipe), but the container shares the

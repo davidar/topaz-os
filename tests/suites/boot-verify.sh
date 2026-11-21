@@ -123,6 +123,8 @@ check "the console arguments are on the kernel command line" \
     tssh 'for a in plymouth.enable=0 systemd.show_status=true loglevel=7 vconsole.font=ter-v24n; do
               grep -qw -- "$a" /proc/cmdline || exit 1
           done'
+check "simpledrm is not turned off on the kernel command line" \
+    tssh '! grep -q simpledrm /proc/cmdline'
 check "systemd shows its status on the console" \
     tssh '[ "$(systemctl show -p ShowStatus --value)" = yes ]'
 check_not "no splash: plymouthd is not running" tssh pgrep -x plymouthd
