@@ -51,6 +51,49 @@ dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
 setcap 'cap_net_admin,cap_net_raw,cap_dac_read_search,cap_sys_ptrace+pe' \
     /usr/sbin/nethogs
 
+### Console font in the initramfs
+# The boot log is shown as text in Terminus 12x24, which the kernel
+# arguments name (kargs.d/20-topaz-console.toml) and the locked set above
+# installs. The base's initramfs carries the stock console fonts only, so
+# the font would not load before the root is mounted, and the first
+# seconds of the log would be drawn in the kernel's 8x16.
+#
+# The initramfs is not regenerated. dracut run here reads the whole of
+# the final image, and would add what the base's later layers bring but
+# its own initramfs does not have (three force-loaded vfio modules,
+# multipath and kpartx rules). The font file is appended as a second
+# archive instead, which the kernel unpacks after the first: the base's
+# initramfs stays a byte-identical prefix, and its size and digest are
+# recorded for `topaz check`. Guards: one kernel, the pieces that load a
+# console font are in the base's archive, and the font is not.
+font=usr/lib/kbd/consolefonts/ter-v24n.psf.gz
+test -f "/$font"
+kernels=(/usr/lib/modules/*/initramfs.img)
+[ "${#kernels[@]}" -eq 1 ]
+initramfs=${kernels[0]}
+lsinitrd "$initramfs" > /tmp/initramfs.list
+grep -q ' usr/lib/kbd/consolefonts$' /tmp/initramfs.list
+grep -q ' usr/bin/setfont$' /tmp/initramfs.list
+grep -q ' usr/lib/systemd/systemd-vconsole-setup$' /tmp/initramfs.list
+grep -q ' usr/lib/udev/rules.d/90-vconsole.rules$' /tmp/initramfs.list
+if grep -q " $font\$" /tmp/initramfs.list; then
+    echo "the base's initramfs now carries $font; the append is redundant" >&2
+    exit 1
+fi
+printf 'base_size=%s\nbase_sha256=%s\nfont=%s\n' \
+    "$(stat -c %s "$initramfs")" \
+    "$(sha256sum < "$initramfs" | cut -d' ' -f1)" \
+    "$font" > /usr/share/topaz-os/initramfs-font
+# A new file renamed into place, not an append: the base's file has a
+# second hard link in the image's ostree repository.
+cp "$initramfs" "$initramfs.new"
+(cd / && printf '%s\n' "$font" |
+    cpio --create --format=newc --reproducible --owner=0:0 --quiet) |
+    zstd -q >> "$initramfs.new"
+chmod 0600 "$initramfs.new"
+mv "$initramfs.new" "$initramfs"
+rm /tmp/initramfs.list
+
 ### Locked package set, epilogue
 verify_layer_delta /ctx/packages.lock /tmp/rpm-pre.list
 

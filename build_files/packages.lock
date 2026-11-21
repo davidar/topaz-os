@@ -41,6 +41,7 @@
 +qalculate-0:5.11.0-3.fc45.x86_64 libqalculate-5.11.0-3.fc45.src.rpm
 +slurp-0:1.5.0-7.fc45.x86_64 slurp-1.5.0-7.fc45.src.rpm
 +swayidle-0:1.9.1-1.fc45.x86_64 swayidle-1.9.1-1.fc45.src.rpm
++terminus-fonts-console-0:4.49.1-33.fc45.noarch terminus-fonts-4.49.1-33.fc45.src.rpm
 +tuigreet-0:0.9.1-8.fc45.x86_64 tuigreet-0.9.1-8.fc45.src.rpm
 +vali-0:0.1.1-2.fc45.x86_64 vali-0.1.1-2.fc45.src.rpm
 +wf-recorder-0:0.6.0-5.fc45.x86_64 wf-recorder-0.6.0-5.fc45.src.rpm

@@ -34,6 +34,8 @@ In broad strokes:
   forks it needed; the COSMIC apps stay as plain Fedora packages,
   nothing COSMIC runs in the session. GNOME remains the fallback session — pick at
   the login screen (greetd running tuigreet on the console).
+- **A boot log, not a splash** — systemd's status lines and the kernel's messages in
+  Terminus 12x24, from the initramfs on; the console goes quiet again at the greeter.
 - **Hybrid-laptop fixes** — keep the dGPU asleep (`GSK_RENDERER=gl`), avoid amdgpu
   PSR/DDC wedges that freeze the desktop, supergfxd for GPU mode switching, Goodix
   fingerprint support with fingerprint-friendly PAM and fingerprint unlock at the lock screen.

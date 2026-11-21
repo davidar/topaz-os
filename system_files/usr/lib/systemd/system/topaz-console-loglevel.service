@@ -1,0 +1,19 @@
+# topaz-os: kernel messages reach the console during boot and shutdown
+# only. The kernel arguments show all of them while the machine boots;
+# once the greeter is about to take the screen the level drops to the one
+# `quiet` gives (critical and worse), so nothing is written across the
+# greeter or a text login afterwards. Stopping the unit at shutdown
+# restores the boot level.
+
+[Unit]
+Description=Kernel messages on the console during boot and shutdown only
+Before=greetd.service getty.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/dmesg --console-level crit
+ExecStop=/usr/bin/dmesg --console-level debug
+
+[Install]
+WantedBy=multi-user.target

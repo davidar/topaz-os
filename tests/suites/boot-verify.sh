@@ -114,6 +114,29 @@ check "frontend serves FileChooser" \
 check "Settings portal answers color-scheme" \
     tssh 'busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.portal.Settings ReadOne ss org.freedesktop.appearance color-scheme'
 
+# The boot log: the image's kernel arguments are on the command line,
+# systemd prints its status, no splash ran, and the unit has lowered the
+# kernel's console level (3, what `quiet` gives) by the time a session is
+# up. The console font is read off a text console's grid: the display
+# mode in 12x24 cells.
+check "the console arguments are on the kernel command line" \
+    tssh 'for a in plymouth.enable=0 systemd.show_status=true loglevel=7 vconsole.font=ter-v24n; do
+              grep -qw -- "$a" /proc/cmdline || exit 1
+          done'
+check "systemd shows its status on the console" \
+    tssh '[ "$(systemctl show -p ShowStatus --value)" = yes ]'
+check_not "no splash: plymouthd is not running" tssh pgrep -x plymouthd
+check "the kernel's console level is lowered once the greeter is up" \
+    tssh 'systemctl is-active topaz-console-loglevel.service &&
+          [ "$(cut -f1 /proc/sys/kernel/printk)" = 3 ]'
+# shellcheck disable=SC2016  # expands in the guest shell, deliberately
+check "the text console's grid is the display mode in 12x24 cells" \
+    tssh 'for c in /sys/class/drm/card*-*; do
+              [ "$(cat "$c/status")" = connected ] && { mode=$(sed -n 1p "$c/modes"); break; }
+          done
+          [ -n "$mode" ] &&
+          [ "$(sudo stty -F /dev/tty2 size)" = "$((${mode#*x} / 24)) $((${mode%x*} / 12))" ]'
+
 # topaz check as root: every claim must hold in the booted test image
 # (its layer adds the autologin, sshd and sudo, deviating from nothing
 # the check asserts).
