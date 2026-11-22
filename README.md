@@ -43,6 +43,8 @@ In broad strokes:
   allocations in ~1s instead of thrashing; SysRq enabled as the manual escape hatch.
 - **Swap reaches the disk** — zswap compresses cold pages in RAM and drains the oldest
   to a swapfile the image creates on first boot; Fedora's RAM-only zram is retired.
+- **Dual boot** — Windows appears in the GRUB menu on a machine that has it, and
+  `topaz boot-order fix` puts this system first again after Windows reorders the firmware.
 - **Supply-chain hygiene** — the build installs exactly the NEVRAs in
   `build_files/packages.lock` (koji backfills builds the mirrors dropped), rebuilds are
   byte-reproducible, and images are signed with [cosign](https://github.com/sigstore/cosign).

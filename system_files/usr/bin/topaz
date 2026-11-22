@@ -511,6 +511,25 @@ cmd_check() {
                  grep -qx "ExecStart=/usr/bin/dmesg --console-level crit" /usr/lib/systemd/system/$u &&
                  grep -qx "ExecStop=/usr/bin/dmesg --console-level debug" /usr/lib/systemd/system/$u &&
                  test -L /etc/systemd/system/multi-user.target.wants/$u'
+    # Windows is in the GRUB menu on a machine that has it. bootupd's
+    # static grub.cfg is written once, at install, and never probes for
+    # other systems; it ends by reading custom.cfg beside it. A unit
+    # copies the image's custom.cfg there at boot: one entry that searches
+    # the EFI partitions for Windows' loader and is absent when there is
+    # none. A custom.cfg that is not the image's is left alone. Post-boot:
+    # /boot/grub2/custom.cfg equals the shipped file. (`topaz boot-order`
+    # is the companion: Windows can put itself first in the firmware's
+    # boot order when it starts.)
+    chk "GRUB menu additions ship, parse, and are installed at boot" \
+        bash -c 'f=/usr/share/topaz-os/grub-custom.cfg &&
+                 grub2-script-check $f &&
+                 grep -q "chainloader /EFI/Microsoft/Boot/bootmgfw.efi" $f &&
+                 grep -q "source \$prefix/custom\.cfg" \
+                     /usr/lib/bootupd/grub2-static/configs.d/41_custom.cfg &&
+                 test -x /usr/libexec/topaz/grub-entries &&
+                 u=topaz-grub-entries.service &&
+                 grep -qx "ExecStart=/usr/libexec/topaz/grub-entries" /usr/lib/systemd/system/$u &&
+                 test -L /etc/systemd/system/multi-user.target.wants/$u'
     # simpledrm, the kernel's driver for the framebuffer the firmware
     # leaves behind, is allowed to load. The base turns it off
     # (initcall_blacklist=simpledrm_platform_driver_init), a workaround

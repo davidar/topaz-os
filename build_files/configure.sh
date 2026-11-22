@@ -94,6 +94,15 @@ grep -q '^ConditionKernelCommandLine=!plymouth.enable=0$' \
 test -f /usr/lib/kbd/consolefonts/ter-v24n.psf.gz
 systemctl enable topaz-console-loglevel.service
 
+### Other operating systems in the GRUB menu
+# A unit copies the image's menu additions to /boot/grub2/custom.cfg at
+# boot. Preset plus enable, as above. Guards: bootupd's static grub.cfg
+# still ends by reading custom.cfg, and the file the unit copies parses.
+grep -q 'source \$prefix/custom\.cfg' \
+    /usr/lib/bootupd/grub2-static/configs.d/41_custom.cfg
+grub2-script-check /usr/share/topaz-os/grub-custom.cfg
+systemctl enable topaz-grub-entries.service
+
 ### Firmware framebuffer for the early boot log
 # The base's NVIDIA arguments keep simpledrm from loading, which leaves
 # no console until the GPU driver is up. Drop that one argument (bootc

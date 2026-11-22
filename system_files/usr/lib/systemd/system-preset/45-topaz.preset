@@ -11,5 +11,8 @@ enable greetd.service
 # topaz-os: kernel messages on the console during boot and shutdown only
 enable topaz-console-loglevel.service
 
+# topaz-os: other operating systems in the GRUB menu
+enable topaz-grub-entries.service
+
 # topaz-os: disk swapfile behind zswap
 enable var-swap-swapfile.swap

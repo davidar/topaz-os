@@ -1,0 +1,16 @@
+# topaz-os: other operating systems in the GRUB menu. The image's menu
+# additions (a Windows entry, present only on a machine that has Windows)
+# are copied to /boot/grub2/custom.cfg, which bootupd's static grub.cfg
+# reads. See /usr/libexec/topaz/grub-entries.
+
+[Unit]
+Description=Other operating systems in the GRUB menu
+RequiresMountsFor=/boot
+ConditionPathExists=/boot/grub2/grub.cfg
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/topaz/grub-entries
+
+[Install]
+WantedBy=multi-user.target

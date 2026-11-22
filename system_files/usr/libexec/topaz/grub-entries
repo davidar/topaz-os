@@ -1,0 +1,43 @@
+#!/bin/bash
+# Put the image's GRUB menu additions where GRUB reads them.
+# Run at boot by topaz-grub-entries.service. bootupd's static grub.cfg is
+# written once, at install, and ends by reading custom.cfg next to it;
+# that file is the only way an image update can add a menu entry on a
+# machine that is already installed. A custom.cfg that does not start with
+# this image's first line is someone's own and is left alone.
+#
+#   grub-entries [grub-dir [source]]    (the arguments are for testing)
+set -euo pipefail
+
+dir=${1:-/boot/grub2}
+src=${2:-/usr/share/topaz-os/grub-custom.cfg}
+dst=$dir/custom.cfg
+
+[ -f "$dir/grub.cfg" ] || {
+    echo "no $dir/grub.cfg; nothing to do"
+    exit 0
+}
+grep -q 'source \$prefix/custom\.cfg' "$dir/grub.cfg" || {
+    echo "$dir/grub.cfg does not read custom.cfg; nothing to do"
+    exit 0
+}
+
+if [ -e "$dst" ]; then
+    if cmp -s "$src" "$dst"; then
+        echo "$dst is current"
+        exit 0
+    fi
+    IFS= read -r ours < "$src"
+    IFS= read -r theirs < "$dst" || true
+    if [ "$theirs" != "$ours" ]; then
+        echo "$dst is not this image's file; left alone"
+        exit 0
+    fi
+fi
+
+# Only a complete file gets the final name, with grub.cfg's mode.
+cp "$src" "$dst.topaz-new"
+chmod --reference="$dir/grub.cfg" "$dst.topaz-new"
+mv "$dst.topaz-new" "$dst"
+sync -f "$dst"
+echo "wrote $dst"

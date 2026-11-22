@@ -139,6 +139,13 @@ check "the text console's grid is the display mode in 12x24 cells" \
           [ -n "$mode" ] &&
           [ "$(sudo stty -F /dev/tty2 size)" = "$((${mode#*x} / 24)) $((${mode%x*} / 12))" ]'
 
+# The GRUB menu additions: the unit ran without failing and the file GRUB
+# reads is the one the image ships. (The guest has no Windows, so the
+# entry itself does not appear; that it boots is seen on hardware.)
+check "the image's GRUB additions are installed in /boot/grub2" \
+    tssh '[ "$(systemctl show -p Result --value topaz-grub-entries.service)" = success ] &&
+          sudo cmp /usr/share/topaz-os/grub-custom.cfg /boot/grub2/custom.cfg'
+
 # topaz check as root: every claim must hold in the booted test image
 # (its layer adds the autologin, sshd and sudo, deviating from nothing
 # the check asserts).
