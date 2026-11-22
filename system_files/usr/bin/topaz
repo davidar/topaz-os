@@ -4,6 +4,7 @@
 #   topaz check          Verify every deliberate deviation from the base image holds
 #   topaz dev ...        Transient /usr overlay for locally built binaries
 #   topaz pull [image]   Fetch a big update in parallel and stage it for reboot
+#   topaz boot-order [fix]  Show the firmware's boot order; put this system first
 #
 # cmd_check is also the record of what this image changes and why: each
 # check asserts one deliberate deviation from the base image, and the
@@ -14,7 +15,7 @@ set -euo pipefail
 DEV_MANIFEST=/run/topaz-dev/manifest
 
 usage() {
-    sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -883,8 +884,84 @@ cmd_pull() {
     echo "deployments."
 }
 
+# --- boot-order: the firmware's boot order ----------------------------------
+# Another operating system on the same disk can put its own entry first in
+# the firmware's boot order when it starts (Windows writes a new "Windows
+# Boot Manager" entry at the front), after which the machine no longer
+# boots this one by default. `topaz boot-order` shows the order; `topaz
+# boot-order fix` moves the entry this boot came from back to the front and
+# leaves every other entry, and their order, as they were.
+
+boot_order_read() { # sets bo_current, bo_order, bo_listing
+    bo_listing=$(efibootmgr 2>/dev/null) || {
+        echo "efibootmgr cannot read the firmware's boot entries (not booted through UEFI?)"
+        exit 1
+    }
+    bo_current=$(sed -n 's/^BootCurrent: *//p' <<<"$bo_listing")
+    bo_order=$(sed -n 's/^BootOrder: *//p' <<<"$bo_listing")
+    [ -n "$bo_current" ] && [ -n "$bo_order" ] || {
+        echo "The firmware reports no BootCurrent or no BootOrder; nothing to compare."
+        exit 1
+    }
+}
+
+boot_order_label() { # boot_order_label <number>
+    sed -n "s/^Boot$1\*\{0,1\} *\([^\t]*\).*/\1/p" <<<"$bo_listing" | sed 's/ *$//'
+}
+
+cmd_boot_order() {
+    local bo_current bo_order bo_listing entry rest wanted
+    boot_order_read
+    case "${1:-status}" in
+    status)
+        echo "Booted from: $bo_current ($(boot_order_label "$bo_current"))"
+        echo "Boot order:"
+        for entry in ${bo_order//,/ }; do
+            echo "  $entry  $(boot_order_label "$entry")"
+        done
+        if [ "${bo_order%%,*}" = "$bo_current" ]; then
+            echo "The booted entry is first."
+        else
+            echo "The booted entry is NOT first: the firmware boots" \
+                 "'$(boot_order_label "${bo_order%%,*}")' by default."
+            echo "To put it back: pkexec topaz boot-order fix"
+            return 1
+        fi
+        ;;
+    fix)
+        if [ "${bo_order%%,*}" = "$bo_current" ]; then
+            echo "The booted entry ($bo_current) is already first; nothing changed."
+            return 0
+        fi
+        [ "$(id -u)" -eq 0 ] || {
+            echo "topaz boot-order fix needs root (try: pkexec topaz boot-order fix)"
+            exit 1
+        }
+        rest=""
+        for entry in ${bo_order//,/ }; do
+            [ "$entry" = "$bo_current" ] || rest="$rest,$entry"
+        done
+        wanted="$bo_current$rest"
+        echo "Boot order was: $bo_order"
+        efibootmgr --bootorder "$wanted" >/dev/null
+        # Read it back: the firmware, not efibootmgr's exit status, says
+        # whether the order was stored.
+        boot_order_read
+        if [ "$bo_order" = "$wanted" ]; then
+            echo "Boot order is:  $bo_order"
+            echo "'$(boot_order_label "$bo_current")' boots by default again."
+        else
+            echo "The firmware did not keep the new order (it reads $bo_order)."
+            exit 1
+        fi
+        ;;
+    *) usage 1 ;;
+    esac
+}
+
 case "${1:-}" in
     check)      cmd_check ;;
+    boot-order) shift; cmd_boot_order "$@" ;;
     dev)        shift; cmd_dev "$@" ;;
     pull)       shift; cmd_pull "$@" ;;
     -h|--help|"") usage ;;
