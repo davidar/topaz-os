@@ -34,6 +34,9 @@
 +newt-0:0.52.25-9.fc45.x86_64 newt-0.52.25-9.fc45.src.rpm
 +niri-0:26.04-2.fc45.x86_64 niri-26.04-2.fc45.src.rpm
 +nm-connection-editor-0:1.36.0-8.fc45.x86_64 network-manager-applet-1.36.0-8.fc45.src.rpm
++oo7-daemon-0:0.7.3-2.fc45.x86_64 oo7-0.7.3-2.fc45.src.rpm
++oo7-portal-0:0.7.3-2.fc45.x86_64 oo7-0.7.3-2.fc45.src.rpm
++pam_oo7-0:0.7.3-2.fc45.x86_64 oo7-0.7.3-2.fc45.src.rpm
 +playerctl-0:2.4.1-13.fc45.x86_64 playerctl-2.4.1-13.fc45.src.rpm
 +playerctl-libs-0:2.4.1-13.fc45.x86_64 playerctl-2.4.1-13.fc45.src.rpm
 +pop-icon-theme-0:3.5.0-6.fc45.noarch pop-icon-theme-3.5.0-6.fc45.src.rpm
@@ -50,3 +53,6 @@
 +wlsunset-0:0.4.0-6.fc45.x86_64 wlsunset-0.4.0-6.fc45.src.rpm
 +xwayland-satellite-0:0.8.3-1.fc45.x86_64 xwayland-satellite-0.8.3-1.fc45.src.rpm
 -libfprint-0:1.94.100-1.fc45.x86_64 libfprint-1.94.100-1.fc45.src.rpm
+-oo7-daemon-0:0.7.0~beta^1.e91b98a-1.fc45.x86_64 oo7-0.7.0~beta^1.e91b98a-1.fc45.src.rpm
+-oo7-portal-0:0.7.0~beta^1.e91b98a-1.fc45.x86_64 oo7-0.7.0~beta^1.e91b98a-1.fc45.src.rpm
+-pam_oo7-0:0.7.0~beta^1.e91b98a-1.fc45.x86_64 oo7-0.7.0~beta^1.e91b98a-1.fc45.src.rpm

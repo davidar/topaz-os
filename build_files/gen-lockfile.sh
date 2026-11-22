@@ -111,6 +111,28 @@ podman run --rm "$base" bash -euo pipefail -c '
         dnf5 -y swap --setopt=install_weak_deps=False libfprint libfprint-tod-goodix
         dnf5 -y copr disable antiderivative/libfprint-tod-goodix-0.0.9
         dnf5 -y install --setopt=install_weak_deps=False nethogs
+        # oo7, the keyring: a release that writes changes to disk. Fedora
+        # 45 switched from GNOME Keyring to a snapshot of oo7 cut before
+        # 0.7.0, in which setting an existing item (its secret, label or
+        # attributes) only changed the daemon memory, so the old value
+        # came back at the next restart. 0.7.0 fixed it. While the base
+        # still has the snapshot the fixed build is taken from the
+        # stable repositories if it is there, else from updates-testing;
+        # once the base carries it this does nothing.
+        oo7_writes_changes() {
+            local v
+            v=$(rpm -q --qf "%{VERSION}" oo7-daemon)
+            [ "$(rpm --eval "%{lua:print(rpm.vercmp(\"$v\", \"0.7.0\"))}")" != -1 ]
+        }
+        if ! oo7_writes_changes; then
+            dnf5 -y upgrade --setopt=install_weak_deps=False \
+                oo7-daemon oo7-portal pam_oo7
+        fi
+        if ! oo7_writes_changes; then
+            dnf5 -y upgrade --setopt=install_weak_deps=False \
+                --enablerepo=updates-testing oo7-daemon oo7-portal pam_oo7
+        fi
+        oo7_writes_changes
         # A package the transaction needs but the image must not ship
         # would be removed here (rpm -e --nodeps) after this census, and
         # the lock then records it as a transient (~) so the install can

@@ -464,6 +464,17 @@ cmd_check() {
                  test -L /etc/systemd/user/default.target.wants/oo7-daemon.service &&
                  grep -q "^enable oo7-daemon.service$" /usr/lib/systemd/user-preset/45-topaz.preset &&
                  grep -qE "^-?session\s+optional\s+pam_oo7\.so\s+auto_start$" /usr/lib/pam.d/greetd'
+    # The keyring keeps what is saved to it. Fedora 45's oo7 is a snapshot
+    # cut before 0.7.0, in which setting an existing item (its secret,
+    # label or attributes) only changed the daemon's memory: the old
+    # value came back at the next restart, so a refreshed token was lost
+    # at every reboot. 0.7.0 writes the change to the keyring file; the
+    # locked package set takes that release ahead of the base.
+    chk "the keyring writes changed secrets to disk: oo7 is 0.7.0 or later" \
+        bash -c 'for p in oo7-daemon oo7-portal pam_oo7; do
+                     v=$(rpm -q --qf "%{VERSION}" $p) || exit 1
+                     [ "$(rpm --eval "%{lua:print(rpm.vercmp(\"$v\", \"0.7.0\"))}")" != -1 ] || exit 1
+                 done'
     # oo7-daemon asks to lock its memory and is refused (the user manager's
     # 8 MiB RLIMIT_MEMLOCK), and this image swaps to a file on disk, so an
     # unlocked keyring could be written there in the clear. A drop-in
