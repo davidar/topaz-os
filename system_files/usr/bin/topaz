@@ -527,7 +527,9 @@ cmd_check() {
     # other systems; it ends by reading custom.cfg beside it. A unit
     # copies the image's custom.cfg there at boot: one entry that searches
     # the EFI partitions for Windows' loader and is absent when there is
-    # none. A custom.cfg that is not the image's is left alone. Post-boot:
+    # none. A custom.cfg that is not the image's is left alone. /boot is
+    # read-only on a disk bootc installed, so the unit remounts it for
+    # that one write inside a mount namespace of its own. Post-boot:
     # /boot/grub2/custom.cfg equals the shipped file. (`topaz boot-order`
     # is the companion: Windows can put itself first in the firmware's
     # boot order when it starts.)
@@ -540,6 +542,7 @@ cmd_check() {
                  test -x /usr/libexec/topaz/grub-entries &&
                  u=topaz-grub-entries.service &&
                  grep -qx "ExecStart=/usr/libexec/topaz/grub-entries" /usr/lib/systemd/system/$u &&
+                 grep -qx "PrivateMounts=yes" /usr/lib/systemd/system/$u &&
                  test -L /etc/systemd/system/multi-user.target.wants/$u'
     # simpledrm, the kernel's driver for the framebuffer the firmware
     # leaves behind, is allowed to load. The base turns it off

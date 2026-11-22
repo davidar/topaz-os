@@ -10,6 +10,9 @@ ConditionPathExists=/boot/grub2/grub.cfg
 
 [Service]
 Type=oneshot
+# /boot may be mounted read-only; the script remounts it read-write for
+# its one write, inside this unit's own mount namespace.
+PrivateMounts=yes
 ExecStart=/usr/libexec/topaz/grub-entries
 
 [Install]

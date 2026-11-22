@@ -35,6 +35,14 @@ if [ -e "$dst" ]; then
     fi
 fi
 
+# A disk installed by bootc mounts /boot read-only (ostree and bootupd
+# remount it for their own writes); one installed by Anaconda mounts it
+# read-write. The unit gives this script a mount namespace of its own, so
+# the remount here is not seen by the rest of the system.
+if ! [ -w "$dir" ]; then
+    mount -o remount,rw "$(findmnt -n -o TARGET --target "$dir")"
+fi
+
 # Only a complete file gets the final name, with grub.cfg's mode.
 cp "$src" "$dst.topaz-new"
 chmod --reference="$dir/grub.cfg" "$dst.topaz-new"
