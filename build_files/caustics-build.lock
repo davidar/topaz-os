@@ -18,11 +18,11 @@
 +libssh2-0:1.11.1-10.fc45.x86_64 libssh2-1.11.1-10.fc45.src.rpm
 +libxcrypt-devel-0:4.5.2-4.fc45.x86_64 libxcrypt-4.5.2-4.fc45.src.rpm
 +llhttp-0:9.4.4-1.fc45.x86_64 llhttp-9.4.4-1.fc45.src.rpm
-+llvm-filesystem-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
-+llvm-libs-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
++llvm-filesystem-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
++llvm-libs-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
 +make-1:4.4.1-13.fc45.x86_64 make-4.4.1-13.fc45.src.rpm
-+openssh-0:10.5p1-1.fc45.x86_64 openssh-10.5p1-1.fc45.src.rpm
-+openssh-clients-0:10.5p1-1.fc45.x86_64 openssh-10.5p1-1.fc45.src.rpm
++openssh-0:10.6p1-1.fc45.x86_64 openssh-10.6p1-1.fc45.src.rpm
++openssh-clients-0:10.6p1-1.fc45.x86_64 openssh-10.6p1-1.fc45.src.rpm
 +pkgconf-0:2.5.1-2.fc45.x86_64 pkgconf-2.5.1-2.fc45.src.rpm
 +pkgconf-m4-0:2.5.1-2.fc45.noarch pkgconf-2.5.1-2.fc45.src.rpm
 +pkgconf-pkg-config-0:2.5.1-2.fc45.x86_64 pkgconf-2.5.1-2.fc45.src.rpm

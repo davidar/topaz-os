@@ -20,9 +20,9 @@
 +cairo-gobject-devel-0:1.18.6-1.fc45.x86_64 cairo-1.18.6-1.fc45.src.rpm
 +cargo-0:1.100.0-1.fc45.x86_64 rust-1.100.0-1.fc45.src.rpm
 +cdparanoia-libs-0:10.2-51.fc45.x86_64 cdparanoia-10.2-51.fc45.src.rpm
-+clang-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
-+clang-libs-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
-+clang-resource-filesystem-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
++clang-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
++clang-libs-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
++clang-resource-filesystem-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
 +cmake-filesystem-0:4.3.0-7.fc45.x86_64 cmake-4.3.0-7.fc45.src.rpm
 +colord-libs-0:1.4.8-5.fc45.x86_64 colord-1.4.8-5.fc45.src.rpm
 +cpp-0:16.2.1-3.fc45.x86_64 gcc-16.2.1-3.fc45.src.rpm
@@ -81,8 +81,8 @@
 +gstreamer1-plugins-bad-free-libs-0:1.28.9-1.fc45.x86_64 gstreamer1-plugins-bad-free-1.28.9-1.fc45.src.rpm
 +gstreamer1-plugins-base-0:1.28.9-1.fc45.x86_64 gstreamer1-plugins-base-1.28.9-1.fc45.src.rpm
 +gtk-update-icon-cache-0:3.24.52-6.fc45.x86_64 gtk3-3.24.52-6.fc45.src.rpm
-+gtk4-0:4.24.1-1.fc45.x86_64 gtk4-4.24.1-1.fc45.src.rpm
-+gtk4-devel-0:4.24.1-1.fc45.x86_64 gtk4-4.24.1-1.fc45.src.rpm
++gtk4-0:4.24.2-1.fc45.x86_64 gtk4-4.24.2-1.fc45.src.rpm
++gtk4-devel-0:4.24.2-1.fc45.x86_64 gtk4-4.24.2-1.fc45.src.rpm
 +gupnp-0:1.6.10-4.fc45.x86_64 gupnp-1.6.10-4.fc45.src.rpm
 +gupnp-igd-0:1.6.0-15.fc45.x86_64 gupnp-igd-1.6.0-15.fc45.src.rpm
 +harfbuzz-0:15.0.0-2.fc45.x86_64 harfbuzz-15.0.0-2.fc45.src.rpm
@@ -132,7 +132,7 @@
 +libblkid-devel-0:2.42.4-1.fc45.x86_64 util-linux-2.42.4-1.fc45.src.rpm
 +libdatrie-0:0.2.14-3.fc45.x86_64 libdatrie-0.2.14-3.fc45.src.rpm
 +libdatrie-devel-0:0.2.14-3.fc45.x86_64 libdatrie-0.2.14-3.fc45.src.rpm
-+libdav1d-0:1.5.4-1.fc45.x86_64 dav1d-1.5.4-1.fc45.src.rpm
++libdav1d-0:1.5.5-1.fc45.x86_64 dav1d-1.5.5-1.fc45.src.rpm
 +libdisplay-info-0:0.3.0-2.fc45.x86_64 libdisplay-info-0.3.0-2.fc45.src.rpm
 +libdisplay-info-devel-0:0.3.0-2.fc45.x86_64 libdisplay-info-0.3.0-2.fc45.src.rpm
 +libdrm-0:2.4.134-2.fc45.x86_64 libdrm-2.4.134-2.fc45.src.rpm
@@ -153,7 +153,7 @@
 +libinput-0:1.32.0-1.fc45.x86_64 libinput-1.32.0-1.fc45.src.rpm
 +libinput-devel-0:1.32.0-1.fc45.x86_64 libinput-1.32.0-1.fc45.src.rpm
 +libjpeg-turbo-0:3.1.4.1-2.fc45.x86_64 libjpeg-turbo-3.1.4.1-2.fc45.src.rpm
-+libjxl-1:0.11.2-2.fc45.x86_64 jpegxl-0.11.2-2.fc45.src.rpm
++libjxl-1:0.11.2-3.fc45.x86_64 jpegxl-0.11.2-3.fc45.src.rpm
 +liblc3-0:1.1.3-9.fc45.x86_64 liblc3-1.1.3-9.fc45.src.rpm
 +libldac-0:2.0.2.6-1.fc45.x86_64 libldac-2.0.2.6-1.fc45.src.rpm
 +liblerc-0:4.3.0-1.fc45.x86_64 liblerc-4.3.0-1.fc45.src.rpm
@@ -207,8 +207,8 @@
 +libxml2-devel-0:2.15.4-1.fc45.x86_64 libxml2-2.15.4-1.fc45.src.rpm
 +libxshmfence-0:1.3.2-9.fc45.x86_64 libxshmfence-1.3.2-9.fc45.src.rpm
 +llhttp-0:9.4.4-1.fc45.x86_64 llhttp-9.4.4-1.fc45.src.rpm
-+llvm-filesystem-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
-+llvm-libs-0:23.1.5-2.fc45.x86_64 llvm-23.1.5-2.fc45.src.rpm
++llvm-filesystem-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
++llvm-libs-0:23.1.6-1.fc45.x86_64 llvm-23.1.6-1.fc45.src.rpm
 +lm_sensors-libs-0:3.6.0-25.fc45.x86_64 lm_sensors-3.6.0-25.fc45.src.rpm
 +lzo-0:2.10-17.fc45.x86_64 lzo-2.10-17.fc45.src.rpm
 +lzo-devel-0:2.10-17.fc45.x86_64 lzo-2.10-17.fc45.src.rpm
@@ -227,8 +227,8 @@
 +ncurses-0:6.6-3.fc45.x86_64 ncurses-6.6-3.fc45.src.rpm
 +openh264-0:2.6.0-3.fc45.x86_64 openh264-2.6.0-3.fc45.src.rpm
 +openjpeg-0:2.5.4-5.fc45.x86_64 openjpeg-2.5.4-5.fc45.src.rpm
-+openssh-0:10.5p1-1.fc45.x86_64 openssh-10.5p1-1.fc45.src.rpm
-+openssh-clients-0:10.5p1-1.fc45.x86_64 openssh-10.5p1-1.fc45.src.rpm
++openssh-0:10.6p1-1.fc45.x86_64 openssh-10.6p1-1.fc45.src.rpm
++openssh-clients-0:10.6p1-1.fc45.x86_64 openssh-10.6p1-1.fc45.src.rpm
 +opus-0:1.6-3.fc45.x86_64 opus-1.6-3.fc45.src.rpm
 +orc-0:0.4.41-4.fc45.x86_64 orc-0.4.41-4.fc45.src.rpm
 +pango-0:1.58.2-1.fc45.x86_64 pango-1.58.2-1.fc45.src.rpm
@@ -290,7 +290,7 @@
 +perl-constant-0:1.33-528.fc45.noarch perl-constant-1.33-528.fc45.src.rpm
 +perl-if-0:0.61.000-527.fc45.noarch perl-5.44.0-527.fc45.src.rpm
 +perl-interpreter-4:5.44.0-527.fc45.x86_64 perl-5.44.0-527.fc45.src.rpm
-+perl-libnet-0:3.16-1.fc45.noarch perl-libnet-3.16-1.fc45.src.rpm
++perl-libnet-0:3.17-1.fc45.noarch perl-libnet-3.17-1.fc45.src.rpm
 +perl-libs-4:5.44.0-527.fc45.x86_64 perl-5.44.0-527.fc45.src.rpm
 +perl-locale-0:1.13-527.fc45.noarch perl-5.44.0-527.fc45.src.rpm
 +perl-mro-0:1.30-527.fc45.x86_64 perl-5.44.0-527.fc45.src.rpm
@@ -301,8 +301,8 @@
 +perl-threads-1:2.45-527.fc45.x86_64 perl-threads-2.45-527.fc45.src.rpm
 +perl-threads-shared-0:1.73-527.fc45.x86_64 perl-threads-shared-1.73-527.fc45.src.rpm
 +perl-vars-0:1.05-527.fc45.noarch perl-5.44.0-527.fc45.src.rpm
-+pipewire-devel-0:1.6.11-1.fc45.x86_64 pipewire-1.6.11-1.fc45.src.rpm
-+pipewire-libs-0:1.6.11-1.fc45.x86_64 pipewire-1.6.11-1.fc45.src.rpm
++pipewire-devel-0:1.6.12-1.fc45.x86_64 pipewire-1.6.12-1.fc45.src.rpm
++pipewire-libs-0:1.6.12-1.fc45.x86_64 pipewire-1.6.12-1.fc45.src.rpm
 +pixman-0:0.46.2-4.fc45.x86_64 pixman-0.46.2-4.fc45.src.rpm
 +pixman-devel-0:0.46.2-4.fc45.x86_64 pixman-0.46.2-4.fc45.src.rpm
 +pkgconf-0:2.5.1-2.fc45.x86_64 pkgconf-2.5.1-2.fc45.src.rpm
